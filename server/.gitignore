@@ -1,0 +1,5 @@
+.env
+data/
+dev/emulator-data.json
+dev/LOCAL-TEST-LOGIN.txt
+dev/outbox/

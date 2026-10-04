@@ -1,0 +1,10 @@
+{
+  "name": "DMD World",
+  "short_name": "DMD World",
+  "description": "Consoles, games, controllers and gaming gear in Lebanon.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#0d1119",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "dmd-world-admin-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Owner back office API for DMD World (talks to WooCommerce). No dependencies.",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "emulator": "node dev/woo-emulator.mjs",
+    "setup": "node tools/setup.mjs",
+    "build:admin": "node ../node_modules/vite/bin/vite.js build --config ../admin/vite.config.js",
+    "test": "node --test --test-reporter=spec --test-timeout=120000 test/unit.test.mjs test/api.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

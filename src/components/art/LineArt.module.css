@@ -1,0 +1,66 @@
+.root { overflow: visible; }
+
+.hills { fill: #2f6bff; opacity: 0.9; }
+.scan { fill: #fff; opacity: 0.12; animation: scan 3.2s linear infinite; }
+.led { fill: var(--led, #3ccf6e); animation: blink 1.4s steps(1) infinite; }
+.key { fill: #3b6dff; animation: rgb 4.8s linear infinite; }
+.waves path { fill: none; stroke: #2f6bff; stroke-width: 2; stroke-linecap: round; opacity: 0; animation: wave 1.2s ease-out infinite; }
+.waves path + path { animation-delay: 0.25s; }
+.rgbLine { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; animation: rgbS 6s linear infinite; }
+.glow { fill: #2f6bff; opacity: 0.18; animation: breathe 3s ease-in-out infinite; }
+.wheel { stroke: #fff; stroke-width: 1.2; stroke-dasharray: 2 4; animation: roll 0.8s linear infinite; }
+.swivel { transform-box: fill-box; transform-origin: center; animation: swivel 5s ease-in-out infinite; }
+.stripe { fill: none; stroke: #2f6bff; stroke-width: 2.2; stroke-linecap: round; }
+.sketch { fill: none; stroke: #ff6b57; stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: 1; animation: sketch 3s ease-in-out infinite; }
+.pen { transform-box: view-box; transform-origin: 150px 60px; animation: pen 3s ease-in-out infinite; }
+.penBody { fill: none; stroke: var(--line-ink, #0b1220); stroke-width: 6; stroke-linecap: round; }
+.cable { fill: none; stroke: #2f6bff; stroke-width: 2.4; stroke-linecap: round; }
+.level { fill: var(--paper, #fff); stroke: var(--line-ink, #0b1220); stroke-width: 1.3; animation: level 2.4s steps(1) infinite; }
+.float { transform-box: fill-box; transform-origin: center; animation: float 4.6s ease-in-out infinite; }
+.dpad { fill: none; stroke: var(--line-ink, #0b1220); stroke-width: 5; stroke-linecap: round; }
+.face { fill: var(--paper, #fff); stroke: var(--line-ink, #0b1220); stroke-width: 1.4; animation: press 2.4s infinite; }
+.tilt { transform-box: fill-box; transform-origin: 0% 100%; animation: tilt 3.6s ease-in-out infinite; }
+.hop { animation: hop 2.8s ease-in-out infinite; }
+.peek { animation: peek 3s ease-in-out infinite; }
+.stitch { fill: none; stroke: var(--line-ink, #0b1220); stroke-width: 1.2; stroke-dasharray: 3 4; opacity: 0.5; }
+.px { fill: #ff6b57; }
+.print { animation: print 3.6s cubic-bezier(.5, 0, .3, 1) infinite; }
+.total { fill: none; stroke: #ff6b57; stroke-width: 3; stroke-linecap: round; }
+.sparkle path { fill: #ffc23d; stroke: var(--line-ink, #0b1220); stroke-width: 1.2; transform-box: fill-box; transform-origin: center; animation: twinkle 2.8s ease-in-out infinite; }
+.sparkle path:nth-child(2) { animation-delay: 0.5s; }
+.sparkle path:nth-child(3) { animation-delay: 1s; }
+.shine { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+.left { animation: nudgeL 2.4s ease-in-out infinite; }
+.right { animation: nudgeR 2.4s ease-in-out infinite; }
+.vsBadge { transform-box: fill-box; transform-origin: center; animation: thump 2.4s ease-in-out infinite; }
+.vsText { font: 800 15px var(--font-display); fill: #fff; letter-spacing: -0.02em; }
+.swing { transform-box: view-box; transform-origin: 76px 80px; animation: swing 3.2s ease-in-out infinite; }
+.pct { font: 800 40px var(--font-display); fill: #fff; }
+.beat { transform-box: fill-box; transform-origin: center; animation: beat 1.6s ease-in-out infinite; }
+.pxBig { fill: #ff6b57; stroke: var(--paper, #fff); stroke-width: 0.6; }
+
+:global([data-paused]) .root * { animation-play-state: paused !important; }
+
+@keyframes scan { from { transform: translateY(0); } to { transform: translateY(72px); } }
+@keyframes blink { 50% { opacity: 0.2; } }
+@keyframes rgb { 0%, 100% { fill: #3b6dff; } 25% { fill: #38d6f5; } 50% { fill: #a78bfa; } 75% { fill: #ff7a8a; } }
+@keyframes rgbS { 0%, 100% { stroke: #3b6dff; } 25% { stroke: #38d6f5; } 50% { stroke: #a78bfa; } 75% { stroke: #ff7a8a; } }
+@keyframes wave { 0% { opacity: 0; transform: translateX(-3px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(4px); } }
+@keyframes breathe { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.32; } }
+@keyframes roll { to { stroke-dashoffset: -12; } }
+@keyframes swivel { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.93); } }
+@keyframes sketch { 0% { stroke-dashoffset: 1; } 55%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -1; } }
+@keyframes pen { 0%, 100% { transform: translate(-96px, 32px); } 55%, 80% { transform: translate(0, 0); } }
+@keyframes level { 0% { fill: var(--paper, #fff); } 25%, 100% { fill: #3ccf6e; } }
+@keyframes float { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-6px) rotate(-1.5deg); } }
+@keyframes press { 0%, 8% { fill: #2f6bff; } 18%, 100% { fill: var(--paper, #fff); } }
+@keyframes tilt { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-9deg); } 85% { transform: rotate(-4deg); } }
+@keyframes hop { 0%, 70%, 100% { transform: translateY(0); } 78% { transform: translateY(-8px); } 86% { transform: translateY(0); } 92% { transform: translateY(-3px); } }
+@keyframes peek { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(-4px); } }
+@keyframes print { 0% { transform: translateY(72px); } 55%, 85% { transform: translateY(0); } 100% { transform: translateY(72px); } }
+@keyframes twinkle { 0%, 55%, 100% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.1); opacity: 1; } 85% { transform: scale(0.9); opacity: 1; } }
+@keyframes nudgeL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+@keyframes nudgeR { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
+@keyframes thump { 0%, 40%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } 60% { transform: scale(1); } }
+@keyframes swing { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@keyframes beat { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.1); } 24% { transform: scale(1); } 36% { transform: scale(1.06); } 48% { transform: scale(1); } }

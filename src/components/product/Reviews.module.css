@@ -1,0 +1,30 @@
+.side { display: grid; gap: 16px; align-self: start; }
+.prompt { display: grid; gap: 10px; justify-items: start; padding: 20px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line-soft); }
+.prompt b { font: 700 16px var(--font-display); }
+.prompt p { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.55; }
+.prompt :global(.btn) { margin-top: 4px; }
+.mineTitle { font-size: 15px; }
+.state { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 7px; font: 600 10.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.state::before { content: ''; width: 6px; height: 6px; border-radius: 2px; background: currentColor; }
+.pending { background: rgba(201, 138, 18, .12); color: var(--warn); }
+.published { background: rgba(31, 164, 90, .12); color: var(--ok); }
+.hidden { background: var(--surface-2); color: var(--muted); }
+
+.form { display: grid; gap: 14px; padding: 20px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line-soft); scroll-margin-top: calc(var(--header-h) + 24px); }
+.form h3 { margin: 0; font-size: 18px; }
+.text { width: 100%; height: auto; min-height: 120px; padding: 12px 14px; line-height: 1.55; resize: vertical; }
+.help { color: var(--muted); font-size: 12.5px; }
+.err { margin: 0; color: var(--deal); font-size: 13.5px; }
+
+.stars { display: flex; align-items: center; gap: 2px; }
+.stars label { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; transition: transform .12s var(--ease); }
+.stars label:hover { transform: scale(1.08); }
+.stars svg { fill: var(--surface-3); stroke: #c3cddd; stroke-width: 1.2; transition: fill .12s, stroke .12s; }
+.stars label.lit svg { fill: var(--amber); stroke: #d99a00; }
+.stars label:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.word { margin-left: 10px; font: 600 12px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.verified { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; font: 600 10.5px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ok); }
+.verified::before { content: '✓'; display: grid; place-items: center; width: 15px; height: 15px; border-radius: 5px; background: var(--ok); color: #fff; font-size: 9.5px; }
+
+@media (prefers-reduced-motion: reduce) { .stars label, .stars svg { transition: none; } }

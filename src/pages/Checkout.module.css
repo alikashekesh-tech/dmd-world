@@ -1,0 +1,57 @@
+.levels { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 26px; }
+.levels li { display: inline-flex; align-items: center; gap: 10px; font: 500 12px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: #6f7f9f; }
+.levels li + li::before { content: ''; width: clamp(18px, 4vw, 44px); height: 2px; margin-right: 0; background: repeating-linear-gradient(90deg, rgba(159, 178, 214, .35) 0 4px, transparent 4px 7px); }
+.levels span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(159, 178, 214, .3); font-weight: 700; letter-spacing: 0; }
+.levels .done { color: #a7b4cf; }
+.levels .done span { background: var(--led); border-color: var(--led); color: #04210f; }
+.levels .now { color: #fff; }
+.levels .now span { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 16px rgba(47, 107, 255, .6); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 36px; align-items: start; margin-top: 32px; padding-bottom: 80px; }
+.steps { display: grid; gap: 16px; }
+.card { padding: clamp(18px, 3vw, 28px); border-radius: var(--radius-xl); background: var(--surface); border: 1px solid var(--line-soft); animation: rise .5s both var(--ease); }
+.card:nth-child(2) { animation-delay: .06s; }
+.card:nth-child(3) { animation-delay: .12s; }
+.card:nth-child(4) { animation-delay: .18s; }
+.card h2 { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; font-size: 20px; }
+.card h2 b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--text); color: #fff; font: 700 12px var(--font-mono); }
+.card:focus-within h2 b { background: var(--accent); box-shadow: 0 0 14px rgba(47, 107, 255, .45); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.wide { grid-column: 1 / -1; }
+.err { color: var(--deal); font-size: 12.5px; }
+.hint { margin: 0; color: var(--muted); font-size: 13.5px; }
+.a { color: var(--accent); font-weight: 600; }
+.demo { display: flex; align-items: center; gap: 8px; margin: -6px 0 18px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font: 500 11.5px var(--font-mono); color: var(--text-2); }
+.methods { display: grid; gap: 10px; }
+.method { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 14px; padding: 16px; border-radius: 14px; border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s; }
+.method:hover { border-color: #b9c4d8; }
+.method.on { border-color: var(--accent); background: var(--accent-soft); }
+.method input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.method b { display: block; font-size: 15px; }
+.method small { color: var(--muted); font-size: 13px; }
+.method em { font: 700 12px var(--font-mono); font-style: normal; letter-spacing: .08em; text-transform: uppercase; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+
+/* real checkout: optional labels, account address checkbox, order message, server problems */
+.opt { margin-left: 4px; font-size: 10px; letter-spacing: .08em; color: var(--muted); text-transform: none; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.noteField { margin-top: 18px; }
+.note { width: 100%; height: auto; min-height: 92px; padding: 12px 14px; line-height: 1.5; resize: vertical; }
+.problem { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: rgba(240, 83, 63, .08); border: 1px solid rgba(240, 83, 63, .3); color: var(--deal); font-size: 14px; }
+
+/* live problems and discount codes inside the dark receipt */
+.stale { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: rgba(240, 83, 63, .12); border: 1px solid rgba(240, 83, 63, .35); font-size: 13px; color: #ffb3a8; }
+.stale li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.stale .link { color: #fff; font-size: 11px; }
+.coupon { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0 0 14px; }
+.coupon .input { height: 42px; background: rgba(255, 255, 255, .06); border-color: rgba(159, 178, 214, .3); color: #fff; text-transform: uppercase; font: 600 13px var(--font-mono); letter-spacing: .08em; }
+.coupon .input::placeholder { color: #8191b0; text-transform: none; font-family: var(--font-body); letter-spacing: 0; font-weight: 400; }
+.coupon :global(.btn--secondary) { height: 42px; color: #fff; border-color: rgba(159, 178, 214, .4); }
+.coupon :global(.btn--secondary):hover { background: rgba(255, 255, 255, .08); border-color: #fff; }
+.couponErr { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: #ff9b8e; }
+.couponOn { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: rgba(60, 207, 110, .12); border: 1px solid rgba(60, 207, 110, .35); color: #b9f5cf; font-size: 13px; }
+.couponOn b { font-family: var(--font-mono); letter-spacing: .08em; }
+.couponOn button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; color: #b9f5cf; }
+.couponOn button:hover { background: rgba(255, 255, 255, .1); }

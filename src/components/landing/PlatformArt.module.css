@@ -1,0 +1,68 @@
+.art { --line: #9fb2d6; --surface: #0c1424; display: block; width: 100%; height: auto; overflow: visible; }
+
+.d, .dn {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: draw 1.1s cubic-bezier(.6, .1, .2, 1) var(--d, 0s) both;
+}
+.dn { fill: none; }
+.light { fill: #18233c; }
+.dark { fill: #070b14; }
+.faint { stroke: rgba(159, 178, 214, 0.32); }
+
+.shadow { fill: var(--acc); opacity: 0.16; filter: blur(10px); }
+.glowLine { fill: none; stroke: var(--acc); stroke-width: 2; stroke-linecap: round; animation: on 0.6s 0.9s both, breathe 3s 1.6s ease-in-out infinite; }
+.float { transform-box: fill-box; transform-origin: center; animation: float 4.6s ease-in-out infinite; }
+.face { fill: var(--surface); stroke: var(--line); stroke-width: 1.3; animation: press 2.4s infinite; }
+.home { fill: var(--acc); animation: on 0.5s 0.9s both, breathe 3s 1.6s ease-in-out infinite; }
+
+/* Switch: joy-cons snap on, then a game of pong */
+.joyL { animation: slideL 0.75s 0.55s both cubic-bezier(.3, 1.5, .5, 1); }
+.joyR { animation: slideR 0.75s 0.55s both cubic-bezier(.3, 1.5, .5, 1); }
+.joyRed { fill: rgba(255, 75, 85, 0.88); }
+.joyBlue { fill: rgba(63, 169, 255, 0.88); }
+.screenOn { animation: on 0.5s 1.2s both; }
+.lcd { fill: #0d1c3c; }
+.net { stroke: rgba(219, 232, 255, 0.3); stroke-dasharray: 4 4; }
+.px { fill: #e8f0ff; }
+.padL { animation: padL 2.3s ease-in-out infinite; }
+.padR { animation: padR 1.9s ease-in-out infinite; }
+.ballX { animation: ballX 1.7s linear infinite alternate; }
+.ballY { animation: ballY 1.15s linear infinite alternate; }
+.score { font: 600 12px var(--font-mono); fill: rgba(219, 232, 255, 0.45); }
+.click { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; opacity: 0; animation: click 0.5s 1.2s both; }
+
+/* Xbox: warm air leaving the top vent */
+.heat circle { fill: var(--acc); opacity: 0; animation: heat 2.25s ease-out infinite; }
+.vent { fill: var(--acc); animation: on 0.8s 1s both, breathe 3s 1.8s ease-in-out infinite; }
+.ventDots circle { fill: #070b14; }
+.power { fill: var(--acc); animation: on 0.4s 1s both; }
+
+/* PC: fans and RGB */
+.rgbRing { fill: none; stroke-width: 1.6; animation: rgbS 6s linear infinite; }
+.spin { animation: spinFan 1.1s linear infinite; }
+.blade { fill: none; stroke: var(--line); stroke-width: 1.6; stroke-linecap: round; }
+.ram { animation: rgbF 6s linear infinite; opacity: 0.9; }
+.gpuLed { stroke-width: 2.4; stroke-linecap: round; animation: rgbS 6s linear infinite; }
+.tag { font: 600 8.5px var(--font-mono); letter-spacing: 0.24em; fill: rgba(219, 232, 255, 0.4); }
+
+@keyframes draw { from { stroke-dashoffset: 1; fill-opacity: 0; } 55% { fill-opacity: 0; } to { stroke-dashoffset: 0; fill-opacity: 1; } }
+@keyframes on { from { opacity: 0; } }
+@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes float { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-7px) rotate(-1.5deg); } }
+@keyframes press { 0%, 8% { fill: var(--acc); } 18%, 100% { fill: var(--surface); } }
+@keyframes slideL { from { transform: translateX(-46px); opacity: 0; } }
+@keyframes slideR { from { transform: translateX(46px); opacity: 0; } }
+@keyframes padL { 0%, 100% { transform: translateY(-24px); } 50% { transform: translateY(26px); } }
+@keyframes padR { 0%, 100% { transform: translateY(22px); } 50% { transform: translateY(-24px); } }
+@keyframes ballX { from { transform: translateX(0); } to { transform: translateX(130px); } }
+@keyframes ballY { from { transform: translateY(126px); } to { transform: translateY(200px); } }
+@keyframes click { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes heat { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 0.85; } 100% { opacity: 0; transform: translateY(-38px); } }
+@keyframes spinFan { to { transform: rotate(360deg); } }
+@keyframes rgbS { 0%, 100% { stroke: #3b6dff; } 25% { stroke: #38d6f5; } 50% { stroke: #a78bfa; } 75% { stroke: #ff7a8a; } }
+@keyframes rgbF { 0%, 100% { fill: #3b6dff; } 25% { fill: #38d6f5; } 50% { fill: #a78bfa; } 75% { fill: #ff7a8a; } }

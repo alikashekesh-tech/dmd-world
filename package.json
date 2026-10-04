@@ -1,0 +1,27 @@
+{
+  "name": "loadout-gaming-marketplace",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:all": "vite build && npm --prefix server run build:admin",
+    "lint": "eslint .",
+    "test": "npm --prefix server test",
+    "check": "npm run lint && npm test && npm run build:all"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "vite": "^8.3.2"
+  }
+}
