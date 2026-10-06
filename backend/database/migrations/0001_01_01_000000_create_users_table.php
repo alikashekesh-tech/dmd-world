@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         // Buyers. The store owner is a separate account in `admins`.
+        // Customers imported from the old store keep their ids; accounts created here start at 100000.
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
+            $table->id()->from(100000);
             $table->string('first_name', 60);
             $table->string('last_name', 60);
             // Stored trimmed and lower-cased; the column's collation is case-insensitive too.

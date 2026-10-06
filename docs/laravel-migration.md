@@ -9,6 +9,7 @@
 | 0 | Repository audit and migration plan (this document) | Done |
 | 1 | Laravel app, MySQL connection, environment, dev proxy | Done |
 | 2 | Authentication: buyers, owner, authorization | Done |
+| 3 | Categories and brands | Done |
 | 3–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---

@@ -16,6 +16,16 @@ return [
     // Development: the Vite dev server on 127.0.0.1. Production: the address of Caddy/nginx in front.
     'trusted_proxies' => $list(env('TRUSTED_PROXIES', '127.0.0.1,::1')),
 
+    // `php artisan dmd:import` reads the old WooCommerce store from here (GET requests only). A read-only REST key is
+    // enough. Locally this is the emulator (server/dev); at cutover, the live store. Not needed after migration.
+    'import' => [
+        'woocommerce' => [
+            'url' => env('IMPORT_WOO_URL'),
+            'key' => env('IMPORT_WOO_KEY'),
+            'secret' => env('IMPORT_WOO_SECRET'),
+        ],
+    ],
+
     // Name of the MySQL database the test suite uses (never the development or production one).
     'testing_database' => env('DB_TEST_DATABASE'),
 

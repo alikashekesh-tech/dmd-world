@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
+use App\Http\Controllers\Api\V1\BrandController;
+use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\HealthController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
@@ -30,3 +32,10 @@ Route::prefix('auth')->name('auth.')->middleware('session')->group(function () {
         Route::put('password', [PasswordController::class, 'update'])->name('password');
     });
 });
+
+/* ── catalog: categories and brands (what the storefront shows) ─────── */
+Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
+Route::get('categories/lookup', [CategoryController::class, 'lookup'])->name('categories.lookup');
+Route::get('categories/{id}', [CategoryController::class, 'show'])->whereNumber('id')->name('categories.show');
+Route::get('brands', [BrandController::class, 'index'])->name('brands.index');
+Route::get('brands/{slug}', [BrandController::class, 'show'])->where('slug', '[a-z0-9-]+')->name('brands.show');

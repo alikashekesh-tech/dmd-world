@@ -109,3 +109,77 @@ The tests use a browser-like client (`tests/SpaClient.php`). Each "browser" has 
 **Blockers:** none. Outgoing email needs SMTP settings (`MAIL_*`) before going live.
 
 **Next:** Phase 3, categories and brands.
+
+## Phase 3: categories and brands (6 Oct 2026)
+
+**Implemented**
+- **Brands are first-class records** (`brands`): name, slug, description, logo_url, is_active, position, and archive by soft delete. Each product will point at one brand (Phase 4). Brands are no longer flagged categories.
+- **Categories** (`categories`): a tree (`parent_id`) with name, slug, description, image_url, icon, accent_color, is_visible and position, plus archive by soft delete. A top-level category can belong to a brand, which makes it one of that brand's **product lines** (Razer › Mouse); its sub-categories inherit the brand.
+- **`CategoryTree` service:** one in-memory view of the tree that works out storefront URL paths (`playstation/ps5/games/used`, `razer/mouse`), visibility, descendants and lookup by path. A category is on the storefront only when it, every parent above it and its brand are visible and not archived.
+- **`CategoryService` and `BrandService`:** every write goes through them, so the rules always hold.
+  - **Tree shape:** no category inside itself, and at most 5 levels.
+  - **Brand inheritance:** a sub-category belongs to its parent's brand. Changing a product line's brand moves its whole branch.
+  - **Slugs:** unique among siblings. MySQL enforces this with a unique index on stored keys, because a plain unique index would let NULL parents repeat. A given slug that's taken gets `422 SLUG_TAKEN`; an automatic slug gets `-2`, `-3`. Top-level categories and brands never share a slug, because both live at `/product-category/<slug>`.
+  - **Renaming keeps the URL:** the slug stays unless a new one is sent, so links keep working.
+  - **Archiving:** refused while a category has active sub-categories (`409 CATEGORY_HAS_CHILDREN`). Restoring needs the parent and brand to be active. Permanent deletion only works on an archived record that nothing uses.
+  - **Reordering:** siblings only.
+- **Activity log** (`activity_log`): who did what to which record. Every category and brand change is recorded with the owner's id. It will feed the dashboard and the audit trail.
+- **Legacy ids, with no collisions:** imported records keep their WooCommerce ids. Records created in Laravel start at 100000 (categories, brands and also users), so new rows can never take an id the old store used.
+- **Import** (`php artisan dmd:import --only=taxonomy`):
+  - **How it reads the old store:** read-only, through the WooCommerce REST API (`WooCommerceSource`, GET only).
+  - **How it builds the tree:** it follows `database/import/storefront-taxonomy.php`, which was generated from the storefront's menu (`src/data/dmdMenu.js`). That file is migration history, not live data.
+  - **Brands:** the 10 brand categories become brands with the same ids, and their sub-categories become product lines.
+  - **Storefront tree:** the PS5 and PS4 games, accessories and consoles move under PS5 and PS4, as the storefront shows them.
+  - **New groupings:** "Other", "Flash Memory" and "Repair Parts" are created with new ids.
+  - **Categories the menu didn't list (16):** they sit under their WooCommerce parent, with tidied names ("BLUETOOTH SPEAKER" becomes "Bluetooth Speaker").
+  - **Safety:** each part runs in a transaction and can be repeated, with the same rows updated rather than duplicated. It refuses to run in production without `--force`.
+
+**Migrations**
+- `2026_10_06_000200_create_brands_and_categories_tables` (ids start at 100000; generated `parent_key` and `brand_key` columns with a unique sibling-slug index; foreign keys use restrict on delete).
+- `2026_10_06_000300_create_activity_log_table`.
+- The users table's ids now also start at 100000.
+
+**Endpoints**
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /api/v1/categories | visible categories, flat, in display order, with `path` |
+| GET | /api/v1/categories/{id} | with `ancestors`, `children` and `brand` |
+| GET | /api/v1/categories/lookup?path=a/b/c | the category behind a storefront URL |
+| GET | /api/v1/brands | active brands |
+| GET | /api/v1/brands/{slug} | with `product_lines` |
+| GET POST | /api/v1/admin/categories | `?archived=only` or `?archived=with` |
+| GET PUT DELETE | /api/v1/admin/categories/{id} | DELETE archives |
+| POST | /api/v1/admin/categories/{id}/restore · DELETE …/permanent · POST /api/v1/admin/categories/reorder | |
+| GET POST, GET PUT DELETE, restore, permanent, reorder | /api/v1/admin/brands… | same pattern |
+
+**Tests added:** 23
+- **Categories:**
+  - **One source:** the owner adds a category and the storefront lists it, from the same rows.
+  - **Paths:** nested paths resolve.
+  - **Validation:** names, slugs, `javascript:` image addresses, markup and unknown parents are rejected.
+  - **Slugs:** unique among siblings, with automatic `-2`.
+  - **Tree rules:** no cycles; brand product lines with inheritance and branch moves; no category and brand sharing a URL.
+  - **Visibility:** hidden categories take everything below them off the storefront; an inactive brand hides its lines.
+  - **Lifecycle:** archive, restore and permanent delete; reordering siblings only.
+  - **Access:** guests and buyers get 401 on every write.
+- **Brands:** the owner adds a brand and the storefront shows it; validation and unique slugs; inactive brands leave the storefront but stay in the admin; archive, restore and permanent delete (refused while in use); reordering; only the owner can change brands.
+- **Import:**
+  - **Fixture:** the WooCommerce category list, `tests/Fixtures/woocommerce/categories.json`.
+  - **What's checked:** legacy ids kept, brands split out, the storefront tree, new groupings above 100000, unlisted categories placed, and all 112 WooCommerce categories accounted for.
+  - **Safety:** running it twice changes nothing; the storefront API serves the imported tree; production is refused without `--force`; a failing store leaves nothing half-imported.
+
+**Results**
+- **Tests:** Laravel 86 of 86 (628 assertions). Node 53 of 53 (no Node changes).
+- **Real import from the local emulator into the dev database, run twice:** 10 brands and 105 categories (102 from WooCommerce plus 3 groupings), the same counts both times.
+- **Through the Vite proxy:** `/api/v1/categories` returns 105, with the same top-level order as the current menu (pc-parts, playstation, nintendo-switch, xbox, tablets, laptops, other, new-offers). `/api/v1/brands` returns the 10 brands in menu order. `/brands/razer` lists its 7 product lines, and `lookup?path=other/action-figures` resolves.
+
+**Decisions**
+- **Brand subtrees:** brand-scoped categories, rather than a separate brand-and-category pivot. This keeps the existing `/product-category/<brand>/<line>` URLs and the storefront's menu without a second copy of the brand.
+- **No stored path column:** paths are computed from the tree, which is small and loaded once per request, so there's nothing to keep in sync.
+
+**Legacy dependencies removed:** none yet. The storefront still reads `dmdMenu.js` and `dmdCatalog.js`; that changes in Phase 5.
+
+**Blockers:** none.
+
+**Next:** Phase 4, products, images and inventory.
