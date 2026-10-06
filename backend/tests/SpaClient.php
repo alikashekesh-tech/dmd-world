@@ -44,7 +44,8 @@ final class SpaClient
     {
         $response = $this->test->spaCall($this, $method, $uri, $data, $headers);
         foreach ($response->headers->getCookies() as $cookie) {
-            $expired = $cookie->getExpiresTime() !== 0 && $cookie->getExpiresTime() < time();
+            // The browser's clock is the test's clock (it may have travelled), not the machine's.
+            $expired = $cookie->getExpiresTime() !== 0 && $cookie->getExpiresTime() < now()->getTimestamp();
             if ($expired || $cookie->getValue() === null || $cookie->getValue() === '') {
                 unset($this->cookies[$cookie->getName()]);
             } else {

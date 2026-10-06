@@ -47,6 +47,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Product::class, 'wishlist_items')->withPivot('created_at');
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);

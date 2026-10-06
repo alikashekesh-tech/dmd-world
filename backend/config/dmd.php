@@ -12,6 +12,9 @@ return [
     'frontend_url' => rtrim((string) env('FRONTEND_URL', 'http://localhost:5173'), '/'),
     'admin_url' => rtrim((string) env('ADMIN_URL', env('FRONTEND_URL', 'http://localhost:5173').'/admin'), '/'),
 
+    // The store's own timezone: where "today" and each day of the owner's dashboard begin. Dates are stored in UTC.
+    'timezone' => env('STORE_TIMEZONE', 'Asia/Beirut'),
+
     // Reverse proxies whose X-Forwarded-* headers are believed (client address for rate limits, https detection).
     // Development: the Vite dev server on 127.0.0.1. Production: the address of Caddy/nginx in front.
     'trusted_proxies' => $list(env('TRUSTED_PROXIES', '127.0.0.1,::1')),

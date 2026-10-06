@@ -15,6 +15,7 @@ class Admin extends Authenticatable
     {
         return [
             'last_login_at' => 'datetime',
+            'notifications_seen_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

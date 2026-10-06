@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Admin\CategoryController;
 use App\Http\Controllers\Api\V1\Admin\ConversationController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController;
+use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\HomepageController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController;
 use App\Http\Controllers\Api\V1\Admin\OfferController;
@@ -31,6 +32,15 @@ Route::middleware('session')->group(function () {
 Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
     Route::put('auth/password', [AuthController::class, 'password'])->name('auth.password');
+
+    // Dashboard, sidebar badges, activity, notifications and search: computed from MySQL on each request.
+    Route::get('dashboard', [DashboardController::class, 'show'])->name('dashboard');
+    Route::get('badges', [DashboardController::class, 'badges'])->name('badges');
+    Route::get('activity', [DashboardController::class, 'activity'])->name('activity');
+    Route::get('search', [DashboardController::class, 'search'])->name('search');
+    Route::get('notifications', [DashboardController::class, 'notifications'])->name('notifications.index');
+    Route::post('notifications/seen', [DashboardController::class, 'seen'])->name('notifications.seen');
+    Route::post('notifications/{key}/dismiss', [DashboardController::class, 'dismiss'])->where('key', '[a-z0-9-]+')->name('notifications.dismiss');
 
     // Catalog. DELETE archives; /restore brings back; /permanent removes an archived record that nothing uses.
     $resources = [

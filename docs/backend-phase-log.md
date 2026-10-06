@@ -716,3 +716,70 @@ The automated tests can't run two transactions at once, so I ran `race.php` agai
 **Blockers:** none.
 
 **Next:** Phase 10, the owner's dashboard numbers from MySQL.
+
+## Phase 10: the owner's dashboard from MySQL (7 Oct 2026)
+
+**Implemented (backend)**
+- **`Analytics`:** the whole dashboard is computed from MySQL on each request. Nothing is estimated, sampled or invented, and an empty store shows zeros and empty lists.
+  - **Revenue:** totals of paid orders (processing, completed, on hold), by the date placed.
+  - **Orders:** everything except failed orders.
+  - **Average order:** revenue ÷ paid orders.
+  - **Items sold:** units in paid orders.
+  - **New buyers:** emails whose first order falls in the period.
+  - **Product, category and brand revenue:** the paid lines' totals, after any coupon discount.
+- **Periods:** today (hourly), 7, 30 or 90 days (daily), each compared with the period before.
+  - **Store timezone:** days and hours are the store's own (`STORE_TIMEZONE`, default Asia/Beirut); dates stay stored in UTC. An order at 21:30 UTC counts on the next Beirut day.
+- **What it returns:**
+  - **Figures:** the KPIs with their previous values, the chart series, and the all-time totals (paid revenue, orders, products and published, registered customers, guest emails, running offers and live coupons). Also order counts by status and the status mix in the period.
+  - **"Needs you":** pending orders and the oldest one, orders on hold, out-of-stock and low-stock published products (same levels as everywhere), reviews waiting, unread conversations, offers, coupons and product sales ending within 3 days, and buyers waiting on stock alerts.
+  - **Lists:** recent orders, low and out of stock, the deepest current discounts with running offers and live codes (with real usage), best sellers, revenue by category (at the top of each product's main category; a brand's product line is named "Brand · Line") and by brand, recent customers with their orders and spend, recent reviews, and the activity feed.
+- **Daily target:** shown only when the owner sets one (`daily_revenue_target` setting). The Node server invented a target ("10% above the 30-day average") when none was set; Laravel returns `null` instead.
+- **Bounded query count:** the dashboard runs a fixed number of grouped queries whatever the store's size, with no query per order, product, category or customer. A test proves the count is identical at 2 and at 27 orders, products, categories and customers. Order counts per category and brand come from one query of distinct (order, product) pairs.
+- **Notifications** (`Notifications`): worked out from the data each time.
+  - **What they cover:** new orders (3 days), orders pending over a day, unread conversations, out-of-stock and low-stock products, and reviews waiting.
+  - **Stored state:** only what the owner did with them: `admins.notifications_seen_at` and `dismissed_notifications` (the newest 500 per owner).
+  - **Limits:** each kind is capped at 50.
+- **Also:** sidebar badges (pending, unread, reviews waiting, low, out, unseen notifications, items in the trash), the activity feed (the owner's and buyers' recorded actions, newest first) and quick search (products, orders, customers).
+- **Index:** `orders.placed_at`, since every period filters by date first.
+
+**Migrations:** `2026_10_07_000900_add_analytics_indexes_and_notification_state` (orders.placed_at index; admins.notifications_seen_at; dismissed_notifications).
+
+**Endpoints**
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /api/v1/admin/dashboard | `range=today\|7d\|30d\|90d` |
+| GET | /api/v1/admin/badges | sidebar counts |
+| GET | /api/v1/admin/activity | `limit` (≤200) |
+| GET | /api/v1/admin/search | `q` (2+ characters) |
+| GET | /api/v1/admin/notifications | `meta.unseen` |
+| POST | /api/v1/admin/notifications/seen · /notifications/{key}/dismiss | |
+
+All are under `auth:admin` + `auth.session`.
+
+**Tests added:** 7
+- **An empty store:** zeros, empty lists, no made-up target, one bar per day (and per hour so far today).
+- **Definitions, against hand-worked numbers:** this week and last week (paid only, failed excluded, cancelled counted as orders but not revenue), and new buyers by first order.
+- **Store timezone:** around midnight in Beirut (orders on either side of it), hourly "today", and the owner's target.
+- **Best sellers, categories and brands:** a deleted product keeps its sales as "Removed products", and categories add up to the paid lines.
+- **"Needs you":** pending and oldest, on hold, out and low stock (drafts not counted), reviews, unread messages, codes ending.
+- **The query count:** it doesn't grow with the store.
+- **Notifications, badges, search and activity:** seen and dismiss work, a bad key gets 404, search needs 2+ characters, and buyers and guests get 401 everywhere.
+
+**Real data** (dev database, through HTTP as the owner, then checked with independent SQL)
+- **All-time:** paid revenue $18,699, the same as the Phase 7 import. 390 orders (387 imported plus the 3 test orders), 187 products, 72 registered customers and 128 guest emails.
+- **Last 90 days:** revenue $11,114, 265 orders and 411 items. A separate SQL query gave the same three numbers, and the 90 daily bars add up to them.
+- **"Needs you":** 6 pending (the oldest from 3 Oct), 12 out of stock and 25 running low (at the imported low-stock level of 4), and 15 reviews waiting.
+- **Real gap, for the Phase 11 checks:** 14 imported products have no category in the old store, so their sales show as "Uncategorised".
+
+**Bugs found and fixed**
+- **Test cookie jar:** it compared cookie expiry with the machine's clock instead of the test's clock, so a test that moves time back lost the session. It now uses the test's clock, as a browser uses its own.
+- **One query per group:** order counts per category and brand were first one query per group. They now come from one query.
+
+**Results:** Laravel 198 of 198 (1842 assertions). Pint and lint pass. The Laravel-mode, Node-mode and admin builds pass. Node 53 of 53.
+
+**Not yet in Laravel mode:** the admin's dashboard, notifications and sidebar still read Node until the admin is switched in Phase 11.
+
+**Blockers:** none.
+
+**Next:** Phase 11, the cutover. The admin moves to Laravel, the default becomes Laravel, the data is checked again, and Node, the emulator, the WooCommerce code paths and the bundled data are removed.

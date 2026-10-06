@@ -16,7 +16,8 @@
 | 7 | Orders and order items | Done |
 | 8 | Reviews, messaging and stock alerts | Done |
 | 9 | Offers, coupons, settings and the home page | Done |
-| 10–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 10 | The owner's dashboard from MySQL | Done |
+| 11–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---
 
@@ -209,7 +210,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 7 ✔ | `orders`, `order_items`, status history, checkout (prices and stock locked in one transaction, idempotency, guest token), cancel, admin orders | totals recomputed server-side; overselling is impossible; history survives product edits |
 | 8 ✔ | `reviews` (one per buyer per product, moderation), `conversations` and `messages`, `stock_alerts` | participant and ownership tests |
 | 9 ✔ | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |
-| 10 | Admin analytics (revenue, orders by status, top products, categories and brands, low stock, customers) as queries | zeros and empty states when there's no data, never invented numbers |
+| 10 ✔ | Admin analytics (revenue, orders by status, top products, categories and brands, low stock, customers) as queries | zeros and empty states when there's no data, never invented numbers |
 | 11 | Final import from the live store; switch the default to `laravel`; delete the Node server, emulator, WordPress plugin (if unused), `dmdCatalog.js`, the static menu ids, the JSON stores and the Node tests | the app runs on Laravel only |
 | 12 | Security and regression pass, production config (Caddy and php-fpm, queue and scheduler, backups, `APP_DEBUG=false`, secure cookies) | full test suite and manual flows pass |
 
