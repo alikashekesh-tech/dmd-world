@@ -1,6 +1,6 @@
 import { Children, cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import Icon from './icons.jsx';
-import { STATUS, OWNER_STATUSES, initials } from '../lib/format.js';
+import { STATUS, NEXT_STATUS, initials } from '../lib/format.js';
 import { api } from '../lib/api.js';
 import { useDebounced } from '../lib/hooks.js';
 import { checkPassword } from '../../../shared/passwordPolicy.js';
@@ -73,7 +73,7 @@ const TONE_BG = { amber: 'rgba(255,194,61,.11)', blue: 'rgba(91,149,255,.12)', v
 /** Order status you can change in place. */
 export function StatusSelect({ status, onChange, busy }) {
   const s = STATUS[status] || STATUS.pending;
-  const options = OWNER_STATUSES.includes(status) ? OWNER_STATUSES : [status, ...OWNER_STATUSES];
+  const options = [status, ...(NEXT_STATUS[status] || [])];
   return (
     <span className="status-select" style={{ color: TONE_COLOR[s.tone] }} onClick={(e) => e.stopPropagation()}>
       <select aria-label="Order status" value={status} disabled={busy} onChange={(e) => onChange(e.target.value)} style={{ color: TONE_COLOR[s.tone], background: TONE_BG[s.tone] }}>
@@ -258,13 +258,13 @@ export function ProductPicker({ value = [], onChange, placeholder = 'Search prod
   useEffect(() => {
     let live = true;
     if (dq.trim().length < 2) { setResults([]); return undefined; }
-    api.get(`/products?search=${encodeURIComponent(dq)}&per=8`).then((r) => { if (live) setResults(r.items); }).catch(() => {});
+    api.get(`/products?q=${encodeURIComponent(dq)}&per_page=8`).then((r) => { if (live) setResults(r.data); }).catch(() => {});
     return () => { live = false; };
   }, [dq]);
   useEffect(() => {
     const missing = value.filter((id) => !chosen[id]);
     if (!missing.length) return;
-    Promise.all(missing.slice(0, 40).map((id) => api.get(`/products/${id}`).then((p) => [id, { id: p.id, name: p.name, image: p.images?.[0]?.src, price: p.price }]).catch(() => [id, { id, name: `#${id}` }])))
+    Promise.all(missing.slice(0, 40).map((id) => api.get(`/products/${id}`).then(({ data: p }) => [id, { id: p.id, name: p.name, image: p.image, price: p.price }]).catch(() => [id, { id, name: `#${id}` }])))
       .then((pairs) => setChosen((c) => ({ ...c, ...Object.fromEntries(pairs) })));
   }, [value]); // eslint-disable-line
   const add = (p) => { if (!value.includes(p.id)) { setChosen((c) => ({ ...c, [p.id]: p })); onChange([...value, p.id]); } setQ(''); };
@@ -304,7 +304,8 @@ export function CategoryPicker({ categories, value = [], onChange, single, exclu
   const kids = useMemo(() => { const m = {}; for (const c of categories) (m[c.parent] ||= []).push(c); return m; }, [categories]);
   const s = q.trim().toLowerCase();
   const rows = [];
-  const walk = (parent, depth) => { for (const c of (kids[parent] || []).sort((a, b) => a.name.localeCompare(b.name))) { if (exclude.includes(c.id)) continue; if (!s || c.name.toLowerCase().includes(s)) rows.push({ c, depth: s ? 0 : depth }); walk(c.id, depth + 1); } };
+  const label = (c) => c.label || c.name;
+  const walk = (parent, depth) => { for (const c of (kids[parent] || []).sort((a, b) => label(a).localeCompare(label(b)))) { if (exclude.includes(c.id)) continue; if (!s || label(c).toLowerCase().includes(s)) rows.push({ c, depth: s ? 0 : depth }); walk(c.id, depth + 1); } };
   walk(0, 0);
   const toggle = (id) => onChange(single ? (value[0] === id ? [] : [id]) : value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   return (
@@ -314,9 +315,8 @@ export function CategoryPicker({ categories, value = [], onChange, single, exclu
         {rows.map(({ c, depth }) => (
           <li key={c.id}>
             <label className="row" style={{ padding: '6px 8px', paddingLeft: 8 + depth * 18, borderRadius: 8, cursor: 'pointer' }}>
-              <Check on={value.includes(c.id)} onChange={() => toggle(c.id)} label={c.name} />
-              <span className="grow" style={{ fontSize: 13.5 }}>{c.name}</span>
-              {c.isBrand && <Chip tone="violet">Brand</Chip>}
+              <Check on={value.includes(c.id)} onChange={() => toggle(c.id)} label={label(c)} />
+              <span className="grow" style={{ fontSize: 13.5 }}>{label(c)}</span>
               <span className="mono muted" style={{ fontSize: 11 }}>{c.count}</span>
             </label>
           </li>

@@ -1,4 +1,4 @@
-/* Reviews, messages with the store and back-in-stock alerts for the Laravel backend (VITE_BACKEND=laravel).
+/* Reviews, messages with the store and back-in-stock alerts, from the Laravel API.
    Everything a buyer owns is reached through the session cookie; no buyer id is ever sent. Laravel's answers are
    turned into the shapes the storefront components already use. Review and message text is plain text. */
 import { laravelApi } from './laravelApi.js';

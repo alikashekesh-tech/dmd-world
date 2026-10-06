@@ -4,6 +4,8 @@
 
 **Rule for the whole migration:** the existing app keeps working until Laravel has a tested replacement. The old implementation is removed only after that.
 
+**Status (7 Oct 2026):** the cutover is done. The storefront and the admin talk only to Laravel, and MySQL holds all the business data. The Node server, the WooCommerce client and emulator, the WordPress plugin, the JSON state files and the bundled catalog are gone (Phase 11). What remains of the old store is the one-time, read-only import for go-live ([deployment.md](deployment.md) §6).
+
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Repository audit and migration plan (this document) | Done |
@@ -17,11 +19,14 @@
 | 8 | Reviews, messaging and stock alerts | Done |
 | 9 | Offers, coupons, settings and the home page | Done |
 | 10 | The owner's dashboard from MySQL | Done |
-| 11–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 11 | Cutover: Laravel only | Done |
+| 12 | See §7 | In progress. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---
 
-## 1. Current architecture (audit, 6 Oct 2026)
+## 1. Architecture before the migration (audit, 6 Oct 2026)
+
+> This section describes the system as it was before the migration. Everything in it marked legacy was removed in Phase 11; the current architecture is §5.
 
 **Frontend (keeps its design; only its data access changes)**
 - **Storefront** (`src/`): React 19 and Vite 8, a custom History router and lazy routes. Pages: home, shop, product-category, product, brands, categories, cart, checkout, order, account, wishlist, compare, contact, reset.
@@ -112,19 +117,18 @@
 ```
 Browser ─ storefront (/) and admin (/admin): React + Vite builds, served as static files
    │  same origin
-   ├─ /api/v1/*        → Laravel 13 (php-fpm or FrankenPHP)
+   ├─ /api/v1/*, /robots.txt, /sitemap.xml → Laravel 13 (php-fpm)
    │                       ├─ MySQL: every business record
    │                       ├─ storage/app/public: uploaded images
-   │                       └─ queue worker and scheduler: emails, stock alerts
+   │                       └─ scheduler (systemd timer): stock-alert retries; emails sent in the request
    └─ /api/v1/admin/*  → the same Laravel app, owner guard only
 ```
 
 **Development**
-- **Proxy:** Vite on 5173 forwards `/api/v1` to `php artisan serve` on 8000.
-- **Legacy routes:** `/api` and `/admin/api` still go to Node until Phase 11.
+- **Proxy:** Vite on 5173 forwards `/api/v1`, `/storage`, `/robots.txt` and `/sitemap.xml` to Laravel on 8000 (`npm run api:serve`).
 
 **Production**
-- **Front:** Caddy or nginx serves `dist/` and `admin/dist/` and forwards `/api/v1` to Laravel.
+- **Front:** Caddy serves `dist/`, `admin/dist/` and the uploads, and forwards the API to php-fpm (`deploy/Caddyfile`, [deployment.md](deployment.md)).
 - **Node:** removed.
 
 **Laravel layout** (`backend/`)
@@ -153,8 +157,7 @@ Browser ─ storefront (/) and admin (/admin): React + Vite builds, served as st
 
 **Frontend connection**
 - **New API layer:** each feature gets a small client module that talks to `/api/v1`, with CSRF handling.
-- **The switch:** `VITE_BACKEND=node|laravel` decides which backend the whole app uses, so a running app never mixes the two for the same data.
-- **Default:** stays `node` until Phase 11. Then the Node clients are deleted.
+- **The switch (Phases 5–10):** `VITE_BACKEND=node|laravel` decided which backend the whole app used, so a running app never mixed the two. Phase 11 removed it with the Node clients: the apps are Laravel only.
 
 ## 6. Proposed MySQL schema
 
@@ -211,7 +214,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 8 ✔ | `reviews` (one per buyer per product, moderation), `conversations` and `messages`, `stock_alerts` | participant and ownership tests |
 | 9 ✔ | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |
 | 10 ✔ | Admin analytics (revenue, orders by status, top products, categories and brands, low stock, customers) as queries | zeros and empty states when there's no data, never invented numbers |
-| 11 | Final import from the live store; switch the default to `laravel`; delete the Node server, emulator, WordPress plugin (if unused), `dmdCatalog.js`, the static menu ids, the JSON stores and the Node tests | the app runs on Laravel only |
+| 11 ✔ | Import verified record by record (`dmd:verify-import`), images importable (`dmd:import-media`); the admin and storefront on Laravel only; Node server, emulator, WordPress plugin, `dmdCatalog.js`, static menu ids, JSON stores and Node tests deleted; `robots.txt`/`sitemap.xml` from Laravel; deploy files and docs | the app runs on Laravel only; the final run against the live store is a go-live step (deployment.md §6) |
 | 12 | Security and regression pass, production config (Caddy and php-fpm, queue and scheduler, backups, `APP_DEBUG=false`, secure cookies) | full test suite and manual flows pass |
 
 ## 8. Phase 1: what exists and how to run it
@@ -234,5 +237,5 @@ Each phase follows the same steps: schema, then model, then validation, then end
   `db:provision` asks for your MySQL root password, which is not stored. It then creates both databases and a dedicated `dmd_world` account; that account's password is already generated in `backend/.env`.
 - **Run:**
   - **API:** `npm run api:serve` starts Laravel on 127.0.0.1:8000, reachable through Vite at `http://localhost:5173/api/v1/...`.
-  - **Tests:** `npm run test:api`.
+  - **Tests:** `npm test`.
   - **Everything:** `npm run check` now also runs the Laravel tests.

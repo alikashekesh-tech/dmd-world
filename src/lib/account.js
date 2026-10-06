@@ -1,4 +1,4 @@
-/* Buyer account calls for the Laravel backend (VITE_BACKEND=laravel): signing in and out, the profile, passwords, the
+/* Buyer account calls to the Laravel API: signing in and out, the profile, passwords, the
    address book and the wishlist. Everything is tied to the session cookie; no buyer id is ever sent. Laravel's
    snake_case answers are turned into the camelCase shapes the storefront components already use. */
 import { laravelApi } from './laravelApi.js';

@@ -1,16 +1,56 @@
-# Caddy in front of the DMD World server: automatic HTTPS, compression, one public address.
-# The Node server listens on 127.0.0.1:8787 only. In server/.env set:
-#   SERVE_STOREFRONT=true   TRUST_PROXY=true   COOKIE_SECURE=true   STOREFRONT_URL=https://shop.example.com
-# Replace shop.example.com with the storefront's domain.
+# Caddy in front of DMD World: automatic HTTPS, compression and one public address for everything.
+#   /             the storefront (dist/, built with `npm run build`)
+#   /admin/       the owner's admin (admin/dist/, built with `npm run build:admin`)
+#   /api/*, /up   the Laravel API (backend/public/index.php through php-fpm)
+#   /storage/*    images uploaded in the admin (backend/storage/app/public)
+# Replace shop.example.com with the storefront's domain and /srv/dmd-world with where the project lives.
+# See docs/deployment.md for the .env values this expects (APP_URL, FRONTEND_URL, TRUSTED_PROXIES…).
 
 shop.example.com {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8787 {
-		# The server's own health check; Caddy stops sending traffic while it fails.
-		health_uri /healthz
-		health_interval 30s
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
-	header -Server
+
+	# The API, plus robots.txt and sitemap.xml (built from MySQL). Laravel adds its own cache and security headers.
+	@api path /api/* /up /robots.txt /sitemap.xml
+	handle @api {
+		root * /srv/dmd-world/backend/public
+		php_fastcgi unix//run/php/php8.4-fpm.sock
+	}
+
+	# Uploaded images: served as files, never executed (uploads are re-typed JPEG/PNG/WebP/GIF with random names).
+	handle_path /storage/* {
+		root * /srv/dmd-world/backend/storage/app/public
+		header Cache-Control "public, max-age=604800"
+		file_server
+	}
+
+	# The admin: a single page with hash routes.
+	redir /admin /admin/
+	handle_path /admin/* {
+		root * /srv/dmd-world/admin/dist
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+
+	# The storefront: every page is the same app (client-side routes), assets are content-hashed.
+	handle {
+		root * /srv/dmd-world/dist
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+
 	log {
 		output file /var/log/caddy/dmd-world.log
 	}

@@ -783,3 +783,104 @@ All are under `auth:admin` + `auth.session`.
 **Blockers:** none.
 
 **Next:** Phase 11, the cutover. The admin moves to Laravel, the default becomes Laravel, the data is checked again, and Node, the emulator, the WooCommerce code paths and the bundled data are removed.
+
+## Phase 11: cutover, Laravel only (7 Oct 2026)
+
+**Data checked before anything was removed**
+- **`php artisan dmd:verify-import`** (new, `ImportVerifier`): reads every record of the old store again (GET only) and compares it field by field with MySQL. Against the old store's copy, the results:
+
+  | Record | Old store | MySQL | Missing | Different |
+  |---|---|---|---|---|
+  | Products | 187 | 187 | 0 | 0 |
+  | Customers | 71 | 71 | 0 | 0 |
+  | Orders | 387 | 387 | 0 | 0 |
+  | Reviews | 48 | 48 | 0 | 0 |
+  | Coupons | 2 | 2 | 0 | 0 |
+
+  - **Fields compared:**
+    - **Products:** name, regular and sale price, images, stock.
+    - **Customers:** email.
+    - **Orders:** number, total, number of lines, status.
+    - **Reviews:** rating and status.
+    - **Coupons:** code and amount.
+  - **Later changes:** a change made in the new system since the import (a sale, an owner's edit or moderation) is counted as "changed since", not as a difference.
+  - **Phase 10 gap:** the 14 products "without a category" were filed under the old store's brand categories (E-Yooso, Xiaomi), which are brands in Laravel. The dashboard now groups them as "Brand · no category" instead of "Uncategorised".
+- **Images: `php artisan dmd:import-media`** (new, `MediaImporter`). It copies the images the old site still serves into Laravel storage and points every row at the copy. Rows covered: product images, category and brand images, banners, and order-line snapshots.
+  - **Safety:**
+    - **Hosts:** it downloads only from the old store's own host (plus `IMPORT_MEDIA_HOSTS`) and never follows redirects. It refuses to run when no host is set.
+    - **Files:** each one is checked by its bytes, not its name or header: JPEG, PNG, WebP or GIF, 10 MB at most.
+    - **Names:** files are saved as `imported/<content hash>.<ext>`, so the same image is stored once and a second run changes nothing.
+  - **`--dry-run`:** reports what would be copied.
+  - **Dry run on the dev data:** 196 distinct images are still on the WordPress host (187 product, 4 category, 7 brand, used by 567 order-line snapshots). The real run downloads from the live site, so it is a go-live step (docs/deployment.md §6), not run here.
+
+**The admin now runs on Laravel**
+- **Client** (`admin/src/lib/api.js`): Sanctum cookie sessions with CSRF against `/api/v1/admin`, the same pattern as the storefront. Errors arrive as `ApiError(message, status, code, fields)`, and uploads go to `/uploads`.
+- **Sign-in:** email and password, the session read from `/auth/me`. A 401 shows the sign-in page; there is no token in JavaScript.
+- **Adapters:** `lib/catalog.js` and `lib/dashboard.js` turn the API's shapes into what the screens show. Status keys are Laravel's (`on_hold`). The admin's next-status menu mirrors `Order::TRANSITIONS`, and the server still decides.
+- **All 14 screens were rewritten against the Laravel endpoints:** dashboard, products, categories, brands, inventory, orders, customers, messages, reviews, offers (offers, codes and product sales), home page, notifications, trash and settings. The design is unchanged.
+- **Backend additions the screens needed:**
+  - **Counts:** category and brand lists carry `products_count`; brands also carry 90-day units and revenue. Inventory carries `waiting` (buyers on a stock alert).
+  - **Products:** the product resource carries its running `offer`, and products sort by `best` sellers.
+  - **Customers:** the guest-customer view (`GET /admin/customers/guest?email=`).
+  - **Reviews:** they carry the product's image.
+  - **Trash:** `GET /admin/trash` lists archived products, categories, brands and codes.
+  - **Images:** category and brand image fields accept `/storage/…` uploads as well as https addresses.
+
+**The storefront is Laravel only**
+- **Removed:**
+  - **Node client:** `src/lib/backend.js` and every Node branch in the pages and context (account, checkout, order, product, reviews, reset password, the cart quote).
+  - **Bundled data:** the catalog snapshot (`src/data/dmdCatalog.js`) and the static menu tree with its ids.
+- **What's left:** `storeApi.js` keeps only the error class, the guest-order links and the status names.
+- **Cached copy:** the catalog's browser copy has a new key (`dmd:catalog:v2`), and the old copy is deleted. No business data is duplicated in the browser.
+- **Before the first answer:** the catalog starts empty, never with old products.
+- **Logo:** a local file (`/images/dmd-logo.png`), not the WordPress host.
+- **`robots.txt` and `sitemap.xml`:** the Node server used to make these. Laravel now builds them from MySQL (`SeoController`): the fixed pages, every visible category and brand path, and every published product. They are rebuilt when the catalog changes, sent without a session or cookies, and publicly cacheable. The static `public/robots.txt` files (root and Laravel's default) were removed, so the generated ones are the only ones.
+
+**Legacy code removed**
+- **`server/`:** the Node API, the WooCommerce client, the JSON state files, the dev WooCommerce emulator and the Node tests (20 files).
+- **`wordpress/`:** the plugin.
+- **Also:** `.env.laravel` and `deploy/dmd-world.service` (the Node service).
+- **Backup:** a copy of the removed code and data was kept outside the repository until the go-live is confirmed.
+
+**Configuration, deployment and docs**
+- **`package.json`:** `dev`, `build`, `build:admin`, `build:all`, `preview`, `lint`, `api:serve`, `test` (Laravel) and `check`.
+- **Dev server** (`vite.config.js`): it proxies only `/api/v1`, `/storage`, `/robots.txt` and `/sitemap.xml` to Laravel, and never serves `backend/`. The admin build has no environment switch any more.
+- **Sanctum:** the stateful domains are the dev server's only (`localhost:5173`, `127.0.0.1:5173`).
+- **`deploy/Caddyfile`:** php-fpm for `/api/*`, `/up`, `/robots.txt` and `/sitemap.xml`. It serves uploads as files, the admin at `/admin/` and the storefront at `/`, and adds the security headers.
+- **New units in `deploy/`:**
+  - **Scheduler:** a systemd timer that runs `schedule:run` every minute.
+  - **Backups:** `dmd-backup.sh` with its timer, a nightly `mysqldump --single-transaction` plus the uploads, kept for 14 days. It uses its own MySQL account from a root-only file.
+- **`docs/deployment.md`:**
+  - **Setup:** the server, the production `.env` (`APP_DEBUG=false`, secure cookies, trusted proxies, argon2id), migrations, the owner account, caches, Caddy, the scheduler and backups.
+  - **Go-live import:** `dmd:import --force` → `dmd:verify-import` → `dmd:import-media`.
+  - **After deploying:** updating, and the checks to run.
+- **Rewritten:** `README.md`, `admin/README.md` and `backend/README.md`. `.env.example` documents the import settings as go-live only.
+- **Dead references:** a search for `server/`, `woocommerce`, `emulator`, `VITE_BACKEND`, `lib/backend`, `dmdCatalog`, `admin/api`, `wp-json` and the old ports across the code, configs and docs found none in `src/`, `admin/`, the configs or the docs. What is left is the one-time, read-only go-live importer (`dmd:import` and `dmd:verify-import`) and its test fixtures.
+
+**End-to-end check over HTTP** (a script driving the Vite dev server as a browser would, with cookies and CSRF)
+- **Steps:** catalog → register → address → wishlist → quote with a code → checkout → order history → message → review → stock alert. Then a guest checkout and its token link. Then the owner: sign-in, new orders, dashboard, unread message, reply, approve review, confirm order (and the buyer can no longer cancel), an offer that changes the catalog, quote and admin prices equally, and every admin list. Then clean-up and sign-out.
+- **Result:** 49 of 50 on the first run. The one failure was the script's own case-sensitive header check; the headers were right, and the script was fixed.
+- **Test data it created:** test buyer `e2e.1791326630@example.com`, orders 1000003 and 1000004, both cancelled. The review, offer and stock alert were deleted.
+
+**In the browser:** through Vite, the storefront calls only `/api/v1/*` and the admin dashboard loads from Laravel, with no console errors.
+
+**Tests added:** 6
+- **Verify import:**
+  - A complete import verifies, and a missing order fails.
+  - A sale made in the new shop since the import is not a difference.
+- **Media import:**
+  - **Copy:** the image is copied once, and the product and brand rows point at the copy.
+  - **What is skipped:** a file that isn't an image stays as it was, and other hosts are never fetched (stray requests are blocked).
+  - **Dry run:** it counts what is left.
+  - **No host:** with none set, it refuses to run.
+- **SEO:** robots points at the sitemap and sets no cookie. The sitemap is valid XML with visible categories and published products, and no hidden category, draft or archived product.
+
+**Results:** Laravel 204 of 204 (1881 assertions). Pint and lint pass. The storefront and admin builds pass.
+
+**Left for go-live** (they need the owner, not code)
+- **The final import:** run it from the live WooCommerce store with a read-only REST key, then `dmd:verify-import` and `dmd:import-media`.
+- **Real emails:** set the SMTP provider. Until then emails are only logged.
+
+**Blockers:** none for the code.
+
+**Next:** Phase 12, the security, performance and regression pass and the production configuration.

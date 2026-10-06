@@ -12,7 +12,8 @@ class ReviewResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'product' => $this->whenLoaded('product', fn () => $this->product ? ['id' => $this->product->id, 'name' => $this->product->name, 'available' => $this->product->isPublished()] : null),
+            'product' => $this->whenLoaded('product', fn () => $this->product ? ['id' => $this->product->id, 'name' => $this->product->name, 'available' => $this->product->isPublished(),
+                'image' => $this->product->relationLoaded('images') ? $this->product->images->first()?->url : null] : null),
             'customer' => $this->whenLoaded('user', fn () => $this->user ? ['id' => $this->user->id, 'name' => $this->user->fullName(), 'email' => $this->user->email] : null),
             'author' => $this->author_name,
             'author_email' => $this->user_id ? null : $this->author_email,

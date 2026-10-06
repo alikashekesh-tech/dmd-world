@@ -33,7 +33,7 @@ export const QUICK = [
   { label: 'Add product', icon: 'box', to: '/products/new', key: 'P' },
   { label: 'Add category', icon: 'folder', to: '/categories?new=1', key: 'C' },
   { label: 'Add brand', icon: 'badge', to: '/brands?new=1', key: 'B' },
-  { label: 'Create offer', icon: 'percent', to: '/offers?new=campaign', key: 'O' },
+  { label: 'Create offer', icon: 'percent', to: '/offers?new=offer', key: 'O' },
   { label: 'Create coupon', icon: 'sparkle', to: '/offers?tab=coupons&new=coupon' },
   { label: 'Manage homepage', icon: 'home', to: '/homepage', key: 'H' },
 ];
@@ -45,12 +45,12 @@ export default function Shell({ session, path, children, onSignOut }) {
   const [sideOpen, setSide] = useState(false);
   const [quickOpen, setQuick] = useState(false);
   const badges = useApi('/badges');
-  const b = badges.data || {};
+  const b = badges.data?.data || {};
   useEffect(() => { const t = setInterval(() => badges.reload(true), 60e3); return () => clearInterval(t); }, [badges.reload]); // eslint-disable-line
   useEffect(() => { setSide(false); setQuick(false); }, [path]);
   useHotkey(useCallback((e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k', []), useCallback(() => setPalette(true), []));
   useHotkey(useCallback((e) => e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName), []), useCallback(() => setPalette(true), []));
-  const store = session.store;
+  const owner = session.owner || {};
   const section = '/' + (path.split('/')[1] || '');
   const title = TITLES[section] || 'Command';
 
@@ -59,7 +59,7 @@ export default function Shell({ session, path, children, onSignOut }) {
       {sideOpen && <div className="scrim" style={{ zIndex: 64 }} onClick={() => setSide(false)} />}
       <aside className={`side ${sideOpen ? 'open' : ''}`} aria-label="Admin navigation">
         <a href="#/" className="brand">
-          <span className="brand-logo"><img src="https://dmdworld.store/wp-content/uploads/2022/11/LOGO-2048x803.png" alt="DMD World" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.src = '/images/dmd-logo.png'; }} /></span>
+          <span className="brand-logo"><img src="/images/dmd-logo.png" alt="DMD World" /></span>
           <span className="brand-name"><b>DMD World</b><span>Command</span></span>
         </a>
         <nav className="nav">
@@ -79,20 +79,17 @@ export default function Shell({ session, path, children, onSignOut }) {
           ))}
         </nav>
         <div className="side-foot">
-          <div className="conn" title={store.url}>
-            <span className={`led ${store.env === 'live' ? (store.readOnly ? 'blue' : 'coral') : store.env === 'emulator' ? 'amber' : 'green'} pulse`} />
-            <span>{store.env}{store.readOnly ? ' · read-only' : ''}<small>{store.url.replace(/^https?:\/\//, '')}</small></span>
+          <div className="conn" title={owner.email}>
+            <span className="led green pulse" />
+            <span>{owner.name || 'Owner'}<small>{owner.email}</small></span>
           </div>
         </div>
       </aside>
 
       <div className="main">
-        {store.env === 'emulator' && <div className="env-banner emulator"><Icon name="alert" size={14} />Test emulator · not your store · changes only affect local test data</div>}
-        {store.env === 'live' && !store.readOnly && <div className="env-banner live"><Icon name="alert" size={14} />Live store · changes reach real customers</div>}
-        {store.readOnly && <div className="env-banner readonly"><Icon name="lock" size={14} />Read-only connection · the server will refuse every change</div>}
         <header className="top">
           <button type="button" className="icon-btn burger" aria-label="Open navigation" onClick={() => setSide(true)}><Icon name="menu" /></button>
-          <div className="top-title"><span>{store.env === 'live' ? 'Live store' : store.env === 'emulator' ? 'Local test data' : 'Staging store'}</span><b>{title}</b></div>
+          <div className="top-title"><span>DMD World</span><b>{title}</b></div>
           <button type="button" className="search-trigger" onClick={() => setPalette(true)} aria-label="Search and commands">
             <Icon name="search" /><span>Search or jump to…</span><kbd>Ctrl K</kbd>
           </button>
@@ -135,7 +132,7 @@ function Palette({ onClose, badges }) {
   useEffect(() => {
     let live = true;
     if (dq.trim().length < 2) { setFound({ products: [], orders: [], customers: [] }); return undefined; }
-    api.get(`/search?q=${encodeURIComponent(dq.trim())}`).then((r) => live && setFound(r)).catch(() => {});
+    api.get(`/search?q=${encodeURIComponent(dq.trim())}`).then((r) => live && setFound(r.data)).catch(() => {});
     return () => { live = false; };
   }, [dq]);
   const s = q.trim().toLowerCase();
@@ -143,8 +140,8 @@ function Palette({ onClose, badges }) {
     const out = [];
     const actions = QUICK.filter((a) => !s || a.label.toLowerCase().includes(s)).map((a) => ({ group: 'Actions', icon: a.icon, label: a.label, to: a.to }));
     const go = NAV.flatMap((g) => g.items).filter((n) => !s || n.label.toLowerCase().includes(s)).map((n) => ({ group: 'Go to', icon: n.icon, label: n.label, to: n.to, hint: n.badge?.(badges)?.[0] }));
-    out.push(...found.orders.map((o) => ({ group: 'Orders', icon: 'receipt', label: `#${o.number} · ${o.name}`, to: `/orders/${o.id}`, hint: money(o.total) })));
-    out.push(...found.products.map((p) => ({ group: 'Products', icon: 'box', label: p.name, to: `/products/${p.id}`, hint: p.sku || `$${p.price}` })));
+    out.push(...found.orders.map((o) => ({ group: 'Orders', icon: 'receipt', label: `#${o.number} · ${o.customer}`, to: `/orders/${o.id}`, hint: money(o.total) })));
+    out.push(...found.products.map((p) => ({ group: 'Products', icon: 'box', label: p.name, to: `/products/${p.id}`, hint: p.sku || `ID ${p.id}` })));
     out.push(...found.customers.map((c) => ({ group: 'Buyers', icon: 'users', label: c.name, to: `/customers/${c.id}`, hint: c.email })));
     out.push(...actions, ...go);
     return out;

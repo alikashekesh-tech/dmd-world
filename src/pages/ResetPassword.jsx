@@ -5,8 +5,6 @@ import PixelText from '../components/ui/PixelText.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import { ArrowRight } from '../components/common/icons.jsx';
 import { PasswordField, PasswordRules, MatchHint, passwordReady } from '../components/account/Password.jsx';
-import { storeApi } from '../lib/storeApi.js';
-import { LARAVEL } from '../lib/backend.js';
 import { account } from '../lib/account.js';
 import { usePageMeta } from '../lib/meta.js';
 import s from './Account.module.css';
@@ -26,8 +24,8 @@ export default function ResetPassword() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!token || (LARAVEL && !email)) { setValid(false); return; }
-    (LARAVEL ? account.resetValid({ token, email }) : storeApi.get(`/password/reset?token=${encodeURIComponent(token)}`).then((r) => r.valid))
+    if (!token || !email) { setValid(false); return; }
+    account.resetValid({ token, email })
       .then(setValid).catch(() => setValid(false));
   }, [token, email]);
   const ready = passwordReady(f.password) && f.password === f.confirm;
@@ -36,9 +34,7 @@ export default function ResetPassword() {
     if (!ready || busy) return;
     setBusy(true); setErr('');
     try {
-      const buyer = LARAVEL
-        ? await account.reset({ token, email, password: f.password, confirm: f.confirm })
-        : (await storeApi.post('/password/reset', { token, password: f.password, confirm: f.confirm })).buyer;
+      const buyer = await account.reset({ token, email, password: f.password, confirm: f.confirm });
       await signedIn(buyer);
       nav('/account');
     } catch (x) { setErr(x.message); if (x.code === 'reset_expired' || x.code === 'RESET_LINK_INVALID') setValid(false); }

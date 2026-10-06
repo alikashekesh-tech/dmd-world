@@ -27,7 +27,7 @@ class ProductController extends Controller
             'q' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:draft,published'], 'category' => ['nullable', 'integer'],
             'brand' => ['nullable', 'integer'], 'stock' => ['nullable', 'in:out,low,in,untracked'], 'featured' => ['nullable', 'boolean'],
             'on_sale' => ['nullable', 'boolean'], 'archived' => ['nullable', 'in:only,with'],
-            'sort' => ['nullable', 'in:updated,newest,name,price_asc,price_desc,stock'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'sort' => ['nullable', 'in:updated,newest,name,price_asc,price_desc,stock,best'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $tree = ProductResource::$tree = CategoryTree::load(true);
         $q = Product::query()->with(['images:id,product_id,url,alt,position', 'categories:id,name,parent_id,brand_id,slug', 'brand:id,name']);

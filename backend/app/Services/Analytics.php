@@ -194,12 +194,15 @@ final class Analytics
             $p = $productId ? $products->get($productId) : null;
             $cat = $p && isset($primary[$p->id]) ? ($tree->ancestorIds($primary[$p->id])[0] ?? $primary[$p->id]) : null;
             $name = $cat ? (string) $tree->categories->get($cat)?->name : ($p ? 'Uncategorised' : 'Removed products');
+            $key = $cat ?? ($p ? 'none' : 'removed');
             $c = $cat ? $tree->categories->get($cat) : null;
             if ($c && $c->brand_id && $tree->brands->has($c->brand_id)) {
                 $name = $tree->brands->get($c->brand_id)->name.' · '.$name; // a brand's product line
+            } elseif (! $cat && $p?->brand) {
+                [$key, $name] = ["brand-{$p->brand_id}", $p->brand->name.' · no category']; // filed only under its brand
             }
 
-            return ['category' => [$cat ?? ($p ? 'none' : 'removed'), $cat, $name], 'brand' => $p?->brand ? [$p->brand_id, $p->brand->name] : null];
+            return ['category' => [$key, $cat, $name], 'brand' => $p?->brand ? [$p->brand_id, $p->brand->name] : null];
         };
 
         $categories = [];

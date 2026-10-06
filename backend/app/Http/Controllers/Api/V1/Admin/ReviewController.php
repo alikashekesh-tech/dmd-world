@@ -25,7 +25,7 @@ class ReviewController extends Controller
             'product' => ['nullable', 'integer'], 'rating' => ['nullable', 'integer', 'between:1,5'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
-        $q = Review::query()->with(['product:id,name,status,deleted_at', 'user:id,first_name,last_name,email', 'moderator:id,name'])->latest('created_at')->latest('id');
+        $q = Review::query()->with(['product:id,name,status,deleted_at', 'product.images:id,product_id,url,position', 'user:id,first_name,last_name,email', 'moderator:id,name'])->latest('created_at')->latest('id');
         $q->when($v['status'] ?? null, fn ($q, $s) => $q->where('status', $s))
             ->when($v['product'] ?? null, fn ($q, $id) => $q->where('product_id', $id))
             ->when($v['rating'] ?? null, fn ($q, $r) => $q->where('rating', $r));

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { api, changed } from '../lib/api.js';
 import { navigate, setQuery } from '../lib/router.jsx';
 import { useApi, useCount } from '../lib/hooks.js';
+import { dashboardFromApi } from '../lib/dashboard.js';
 import { money, num, pct, ago, until, STATUS, safeHref } from '../lib/format.js';
 import { Avatar, Button, Chip, Hp, Icon, Notice, Skeleton, StatusSelect, Tabs, Thumb, useUi } from '../ui/kit.jsx';
 import { QUICK } from '../shell/Shell.jsx';
@@ -15,12 +16,13 @@ const compact = (v) => (v >= 1000 ? `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k
 /* Command Center: what needs the owner, how the store is doing, and a door into every section. */
 export default function Dashboard({ query }) {
   const range = query.get('range') || '7d';
-  const { data: d, error, reload, setData } = useApi(`/dashboard?range=${range}`);
+  const { data: raw, error, reload, setData } = useApi(`/dashboard?range=${range}`);
+  const d = raw?.data ? dashboardFromApi(raw.data) : null;
   const [refreshing, setRefreshing] = useState(false);
   useEffect(() => { const t = setInterval(() => reload(true), 60e3); return () => clearInterval(t); }, [reload]);
   const refresh = async () => {
     setRefreshing(true);
-    try { setData(await api.get(`/dashboard?range=${range}&fresh=1`)); } catch { /* the error state shows below */ }
+    try { setData(await api.get(`/dashboard?range=${range}`)); } catch { /* the error state shows below */ }
     setRefreshing(false);
   };
 
@@ -42,7 +44,7 @@ export default function Dashboard({ query }) {
       <Activity list={d.activity} />
       <RevenueMix categories={d.categories} brands={d.brands} range={range} />
       <RecentBuyers list={d.recentCustomers} />
-      <RecentReviews list={d.recentReviews} />
+      <RecentReviews list={d.recentReviews} reload={() => reload(true)} />
     </div>
   );
 }
@@ -61,6 +63,7 @@ function Briefing({ d, range, onRefresh, refreshing }) {
   if (a.outOfStock.count) bits.push(<><b>{pl(a.outOfStock.count, 'product is', 'products are')}</b> out of stock</>);
   if (a.reviews) bits.push(<><b>{pl(a.reviews, 'review needs', 'reviews need')}</b> approval</>);
   const ratio = d.target.value ? d.target.today / d.target.value : 0;
+  const target = !d.target.value ? null : ratio >= 1 ? <b style={{ color: 'var(--green)' }}>target reached</b> : <>{Math.round(ratio * 100)}% of your target</>;
   return (
     <header className="cc-brief">
       <div style={{ minWidth: 0 }}>
@@ -68,7 +71,7 @@ function Briefing({ d, range, onRefresh, refreshing }) {
         <h1>{hello}.</h1>
         <p>
           {bits.length ? <>{joinWords(bits)}.</> : <>Nothing needs you right now.</>}{' '}
-          Today: <b>{money(d.target.today, true)}</b> from {pl(d.target.todayOrders, 'order', 'orders')}, {ratio >= 1 ? <b style={{ color: 'var(--green)' }}>target reached</b> : <>{Math.round(ratio * 100)}% of your target</>}.
+          Today: <b>{money(d.target.today, true)}</b> from {pl(d.target.todayOrders, 'order', 'orders')}{target && <>, {target}</>}.
         </p>
       </div>
       <div className="row wrap" style={{ justifyContent: 'flex-end' }}>
@@ -192,6 +195,21 @@ function RevenueChart({ series, buckets }) {
 }
 
 function TargetBar({ t }) {
+  if (t.value == null) {
+    return (
+      <div className="target">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="hud"><span className="led blue" />Today’s target</span>
+          <a className="linkish" href="#/settings" style={{ fontSize: 12 }}>Set a target</a>
+        </div>
+        <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
+          <b className="num" style={{ fontSize: 19 }}>{money(t.today, true)}</b>
+          <span className="muted">today · {pl(t.todayOrders, 'order', 'orders')}</span>
+        </div>
+        <small className="muted">No daily target set. Add one in Settings to see progress here.</small>
+      </div>
+    );
+  }
   const ratio = t.value ? t.today / t.value : 0;
   const segs = 24;
   const on = Math.min(segs, Math.floor(ratio * segs));
@@ -199,7 +217,7 @@ function TargetBar({ t }) {
     <div className="target">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <span className="hud"><span className={`led ${ratio >= 1 ? 'green pulse' : 'blue'}`} />Today’s target</span>
-        <a className="linkish" href="#/settings" style={{ fontSize: 12 }}>{t.custom ? 'Change target' : 'Set your own'}</a>
+        <a className="linkish" href="#/settings" style={{ fontSize: 12 }}>Change target</a>
       </div>
       <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
         <b className="num" style={{ fontSize: 19 }}>{money(t.today, true)}</b>
@@ -212,7 +230,6 @@ function TargetBar({ t }) {
       </div>
       <small className="muted">
         {ratio >= 1 ? 'Target reached. Everything from here is extra.' : `${money(t.value - t.today, true)} to go.`}
-        {!t.custom && ' Automatic target: your last 30 days’ daily average plus 10%.'}
       </small>
     </div>
   );
@@ -225,9 +242,10 @@ function NeedsYou({ a }) {
     { key: 'out', n: a.outOfStock.count, tone: 'coral', icon: 'layers', label: 'Out of stock', text: a.outOfStock.sample.join(' · ') || 'Restock or hide them', to: '/inventory?level=out', urgent: a.outOfStock.count > 0 },
     { key: 'messages', n: a.messages, tone: 'blue', icon: 'chat', label: 'Unread messages', text: 'Buyers waiting on a reply', to: '/messages?filter=unread' },
     { key: 'low', n: a.lowStock.count, tone: 'amber', icon: 'layers', label: 'Running low', text: a.lowStock.sample.join(' · '), to: '/inventory?level=low' },
-    { key: 'reviews', n: a.reviews, tone: 'violet', icon: 'star', label: 'Reviews to approve', text: 'Hidden until you approve them', to: '/reviews?status=hold' },
-    { key: 'hold', n: a.onHold, tone: 'violet', icon: 'clock', label: 'Orders on hold', text: 'Waiting on payment or stock', to: '/orders?status=on-hold' },
+    { key: 'reviews', n: a.reviews, tone: 'violet', icon: 'star', label: 'Reviews to approve', text: 'Hidden until you approve them', to: '/reviews?status=pending' },
+    { key: 'hold', n: a.onHold, tone: 'violet', icon: 'clock', label: 'Orders on hold', text: 'Waiting on payment or stock', to: '/orders?status=on_hold' },
     { key: 'ending', n: a.ending, tone: 'blue', icon: 'percent', label: 'Offers ending soon', text: 'Within the next 3 days', to: '/offers' },
+    { key: 'waiting', n: a.stockAlerts, tone: 'blue', icon: 'bell', label: 'Buyers waiting on stock', text: 'Restocking emails them', to: '/inventory?level=out' },
   ];
   const open = items.filter((i) => i.n > 0);
   const clear = items.filter((i) => !i.n);
@@ -269,7 +287,7 @@ function Scoreboard({ t }) {
     ['Orders', num(t.orders), 'All time', '#/orders'],
     ['Products', num(t.products), `${num(t.published)} published`, '#/products'],
     ['Customers', num(t.customers), 'Registered accounts', '#/customers'],
-    ['Active offers', num(t.offers), 'Sales, coupons, campaigns', '#/offers'],
+    ['Active offers', num(t.offers), 'Running offers and live codes', '#/offers'],
   ];
   return (
     <section className="surface score span-12" aria-label="Store totals">
@@ -292,7 +310,7 @@ function OrdersPanel({ d, range }) {
     try {
       await api.put(`/orders/${o.id}/status`, { status });
       changed('orders');
-      toast(`Order #${o.number} is now ${STATUS[status].label.toLowerCase()}`, { undo: async () => { await api.put(`/orders/${o.id}/status`, { status: o.status }).catch(fail); changed('orders'); } });
+      toast(`Order #${o.number} is now ${STATUS[status]?.label.toLowerCase() || status}`, { undo: async () => { await api.put(`/orders/${o.id}/status`, { status: o.status }).catch(fail); changed('orders'); } });
     } catch (e) { fail(e); }
     setBusy(null);
   };
@@ -316,7 +334,7 @@ function OrdersPanel({ d, range }) {
         <Icon name="chevron" className="pipe-arrow" />
         {node('completed', 'Completed', s.completed, 'green')}
         <div className="pipe-side">
-          <a href="#/orders?status=on-hold"><span className="led violet" />On hold <b>{num(s.onHold)}</b></a>
+          <a href="#/orders?status=on_hold"><span className="led violet" />On hold <b>{num(s.onHold)}</b></a>
           <a href="#/orders?status=cancelled"><span className="led coral" />Cancelled <b>{num(s.cancelled)}</b></a>
           {s.refunded > 0 && <a href="#/orders?status=refunded"><span className="led" />Refunded <b>{num(s.refunded)}</b></a>}
           {s.failed > 0 && <a href="#/orders?status=failed"><span className="led coral" />Failed <b>{num(s.failed)}</b></a>}
@@ -339,11 +357,11 @@ function OrdersPanel({ d, range }) {
           <tbody>
             {d.recentOrders.map((o) => (
               <tr key={o.id} className="clickable" onClick={() => navigate(`/orders/${o.id}`)}>
-                <td><div className="cell-main"><Avatar name={`${o.billing.first_name || ''} ${o.billing.last_name || ''}`.trim() || o.billing.email} size="" /><div style={{ minWidth: 0 }}><b>#{o.number} · {`${o.billing.first_name || ''} ${o.billing.last_name || ''}`.trim() || 'Guest'}</b><small>{o.billing.city || o.billing.email}{o.customer_note ? ' · has a note' : ''}</small></div></div></td>
-                <td data-label="Items" className="hide-compact"><span className="row" style={{ gap: 8 }}><span className="stack-thumbs">{o.items.slice(0, 3).map((l, i) => <Thumb key={i} src={l.image} />)}</span><span className="muted mono" style={{ fontSize: 11.5 }}>{o.items.reduce((a, l) => a + l.quantity, 0)}×</span></span></td>
+                <td><div className="cell-main"><Avatar name={o.customer} size="" /><div style={{ minWidth: 0 }}><b>#{o.number} · {o.customer}</b><small>{o.email}{o.user_id ? '' : ' · guest'}</small></div></div></td>
+                <td data-label="Items" className="hide-compact"><span className="muted mono" style={{ fontSize: 11.5 }}>{o.units}×</span></td>
                 <td className="right" data-label="Total"><b className="num">{money(o.total)}</b></td>
                 <td data-label="Status"><StatusSelect status={o.status} busy={busy === o.id} onChange={(v) => setStatus(o, v)} /></td>
-                <td data-label="Placed" className="muted mono" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{ago(o.date_created)}</td>
+                <td data-label="Placed" className="muted mono" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{ago(o.placed_at)}</td>
               </tr>
             ))}
           </tbody>
@@ -365,7 +383,7 @@ function StockRow({ p, level }) {
   const save = async (e) => {
     e?.preventDefault();
     setBusy(true);
-    try { const r = await api.put(`/inventory/${p.id}`, { stock_quantity: Number(v) }); toast(`${p.name}: ${r.stock_quantity} in stock`); changed('stock'); } catch (x) { fail(x); }
+    try { const { data: r } = await api.put(`/inventory/${p.id}`, { stock_quantity: Number(v) }); toast(`${p.name}: ${r.stock_quantity} in stock`); changed('stock'); } catch (x) { fail(x); }
     setBusy(false);
   };
   return (
@@ -405,11 +423,11 @@ function StockPanel({ low, out, counts }) {
 function OffersPanel({ o }) {
   return (
     <section className="surface span-4" aria-label="Active offers">
-      <div className="surface-head"><h2>Active offers</h2><a className="btn sm" href="#/offers?new=campaign"><Icon name="plus" />Create offer</a></div>
+      <div className="surface-head"><h2>Active offers</h2><a className="btn sm" href="#/offers?new=offer"><Icon name="plus" />Create offer</a></div>
       <div className="trio">
         <a href="#/offers?tab=sales"><b className="num">{num(o.onSale)}</b><span className="label">On sale</span></a>
         <a href="#/offers?tab=coupons"><b className="num">{num(o.coupons)}</b><span className="label">Coupons</span></a>
-        <a href="#/offers"><b className="num">{num(o.campaigns)}</b><span className="label">Campaigns</span></a>
+        <a href="#/offers"><b className="num">{num(o.campaigns)}</b><span className="label">Offers</span></a>
       </div>
       <ul className="ledger">
         {o.list.map((p) => {
@@ -428,8 +446,8 @@ function OffersPanel({ o }) {
         {o.coupon.map((c) => (
           <li key={`c${c.id}`}>
             <a className="mini-row" href="#/offers?tab=coupons">
-              <span className="coupon-code">{c.code.toUpperCase()}</span>
-              <span className="grow muted" style={{ fontSize: 12 }}>{c.discount_type === 'percent' ? `${Number(c.amount)}% off` : `${money(c.amount)} off`}{c.date_expires ? ` · ends ${until(c.date_expires)}` : ''}</span>
+              <span className="coupon-code">{c.code}</span>
+              <span className="grow muted" style={{ fontSize: 12 }}>{c.label}{c.date_expires ? ` · ends ${until(c.date_expires)}` : ''}</span>
               <span className="mono muted" style={{ fontSize: 11.5 }}>used {num(c.usage_count)}×</span>
             </a>
           </li>
@@ -448,8 +466,8 @@ function TopProducts({ list, range }) {
       <div className="surface-head"><h2>Top products</h2><span className="hud">{NOW_LABEL[range]}</span></div>
       <ol className="ledger">
         {list.map((p, i) => (
-          <li key={p.id}>
-            <a className="lb" href={`#/products/${p.id}`}>
+          <li key={p.id ?? `gone-${i}`}>
+            <a className="lb" href={p.id ? `#/products/${p.id}` : undefined}>
               <span className="rk">{String(i + 1).padStart(2, '0')}</span>
               <Thumb src={p.image} size="sm" />
               <span style={{ minWidth: 0 }}>
@@ -500,7 +518,7 @@ function Bars({ rows, tone, linkFor }) {
           </>
         );
         const to = linkFor(r);
-        return <li key={r.id}>{to ? <a href={to}>{body}</a> : <div>{body}</div>}</li>;
+        return <li key={r.id ?? r.name}>{to ? <a href={to}>{body}</a> : <div>{body}</div>}</li>;
       })}
       {!rows.length && <li className="muted" style={{ fontSize: 13 }}>No sales in this period.</li>}
     </ul>
@@ -513,11 +531,11 @@ function RevenueMix({ categories, brands, range }) {
       <div className="mix-cols">
         <div>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}><span className="label">By category</span><a className="linkish" style={{ fontSize: 12 }} href="#/categories">Categories</a></div>
-          <Bars rows={categories} tone="" linkFor={(r) => (r.id > 0 ? `#/products?category=${r.id}` : null)} />
+          <Bars rows={categories} tone="" linkFor={(r) => (r.id ? `#/products?category=${r.id}` : null)} />
         </div>
         <div>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}><span className="label">By brand</span><a className="linkish" style={{ fontSize: 12 }} href="#/brands">Brands</a></div>
-          <Bars rows={brands} tone="violet" linkFor={(r) => `#/products?category=${r.id}`} />
+          <Bars rows={brands} tone="violet" linkFor={(r) => `#/products?brand=${r.id}`} />
         </div>
       </div>
     </section>
@@ -547,12 +565,12 @@ function RecentBuyers({ list }) {
 export function Stars({ n }) {
   return <span className="stars" aria-label={`${n} out of 5 stars`}>{'★★★★★'.slice(0, n)}<span>{'★★★★★'.slice(n)}</span></span>;
 }
-function RecentReviews({ list }) {
+function RecentReviews({ list, reload }) {
   const { toast, fail } = useUi();
   const [busy, setBusy] = useState(null);
   const act = async (r, status) => {
     setBusy(r.id);
-    try { await api.put(`/reviews/${r.id}`, { status }); changed('reviews'); toast(status === 'approved' ? `Approved ${r.reviewer}’s review` : `Unpublished ${r.reviewer}’s review`); } catch (e) { fail(e); }
+    try { await api.put(`/reviews/${r.id}`, { status }); changed('reviews'); toast(status === 'approved' ? `Approved ${r.reviewer}’s review` : `Unpublished ${r.reviewer}’s review`); reload?.(); } catch (e) { fail(e); }
     setBusy(null);
   };
   return (
@@ -560,13 +578,13 @@ function RecentReviews({ list }) {
       <div className="surface-head"><h2>Recent reviews</h2><a className="btn sm quiet" href="#/reviews">All reviews<Icon name="arrow" /></a></div>
       <div className="rv-grid">
         {list.slice(0, 6).map((r) => (
-          <article key={r.id} className={`rv ${r.status === 'hold' ? 'held' : ''}`}>
-            <div className="row" style={{ justifyContent: 'space-between' }}><Stars n={r.rating} />{r.status === 'hold' ? <Chip tone="amber" led>Pending</Chip> : r.status === 'approved' ? <Chip tone="green">Published</Chip> : <Chip tone="muted">{r.status}</Chip>}</div>
+          <article key={r.id} className={`rv ${r.status === 'pending' ? 'held' : ''}`}>
+            <div className="row" style={{ justifyContent: 'space-between' }}><Stars n={r.rating} />{r.status === 'pending' ? <Chip tone="amber" led>Pending</Chip> : r.status === 'approved' ? <Chip tone="green">Published</Chip> : <Chip tone="muted">{r.status}</Chip>}</div>
             <p className="rv-text">“{r.review || 'No text'}”</p>
             <small className="muted">{r.reviewer} on <a className="linkish" href={`#/products/${r.product_id}`}>{r.product_name}</a> · {ago(r.date_created)}</small>
             <div className="row" style={{ gap: 6 }}>
               {r.status !== 'approved' && <Button size="sm" icon="check" loading={busy === r.id} onClick={() => act(r, 'approved')}>Approve</Button>}
-              {r.status === 'approved' && <Button size="sm" variant="quiet" icon="eyeOff" loading={busy === r.id} onClick={() => act(r, 'hold')}>Unpublish</Button>}
+              {r.status === 'approved' && <Button size="sm" variant="quiet" icon="eyeOff" loading={busy === r.id} onClick={() => act(r, 'pending')}>Unpublish</Button>}
             </div>
           </article>
         ))}

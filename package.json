@@ -5,16 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:laravel": "vite --mode laravel --port 5175",
     "build": "vite build",
-    "build:laravel": "vite build --mode laravel",
+    "build:admin": "vite build --config admin/vite.config.js",
+    "build:all": "npm run build && npm run build:admin",
     "preview": "vite preview",
-    "build:all": "vite build && npm --prefix server run build:admin",
     "lint": "eslint .",
-    "test": "npm --prefix server test",
     "api:serve": "php backend/artisan serve --host=127.0.0.1 --port=8000",
-    "test:api": "cd backend && php artisan test",
-    "check": "npm run lint && npm run build:all && npm test && npm run test:api"
+    "test": "cd backend && php artisan test",
+    "check": "npm run lint && npm run build:all && npm test"
   },
   "dependencies": {
     "react": "^19.0.0",

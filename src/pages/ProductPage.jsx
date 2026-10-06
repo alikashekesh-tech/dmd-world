@@ -16,9 +16,7 @@ import { catUrl, CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
-import { storeApi } from '../lib/storeApi.js';
 import { laravelApi } from '../lib/laravelApi.js';
-import { LARAVEL } from '../lib/backend.js';
 import NotFound from './NotFound.jsx';
 import s from './ProductPage.module.css';
 
@@ -85,7 +83,7 @@ export default function ProductPage() {
   useEffect(() => {
     let live = true;
     setDetails(null);
-    const load = LARAVEL ? laravelApi.get(`/products/${encodeURIComponent(slug)}`).then(({ data: d }) => detailsFromApi(d)) : storeApi.get(`/products/${encodeURIComponent(slug)}`);
+    const load = laravelApi.get(`/products/${encodeURIComponent(slug)}`).then(({ data: d }) => detailsFromApi(d));
     load.then((d) => { if (live) setDetails(d); }).catch(() => {});
     return () => { live = false; };
   }, [slug]);

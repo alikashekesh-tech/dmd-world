@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { Rating } from '../common/bits.jsx';
-import { storeApi } from '../../lib/storeApi.js';
-import { LARAVEL } from '../../lib/backend.js';
 import { reviews } from '../../lib/community.js';
 import page from '../../pages/ProductPage.module.css';
 import s from './Reviews.module.css';
@@ -36,7 +34,7 @@ function ReviewForm({ productId, onDone, autoFocus }) {
     e.preventDefault();
     if (!ready || busy) return;
     setBusy(true); setErr('');
-    try { onDone(LARAVEL ? await reviews.create(productId, f) : await storeApi.post('/me/reviews', { productId: Number(productId), ...f })); } catch (x) { setErr(x.message); setBusy(false); }
+    try { onDone(await reviews.create(productId, f)); } catch (x) { setErr(x.message); setBusy(false); }
   };
   return (
     <form className={s.form} onSubmit={submit} noValidate id="write-review">
@@ -58,7 +56,7 @@ function ReviewForm({ productId, onDone, autoFocus }) {
   );
 }
 
-/** Approved reviews for everyone, plus the signed-in buyer's own (with its status). Laravel pages them 20 at a time. */
+/** Approved reviews for everyone, 20 at a time, plus the signed-in buyer's own (with its status). */
 export default function Reviews({ product, open }) {
   const { buyer, checking } = useStore();
   const [data, setData] = useState(null);
@@ -67,11 +65,11 @@ export default function Reviews({ product, open }) {
   const [more, setMore] = useState(false);
   useEffect(() => {
     setData(null); setError('');
-    (LARAVEL ? reviews.forProduct(product.id) : storeApi.get(`/products/${product.id}/reviews`)).then(setData).catch((e) => setError(e.message));
+    reviews.forProduct(product.id).then(setData).catch((e) => setError(e.message));
   }, [product.id]);
   useEffect(() => {
     if (!buyer) { setMine(null); return; }
-    (LARAVEL ? reviews.mine(product.id) : storeApi.get(`/me/reviews?product=${product.id}`).then((r) => r.items))
+    reviews.mine(product.id)
       .then((items) => setMine(items[0] || false)).catch(() => setMine(false));
   }, [product.id, buyer]);
   const loadMore = async () => {

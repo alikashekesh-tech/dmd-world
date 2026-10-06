@@ -1,4 +1,4 @@
-/* Cart, checkout and order calls for the Laravel backend (VITE_BACKEND=laravel). The browser only says what to buy and
+/* Cart, checkout and order calls to the Laravel API. The browser only says what to buy and
    where to send it: every price, stock check and total comes back from the server. Laravel's answers are mapped to the
    shapes the cart, checkout, order and account pages already use. */
 import { laravelApi } from './laravelApi.js';

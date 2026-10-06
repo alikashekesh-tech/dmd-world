@@ -20,13 +20,19 @@ return [
     'trusted_proxies' => $list(env('TRUSTED_PROXIES', '127.0.0.1,::1')),
 
     // `php artisan dmd:import` reads the old WooCommerce store from here (GET requests only). A read-only REST key is
-    // enough. Locally this is the emulator (server/dev); at cutover, the live store. Not needed after migration.
+    // enough. Used at go-live (docs/deployment.md); not needed once the old store is switched off.
     'import' => [
         'woocommerce' => [
             'url' => env('IMPORT_WOO_URL'),
             'key' => env('IMPORT_WOO_KEY'),
             'secret' => env('IMPORT_WOO_SECRET'),
         ],
+        // `php artisan dmd:import-media` copies images only from these hosts: the old store's own host, plus any listed
+        // (comma-separated) in IMPORT_MEDIA_HOSTS, e.g. dmdworld.store when IMPORT_WOO_URL points elsewhere.
+        'media_hosts' => array_values(array_unique(array_filter(array_map('strtolower', [
+            parse_url((string) env('IMPORT_WOO_URL'), PHP_URL_HOST) ?: null,
+            ...$list(env('IMPORT_MEDIA_HOSTS')),
+        ])))),
     ],
 
     // Name of the MySQL database the test suite uses (never the development or production one).

@@ -6,8 +6,6 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import { OrderSummary } from './Cart.jsx';
 import { LockIcon, CheckIcon, ArrowRight, CloseIcon } from '../components/common/icons.jsx';
-import { storeApi } from '../lib/storeApi.js';
-import { LARAVEL } from '../lib/backend.js';
 import { account } from '../lib/account.js';
 import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
@@ -85,11 +83,11 @@ export default function Checkout() {
     setSaveAddress(!a.address_1);
   }, [buyer]);
   useEffect(() => {
-    if (!LARAVEL || !buyer) { setSaved([]); setAddressId('new'); return; }
+    if (!buyer) { setSaved([]); setAddressId('new'); return; }
     account.addresses.list().then((list) => { setSaved(list); setAddressId(list.find((a) => a.isDefault)?.id ?? 'new'); }).catch(() => setSaved([]));
   }, [buyer]);
   useEffect(() => {
-    (LARAVEL ? orders.options() : storeApi.get('/checkout-options'))
+    orders.options()
       .then((r) => { setPayments(r.payments); setPayment(r.payments[0]?.id || 'cod'); setCouponsOn(r.coupons !== false); })
       .catch(() => setPayments(FALLBACK_PAYMENTS));
   }, []);

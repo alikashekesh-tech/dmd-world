@@ -27,20 +27,35 @@ npm run api:serve      # from the project root: Laravel on http://127.0.0.1:8000
 npm run dev            # the storefront and admin on http://localhost:5173
 ```
 
-The Vite dev server forwards `/api/v1/*` to Laravel, so the browser only ever talks to its own origin. Cookie sessions and CSRF work the same as in production, and no CORS is needed. Until a feature has moved to Laravel, `/api/*` and `/admin/api/*` still go to the legacy Node server (`server/`).
+The Vite dev server forwards `/api/v1/*` and `/storage/*` to Laravel, so the browser only ever talks to its own origin. Cookie sessions and CSRF work the same as in production, and no CORS is needed.
+
+Create the owner account once: `php artisan dmd:owner`.
 
 ## Test
 
 ```bash
-npm run test:api       # or, inside backend/: php artisan test
+npm test               # or, inside backend/: php artisan test
 ```
 
 Tests run against MySQL (the same engine as production) in the `*_testing` database. The suite refuses to start against any other database name.
 
 ## Conventions
 
-- **Routes:** `routes/api.php` serves `/api/v1` (storefront and buyers). Owner routes go under `/api/v1/admin` on the `admin` guard (from Phase 2).
+- **Routes:** `routes/api.php` serves `/api/v1` (storefront and buyers); `routes/admin.php` serves `/api/v1/admin` on the `admin` guard.
 - **Errors:** always `{"error": {"code": "SOME_CODE", "message": "Readable sentence.", "fields": {...}}}`. To refuse something for a business reason, throw `App\Exceptions\ApiException`. Framework and database messages are never sent to clients; they go to `storage/logs`.
 - **Authentication:** Sanctum SPA cookie sessions only. Bearer tokens are disabled.
 - **Validation:** Form Requests. **Responses:** API Resources. **Ownership:** Policies. **Services:** only for logic shared across endpoints (pricing, checkout, inventory).
 - **Secrets:** only in `.env` (never committed). The React apps receive none of them.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `php artisan db:provision` | creates the databases and the app's MySQL account (asks for the root password, never stores it) |
+| `php artisan dmd:owner` | creates the owner account (`--reset` changes its password) |
+| `php artisan dmd:import` | one-time copy of the old WooCommerce store (read-only; `--only=` for parts; refuses production without `--force`) |
+| `php artisan dmd:verify-import` | checks every record of the old store against MySQL |
+| `php artisan dmd:import-media` | copies images still served by the old WordPress site into storage (`--dry-run` to count) |
+| `php artisan dmd:stock-alerts` | retries back-in-stock emails a mail failure left behind (scheduled every 10 minutes) |
+
+Production setup, the go-live import and backups: [`../docs/deployment.md`](../docs/deployment.md).

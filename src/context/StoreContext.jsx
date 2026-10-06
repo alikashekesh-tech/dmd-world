@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { getProduct, applyRatings, catalog } from '../data/index.js';
+import { getProduct, catalog } from '../data/index.js';
 import { useCatalog, keepCatalogFresh } from '../data/live.js';
-import { storeApi, guestOrders } from '../lib/storeApi.js';
-import { LARAVEL } from '../lib/backend.js';
+import { guestOrders } from '../lib/storeApi.js';
 import { account } from '../lib/account.js';
 import { orders as orderApi } from '../lib/orders.js';
 import * as community from '../lib/community.js';
@@ -61,7 +60,6 @@ export function StoreProvider({ children }) {
   const [unread, setUnread] = useState(0);
   const [drawer, setDrawer] = useState(false);
   const [toast, setToast] = useState(null);
-  const synced = useRef(null); // the wishlist as last saved to the account
   const ordersPage = useRef(1);
 
   // The guest wishlist stays on this device; a signed-in buyer's wishlist is saved to their account instead.
@@ -73,48 +71,28 @@ export function StoreProvider({ children }) {
   useEffect(() => keepCatalogFresh(), []);
 
   const loadInbox = useCallback(async () => {
-    try { setUnread(LARAVEL ? await community.messages.unread() : (await storeApi.get('/me/messages')).items.filter((t) => t.unread).length); } catch { /* badge only */ }
+    try { setUnread(await community.messages.unread()); } catch { /* badge only */ }
   }, []);
   const loadAccount = useCallback(async () => {
     // Bring this device's guest wishlist into the account once, then the account's list is the one shown.
     const local = toIds(read().wishlist || []);
-    if (LARAVEL) {
-      // The account's wishlist is kept in MySQL; the server checks every merged id.
-      await Promise.allSettled([(async () => {
-        const saved = toIds(local.length ? await account.wishlist.merge(local) : await account.wishlist.ids());
-        if (local.length) { try { localStorage.setItem(KEY, JSON.stringify({ ...read(), wishlist: [] })); } catch { /* ignore */ } }
-        synced.current = JSON.stringify(saved);
-        dispatch({ type: 'wishlist', ids: saved });
-      })(), (async () => { const r = await orderApi.list(1); ordersPage.current = 1; setOrders(r.items); setOrdersMore(r.pages > 1); })(),
-      (async () => setAlerts(await community.alerts.list()))(), loadInbox()]);
-      return;
-    }
-    const tasks = [
-      (async () => {
-        const { ids: saved } = await storeApi.get('/me/wishlist');
-        let merged = toIds([...saved, ...local]);
-        if (local.length) { merged = toIds((await storeApi.put('/me/wishlist', { ids: merged.map(Number) })).ids); try { localStorage.setItem(KEY, JSON.stringify({ ...read(), wishlist: [] })); } catch { /* ignore */ } }
-        synced.current = JSON.stringify(merged);
-        dispatch({ type: 'wishlist', ids: merged });
-      })(),
-      (async () => { const r = await storeApi.get('/me/orders'); ordersPage.current = 1; setOrders(r.items); setOrdersMore((r.pages || 1) > 1); })(),
-      (async () => setAlerts((await storeApi.get('/me/alerts')).items.map((a) => String(a.productId))))(),
-      loadInbox(),
-    ];
-    await Promise.allSettled(tasks); // each part can fail alone; the rest still shows
+    // Each part can fail alone; the rest still shows. The account's wishlist is kept in MySQL; the server checks
+    // every merged id.
+    await Promise.allSettled([(async () => {
+      const saved = toIds(local.length ? await account.wishlist.merge(local) : await account.wishlist.ids());
+      if (local.length) { try { localStorage.setItem(KEY, JSON.stringify({ ...read(), wishlist: [] })); } catch { /* ignore */ } }
+      dispatch({ type: 'wishlist', ids: saved });
+    })(), (async () => { const r = await orderApi.list(1); ordersPage.current = 1; setOrders(r.items); setOrdersMore(r.pages > 1); })(),
+    (async () => setAlerts(await community.alerts.list()))(), loadInbox()]);
   }, [loadInbox]);
 
   const checkSession = useCallback(() => {
     setSessionError(false);
-    return (LARAVEL ? account.session() : storeApi.get('/session'))
+    return account.session()
       .then((r) => { setAccounts(r.accounts); setBuyer(r.buyer); if (r.buyer) loadAccount(); })
       .catch(() => { setBuyer(null); setSessionError(true); });
   }, [loadAccount]);
-  useEffect(() => {
-    checkSession();
-    // Laravel sends ratings inside the catalog; the legacy server has a separate endpoint.
-    if (!LARAVEL) storeApi.get('/ratings').then(applyRatings).catch(() => {});
-  }, [checkSession]);
+  useEffect(() => { checkSession(); }, [checkSession]);
   // Coming back online (or to the tab) after the store couldn't be reached tries again on its own.
   useEffect(() => {
     if (!sessionError) return undefined;
@@ -126,36 +104,24 @@ export function StoreProvider({ children }) {
   // Replies from DMD show up without a reload.
   useEffect(() => {
     if (!buyer) return undefined;
-    const t = setInterval(() => { if (document.visibilityState === 'visible') loadInbox(); }, (LARAVEL ? 60e3 : 3 * 60e3));
+    const t = setInterval(() => { if (document.visibilityState === 'visible') loadInbox(); }, 60e3);
     return () => clearInterval(t);
   }, [buyer, loadInbox]);
 
-  // Save the account's wishlist shortly after it changes (legacy server; with Laravel each change is saved at once).
-  useEffect(() => {
-    if (!buyer || LARAVEL || synced.current === null) return undefined;
-    const now = JSON.stringify(state.wishlist);
-    if (now === synced.current) return undefined;
-    const t = setTimeout(() => {
-      storeApi.put('/me/wishlist', { ids: state.wishlist.map(Number) }).then((r) => { synced.current = JSON.stringify(toIds(r.ids)); }).catch(() => setToast('Couldn’t save your wishlist. Check your connection.'));
-    }, 400);
-    return () => clearTimeout(t);
-  }, [state.wishlist, buyer]);
-
   const signedIn = useCallback(async (b) => { setBuyer(b); setSessionError(false); await loadAccount(); return b; }, [loadAccount]);
-  const signIn = useCallback(async (email, password) => signedIn(LARAVEL ? await account.login(email, password) : (await storeApi.post('/login', { email, password })).buyer), [signedIn]);
-  const register = useCallback(async (fields) => signedIn(LARAVEL ? await account.register(fields) : (await storeApi.post('/register', fields)).buyer), [signedIn]);
+  const signIn = useCallback(async (email, password) => signedIn(await account.login(email, password)), [signedIn]);
+  const register = useCallback(async (fields) => signedIn(await account.register(fields)), [signedIn]);
   const signOut = useCallback(async () => {
-    await (LARAVEL ? account.logout() : storeApi.post('/logout')).catch(() => {});
+    await account.logout().catch(() => {});
     // Nothing from the account stays on screen for the next person using this device.
-    synced.current = null;
     setBuyer(null); setOrders([]); setOrdersMore(false); setAlerts([]); setUnread(0); dispatch({ type: 'wishlist', ids: [] });
   }, []);
   const refreshOrders = useCallback(async () => {
     if (!buyer) return;
-    try { const r = LARAVEL ? await orderApi.list(1) : await storeApi.get('/me/orders'); ordersPage.current = 1; setOrders(r.items); setOrdersMore((r.pages || 1) > 1); } catch { /* keep the last list */ }
+    try { const r = await orderApi.list(1); ordersPage.current = 1; setOrders(r.items); setOrdersMore((r.pages || 1) > 1); } catch { /* keep the last list */ }
   }, [buyer]);
   const loadMoreOrders = useCallback(async () => {
-    const r = LARAVEL ? await orderApi.list(ordersPage.current + 1) : await storeApi.get(`/me/orders?page=${ordersPage.current + 1}`);
+    const r = await orderApi.list(ordersPage.current + 1);
     ordersPage.current += 1;
     setOrders((list) => [...list, ...r.items.filter((o) => !list.some((x) => x.id === o.id))]);
     setOrdersMore(ordersPage.current < (r.pages || 1));
@@ -171,31 +137,23 @@ export function StoreProvider({ children }) {
     const had = state.wishlist.includes(id);
     dispatch({ type: 'wish', id });
     setToast(had ? `Removed ${p?.name || 'item'} from your wishlist` : `Saved ${p?.name || 'item'} to your wishlist`);
-    // Laravel: saved to the account straight away; if the store refuses, the heart goes back.
-    if (LARAVEL && buyer) {
+    // Saved to the account straight away; if the store refuses, the heart goes back.
+    if (buyer) {
       (had ? account.wishlist.remove(id) : account.wishlist.add(id))
-        .then(() => { synced.current = null; })
         .catch((e) => { dispatch({ type: 'wish', id }); setToast(e.status === 404 ? 'That product isn’t available any more.' : 'Couldn’t save your wishlist. Check your connection.'); });
     }
   }, [state.wishlist, buyer]);
   /** Back-in-stock email for a sold-out product (signed-in buyers). */
   const toggleAlert = useCallback(async (id) => {
     const on = alerts.includes(String(id));
-    if (LARAVEL) {
-      setAlerts(await (on ? community.alerts.remove(id) : community.alerts.add(id)));
-      return !on;
-    }
-    const r = on ? await storeApi.del(`/me/alerts/${id}`) : await storeApi.post('/me/alerts', { productId: Number(id) });
-    setAlerts(r.items.map((a) => String(a.productId)));
+    setAlerts(await (on ? community.alerts.remove(id) : community.alerts.add(id)));
     return !on;
   }, [alerts]);
 
-  /** Places a real WooCommerce order. Prices and stock are checked by the server, never trusted from here.
+  /** Places the order. Prices and stock are checked by the server, never trusted from here.
       The idempotency key makes a retried submit (double tap, dropped connection) return the same order. */
   const placeOrder = useCallback(async (payload) => {
-    const r = LARAVEL
-      ? await orderApi.place({ ...payload, items: state.cart.map((l) => ({ id: l.id, qty: l.qty })) })
-      : await storeApi.post('/orders', { ...payload, items: state.cart.map((l) => ({ id: Number(l.id), qty: l.qty })) }, { timeout: 45000 });
+    const r = await orderApi.place({ ...payload, items: state.cart.map((l) => ({ id: l.id, qty: l.qty })) });
     if (r.key) guestOrders.add(r.id, r.key);
     dispatch({ type: 'clear' });
     if (buyer) refreshOrders();

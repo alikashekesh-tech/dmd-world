@@ -37,6 +37,7 @@ class ProductResource extends JsonResource
             'sale_ends_at' => $this->sale_ends_at?->toIso8601String(),
             'price' => Money::json($price['price']),
             'on_sale' => $price['on_sale'],
+            'offer' => $price['offer'] ? ['id' => $price['offer']['id'], 'name' => $price['offer']['name']] : null, // the store-wide offer behind the price, if any
             'is_featured' => (bool) $this->is_featured,
             'track_stock' => (bool) $this->track_stock,
             'stock_quantity' => $this->stock_quantity,
@@ -44,6 +45,7 @@ class ProductResource extends JsonResource
             'effective_low_stock_threshold' => Inventory::threshold($this->resource),
             'stock_status' => $this->stock_status,
             'availability' => Inventory::availability($this->resource),
+            'waiting' => $this->when(array_key_exists('waiting', $this->getAttributes()), fn () => (int) $this->getAttributes()['waiting']), // buyers waiting for it
             'image' => $this->relationLoaded('images') ? $this->images->first()?->url : null,
             'images' => $this->relationLoaded('images') ? $this->images->map(fn ($i) => ['id' => $i->id, 'url' => $i->url, 'alt' => $i->alt, 'position' => $i->position])->values() : [],
             'specifications' => $detail ? $this->specifications->map(fn ($s) => ['name' => $s->name, 'value' => $s->value])->values() : null,

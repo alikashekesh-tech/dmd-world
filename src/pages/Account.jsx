@@ -9,12 +9,11 @@ import { ProductImage } from '../components/art/Media.jsx';
 import { Rating } from '../components/common/bits.jsx';
 import { ArrowRight, RepeatIcon, BellIcon, TrashIcon } from '../components/common/icons.jsx';
 import { PasswordField, PasswordRules, MatchHint, passwordReady } from '../components/account/Password.jsx';
-import { storeApi, ORDER_STATUS } from '../lib/storeApi.js';
+import { ORDER_STATUS } from '../lib/storeApi.js';
 import { getProduct, money } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
 import { CONTACT } from '../data/dmdMenu.js';
-import { LARAVEL } from '../lib/backend.js';
 import { account } from '../lib/account.js';
 import { reviews as reviewApi, messages as messageApi } from '../lib/community.js';
 import AddressBook from '../components/account/AddressBook.jsx';
@@ -63,7 +62,7 @@ function SignIn() {
     try {
       if (mode === 'in') { await signIn(f.email.trim(), f.password); back(); return; }
       if (mode === 'up') { await register({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, confirm: f.confirm }); back(); return; }
-      else setDone(LARAVEL ? await account.forgot(f.email.trim()) : (await storeApi.post('/password/forgot', { email: f.email.trim() })).message);
+      else setDone(await account.forgot(f.email.trim()));
     } catch (x) { setErr(x.message); }
     setBusy(false);
   };
@@ -182,8 +181,8 @@ function Orders() {
   );
 }
 
-/** Laravel: one conversation per order (started by the first message), plus any general ones. */
-function LaravelMessages() {
+/** One conversation per order (started by the first message), plus any general ones. */
+function Messages() {
   const { refreshInbox, orders } = useStore();
   const [params] = useSearchParams();
   const [convs, setConvs] = useState(null);
@@ -274,78 +273,11 @@ function LaravelMessages() {
   );
 }
 
-function Messages() {
-  const { refreshInbox } = useStore();
-  const [params] = useSearchParams();
-  const [list, setList] = useState(null);
-  const [open, setOpen] = useState(() => Number(params.get('order')) || null);
-  const [thread, setThread] = useState(null);
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  useEffect(() => { storeApi.get('/me/messages').then((r) => setList(r.items)).catch((e) => setErr(e.message)); }, []);
-  useEffect(() => {
-    if (!open) return;
-    setThread(null); setErr('');
-    storeApi.get(`/me/messages/${open}`).then((r) => { setThread(r); setList((l) => l?.map((x) => (x.orderId === open ? { ...x, unread: false } : x))); refreshInbox(); }).catch((e) => setErr(e.message));
-  }, [open, refreshInbox]);
-  const send = async (e) => {
-    e.preventDefault();
-    if (text.trim().length < 2) return;
-    setBusy(true); setErr('');
-    try {
-      const m = await storeApi.post(`/me/messages/${open}`, { text });
-      setThread((t) => ({ ...t, thread: [...t.thread, m] })); setText('');
-      setList((l) => l?.map((x) => (x.orderId === open ? { ...x, hasThread: true } : x)));
-    } catch (x) { setErr(x.message); }
-    setBusy(false);
-  };
-  if (!list) return <p className={s.muted}>{err || 'Loading your messages…'}</p>;
-  if (!list.length) return <EmptyState compact art={<LineArt type="receipt" />} status="No messages" title="No orders to talk about yet" text="Once you order, you can message DMD about it here." />;
-  return (
-    <div className={s.msgs}>
-      <ul className={s.threadList}>
-        {list.map((t) => (
-          <li key={t.orderId}>
-            <button type="button" className={`${s.threadBtn} ${open === t.orderId ? s.on : ''}`} onClick={() => setOpen(t.orderId)} aria-current={open === t.orderId ? 'true' : undefined}>
-              <span><b>Order #{t.number}</b><small>{t.hasThread ? (t.last ? `Last message ${shortDate(t.last)}` : 'Conversation') : 'Ask about this order'}</small></span>
-              {t.unread && <i className={s.dot} aria-label="New reply" />}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className={s.thread}>
-        {!open ? <p className={s.muted}>Pick an order to see messages with DMD World, or to ask something about it.</p>
-          : !thread ? <p className={s.muted}>{err || 'Loading…'}</p> : (
-            <>
-              <div className={s.threadHead}><b>Order #{thread.order.number}</b><StatusTag status={thread.order.status} /></div>
-              <div className={s.bubbles}>
-                {thread.thread.length === 0 && <p className={s.muted}>No messages yet. Ask DMD anything about this order.</p>}
-                {thread.thread.map((m) => (
-                  <div key={m.id} className={`${s.bubble} ${m.from === 'you' ? s.you : s.store}`}>
-                    <p>{m.text}</p>
-                    <small>{m.from === 'you' ? 'You' : 'DMD World'} · {new Date(m.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small>
-                  </div>
-                ))}
-              </div>
-              <form className={s.composer} onSubmit={send}>
-                <label className="sr-only" htmlFor="msg">Message to DMD World</label>
-                <textarea id="msg" className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Write to DMD World…" maxLength={2000} />
-                {err && <p className={s.err} role="alert">{err}</p>}
-                <div><small className={s.muted}>DMD replies here and by email.</small><button type="submit" className="btn btn--primary btn--sm" disabled={busy || text.trim().length < 2}>{busy ? 'Sending…' : 'Send'}</button></div>
-              </form>
-            </>
-          )}
-      </div>
-    </div>
-  );
-}
-
 const REVIEW_STATUS = { pending: ['Pending approval', s.wait], published: ['Published', s.done], hidden: ['Not published', s.stop] };
 function MyReviews() {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
-  useEffect(() => { (LARAVEL ? reviewApi.mine() : storeApi.get('/me/reviews').then((r) => r.items)).then(setItems).catch((e) => setErr(e.message)); }, []);
+  useEffect(() => { reviewApi.mine().then(setItems).catch((e) => setErr(e.message)); }, []);
   if (!items) return <p className={s.muted}>{err || 'Loading your reviews…'}</p>;
   if (!items.length) return <EmptyState compact art={<LineArt type="receipt" />} status="No reviews yet" title="You haven’t reviewed anything yet" text="Review gear you bought from your order history or any product page." />;
   return (
@@ -389,10 +321,9 @@ function Alerts() {
   );
 }
 
-const ADDR = [['address_1', 'Street address', 'address-line1', true], ['address_2', 'Building, floor', 'address-line2'], ['city', 'City', 'address-level2'], ['state', 'Area', 'address-level1'], ['postcode', 'Postal code', 'postal-code']];
 function Profile() {
   const { buyer, setBuyer } = useStore();
-  const init = () => ({ firstName: buyer.firstName, lastName: buyer.lastName, phone: buyer.phone, email: buyer.email, currentPassword: '', ...Object.fromEntries(ADDR.map(([k]) => [k, buyer.shipping[k] || buyer.billing[k] || ''])) });
+  const init = () => ({ firstName: buyer.firstName, lastName: buyer.lastName, phone: buyer.phone, email: buyer.email, currentPassword: '' });
   const [f, setF] = useState(init);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -403,13 +334,9 @@ function Profile() {
     e.preventDefault();
     setBusy(true); setMsg(null);
     try {
-      const addr = Object.fromEntries(ADDR.map(([k]) => [k, f[k].trim()]));
-      const name = { first_name: f.firstName.trim(), last_name: f.lastName.trim() };
-      const b = LARAVEL
-        ? await account.updateProfile({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), phone: f.phone.trim(), ...(emailChanged ? { email: f.email.trim(), currentPassword: f.currentPassword } : {}) })
-        : await storeApi.put('/me', { firstName: f.firstName, lastName: f.lastName, phone: f.phone, shipping: { ...addr, ...name, country: 'LB' }, billing: { ...addr, ...name, country: 'LB' }, ...(emailChanged ? { email: f.email, currentPassword: f.currentPassword } : {}) });
+      const b = await account.updateProfile({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), phone: f.phone.trim(), ...(emailChanged ? { email: f.email.trim(), currentPassword: f.currentPassword } : {}) });
       setBuyer(b); setF((x) => ({ ...x, currentPassword: '' }));
-      setMsg({ ok: true, text: LARAVEL ? 'Saved.' : 'Saved. Your details will be filled in at checkout.' });
+      setMsg({ ok: true, text: 'Saved.' });
     } catch (x) { setMsg({ ok: false, text: x.message }); }
     setBusy(false);
   };
@@ -425,14 +352,6 @@ function Profile() {
         </div>
         {emailChanged && <PasswordField label="Current password (to change your email)" value={f.currentPassword} onChange={(v) => setF((x) => ({ ...x, currentPassword: v }))} autoComplete="current-password" />}
       </fieldset>
-      {!LARAVEL && (
-        <fieldset>
-          <legend>Delivery address</legend>
-          <div className={s.two}>
-            {ADDR.map(([k, label, auto, wide]) => <div key={k} className={`field ${wide ? s.wide : ''}`}><label htmlFor={`pf-${k}`}>{label}</label><input id={`pf-${k}`} name={k} className="input" value={f[k]} onChange={set} autoComplete={auto} /></div>)}
-          </div>
-        </fieldset>
-      )}
       {msg && <p className={msg.ok ? s.okMsg : s.err} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p>}
       <div className={s.formActions}>
         <button type="submit" className="btn btn--primary" disabled={busy || !dirty || !f.firstName.trim() || !f.lastName.trim() || !isEmail(f.email) || (emailChanged && !f.currentPassword)}>{busy ? 'Saving…' : 'Save details'}</button>
@@ -452,7 +371,7 @@ function Security() {
     e.preventDefault();
     if (!ready) return;
     setBusy(true); setMsg(null);
-    try { await (LARAVEL ? account.changePassword(f) : storeApi.post('/me/password', f)); setF({ current: '', next: '', confirm: '' }); setMsg({ ok: true, text: 'Password changed. Any other devices signed in to your account were signed out.' }); } catch (x) { setMsg({ ok: false, text: x.message }); }
+    try { await account.changePassword(f); setF({ current: '', next: '', confirm: '' }); setMsg({ ok: true, text: 'Password changed. Any other devices signed in to your account were signed out.' }); } catch (x) { setMsg({ ok: false, text: x.message }); }
     setBusy(false);
   };
   return (
@@ -517,11 +436,11 @@ export default function Account() {
         <section className={s.content}>
           <h2>{TABS.find(([k]) => k === tab)[1]}</h2>
           {tab === 'orders' && <Orders />}
-          {tab === 'messages' && (LARAVEL ? <LaravelMessages /> : <Messages />)}
+          {tab === 'messages' && <Messages />}
           {tab === 'reviews' && <MyReviews />}
           {tab === 'alerts' && <Alerts />}
           {tab === 'profile' && <Profile key={buyer.email} />}
-          {tab === 'profile' && LARAVEL && <section className={s.form} aria-labelledby="addr-title"><fieldset><legend id="addr-title">Delivery addresses</legend><AddressBook buyer={buyer} /></fieldset></section>}
+          {tab === 'profile' && <section className={s.form} aria-labelledby="addr-title"><fieldset><legend id="addr-title">Delivery addresses</legend><AddressBook buyer={buyer} /></fieldset></section>}
           {tab === 'security' && <Security />}
           {tab === 'help' && <div className={s.help}>{HELP.map(([t, b]) => <div key={t}><h3>{t}</h3><p>{b}</p></div>)}</div>}
         </section>

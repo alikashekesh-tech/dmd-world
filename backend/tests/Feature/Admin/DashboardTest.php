@@ -128,7 +128,7 @@ class DashboardTest extends TestCase
 
         $cats = collect($d['categories'])->keyBy('name');
         $this->assertEquals([180, 2], [$cats['Games']['revenue'], $cats['Games']['orders']], 'counted at the top of the main category');
-        $this->assertEquals(45, $cats['Uncategorised']['revenue']);
+        $this->assertEquals(45, $cats['Razer · no category']['revenue'], 'a product filed only under its brand');
         $this->assertEquals(5, $cats['Removed products']['revenue']);
         $this->assertSame([['id' => $razer->id, 'name' => 'Razer', 'units' => 1, 'revenue' => 45, 'orders' => 1]], $d['brands']);
         $this->assertEquals(230, array_sum(array_column($d['categories'], 'revenue')), 'categories add up to the paid lines');
@@ -159,6 +159,7 @@ class DashboardTest extends TestCase
 
     public function test_the_number_of_queries_does_not_grow_with_the_store(): void
     {
+        config(['session.lottery' => [0, 100]]); // the session clean-up runs on a random 2% of requests: not part of the dashboard
         $owner = $this->owner(); // signed in once, outside what is counted
         $owner->get('/api/v1/admin/dashboard?range=30d')->assertOk();
         $count = function () use ($owner) {

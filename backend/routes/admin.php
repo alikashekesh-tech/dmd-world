@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReviewController;
 use App\Http\Controllers\Api\V1\Admin\SettingsController;
 use App\Http\Controllers\Api\V1\Admin\StockAlertController;
+use App\Http\Controllers\Api\V1\Admin\TrashController;
 use App\Http\Controllers\Api\V1\Admin\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -73,6 +74,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
 
     // Customers: registered buyers and guests, with what they ordered.
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('customers/guest', [CustomerController::class, 'guest'])->name('customers.guest');
     Route::get('customers/{user}', [CustomerController::class, 'show'])->whereNumber('user')->name('customers.show');
     Route::put('customers/{user}', [CustomerController::class, 'update'])->whereNumber('user')->name('customers.update');
 
@@ -106,6 +108,8 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::post('banners/reorder', [HomepageController::class, 'reorderBanners'])->name('banners.reorder');
     Route::put('banners/{banner}', [HomepageController::class, 'updateBanner'])->whereNumber('banner')->name('banners.update');
     Route::delete('banners/{banner}', [HomepageController::class, 'destroyBanner'])->whereNumber('banner')->name('banners.destroy');
+
+    Route::get('trash', [TrashController::class, 'index'])->name('trash.index');
 
     Route::get('settings', [SettingsController::class, 'show'])->name('settings.show');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');

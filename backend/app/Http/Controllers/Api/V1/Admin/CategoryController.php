@@ -12,6 +12,7 @@ use App\Services\CategoryTree;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 /** The owner's category management. Writes go through CategoryService; the storefront reads the same rows. */
 class CategoryController extends Controller
@@ -29,8 +30,12 @@ class CategoryController extends Controller
             default => ! $c->trashed(),
         });
 
+        // Products filed directly under each category (one grouped query).
+        $counts = DB::table('category_product')->join('products', 'products.id', '=', 'category_product.product_id')->whereNull('products.deleted_at')
+            ->groupBy('category_id')->selectRaw('category_id, COUNT(*) AS n')->pluck('n', 'category_id');
+
         return response()->json([
-            'data' => CategoryResource::list($rows, $tree, $request),
+            'data' => collect(CategoryResource::list($rows, $tree, $request))->map(fn ($c) => $c + ['products_count' => (int) ($counts[$c['id']] ?? 0)])->all(),
             'meta' => ['total' => $tree->categories->filter(fn ($c) => ! $c->trashed())->count(), 'archived' => $tree->categories->filter(fn ($c) => $c->trashed())->count()],
         ]);
     }

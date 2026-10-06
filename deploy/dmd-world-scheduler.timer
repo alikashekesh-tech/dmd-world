@@ -1,0 +1,11 @@
+# Starts dmd-world-scheduler.service every minute (Laravel decides what is due).
+[Unit]
+Description=Run DMD World scheduled tasks every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

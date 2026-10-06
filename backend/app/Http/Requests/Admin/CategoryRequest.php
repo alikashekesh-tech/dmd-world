@@ -28,7 +28,7 @@ class CategoryRequest extends ApiRequest
             'parent_id' => ['sometimes', 'nullable', 'integer', Rule::exists('categories', 'id')->whereNull('deleted_at')],
             'brand_id' => ['sometimes', 'nullable', 'integer', Rule::exists('brands', 'id')->whereNull('deleted_at')],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'image_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:http,https'],
+            'image_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'regex:#^(https://|/storage/)[^\s]+$#i'], // an upload or an https address
             'icon' => ['sometimes', 'nullable', 'string', 'max:40', 'regex:/^[a-z0-9-]+$/'],
             'accent_color' => ['sometimes', 'nullable', 'regex:/^#[0-9a-f]{6}$/'],
             'is_visible' => ['sometimes', 'boolean'],
