@@ -58,5 +58,14 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinutes(15, 20)->by($request->ip())
             ->response($tooMany('Too many attempts. Please wait a few minutes.')));
+
+        // Checkout: real orders are rare per person, price checks are frequent but cheap.
+        RateLimiter::for('orders', fn (Request $request) => [
+            Limit::perHour(10)->by('ip:'.$request->ip())->response($tooMany('Too many orders from this connection. Please wait a little and try again.')),
+            Limit::perHour(10)->by('user:'.($request->user()?->getAuthIdentifier() ?? 'guest:'.$request->ip()))->response($tooMany('Too many orders from this account. Please wait a little and try again.')),
+        ]);
+        RateLimiter::for('quote', fn (Request $request) => Limit::perMinutes(10, 120)->by($request->ip()));
+        RateLimiter::for('cancel', fn (Request $request) => Limit::perHour(10)->by($request->user()?->getAuthIdentifier() ?: $request->ip())
+            ->response($tooMany('Too many requests. Please wait a little.')));
     }
 }

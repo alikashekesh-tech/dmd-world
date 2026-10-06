@@ -1,13 +1,15 @@
 import { COMPAT, COMPAT_ORDER, CATEGORIES, categoryBySlug, brandBySlug, BRANDS, FILTERS_BY_TYPE, FACET_LABELS } from './meta.js';
-import { DMD_PRODUCTS, catName, toProduct, setCategories } from './dmdProducts.js';
-import { groupBySlug, recountMenu } from './dmdMenu.js';
+import { DMD_PRODUCTS, catName, toProduct, fromApi, setCategories } from './dmdProducts.js';
+import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS } from './dmdMenu.js';
 export * from './meta.js';
 const FALLBACK_BRAND = { slug: 'dmd', name: 'DMD World' };
 export const getBrand = (slug) => (groupBySlug[slug] ? { slug, name: groupBySlug[slug].name } : brandBySlug[slug] || FALLBACK_BRAND);
 
 /* ── the catalog ────────────────────────────────────────────────────────────────
-   Starts from the bundled snapshot so the first paint never waits on the network, then the live WooCommerce
-   catalog (/api/catalog) replaces it in place. Components that list products subscribe with useCatalog(). */
+   Laravel backend: empty until /api/v1/catalog (MySQL) arrives, or this device's cached copy of it; the app waits
+   for one of the two before showing pages (CatalogGate), and no bundled data is ever used.
+   Legacy Node backend: starts from the bundled snapshot, then the live WooCommerce catalog replaces it in place.
+   Either way the arrays are refilled in place; components that list products subscribe with useCatalog(). */
 export const PRODUCTS = [...DMD_PRODUCTS];
 export const productById = {};
 const reindex = () => { for (const k of Object.keys(productById)) delete productById[k]; for (const p of PRODUCTS) productById[p.id] = p; };
@@ -30,6 +32,22 @@ const rate = () => { if (ratings) for (const p of PRODUCTS) { const v = ratings[
 
 /** Real ratings from approved WooCommerce reviews: { productId: [average, count] }. */
 export function applyRatings(map) { ratings = map && typeof map === 'object' ? map : null; rate(); changed(); }
+
+/** Laravel: swaps in /api/v1/catalog ({ generated_at, products, categories, brands }) from MySQL. */
+export function applyLaravelCatalog(data) {
+  if (!data || !Array.isArray(data.products) || !Array.isArray(data.categories)) return false;
+  setCategories(data.categories.map((c) => [c.id, c.name, c.slug, c.parent_id || 0, 0, c.brand_id ?? null]));
+  applyTaxonomy({ categories: data.categories, brands: data.brands || [] });
+  const brandSlugs = new Map((data.brands || []).map((b) => [b.id, b.slug]));
+  const ctx = { brandSlug: (id) => brandSlugs.get(id), offersId: NEW_OFFERS.id ?? null };
+  const next = [];
+  for (const p of data.products) { try { next.push(fromApi(p, ctx)); } catch { /* skip a malformed product */ } }
+  PRODUCTS.splice(0, PRODUCTS.length, ...next);
+  reindex(); rate(); recountMenu(PRODUCTS);
+  liveAt = Date.parse(data.generated_at) || Date.now();
+  changed();
+  return true;
+}
 
 /** Swaps in the live catalog: { at, cats: [[id, name, slug, parent, count]], products: [row…] } (see toProduct). */
 export function applyLiveCatalog(data) {

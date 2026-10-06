@@ -14,6 +14,9 @@ import { getProduct, money } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
 import { CONTACT } from '../data/dmdMenu.js';
+import { LARAVEL } from '../lib/backend.js';
+import { account } from '../lib/account.js';
+import AddressBook from '../components/account/AddressBook.jsx';
 import s from './Account.module.css';
 
 const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
@@ -59,7 +62,7 @@ function SignIn() {
     try {
       if (mode === 'in') { await signIn(f.email.trim(), f.password); back(); return; }
       if (mode === 'up') { await register({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, confirm: f.confirm }); back(); return; }
-      else { const r = await storeApi.post('/password/forgot', { email: f.email.trim() }); setDone(r.message); }
+      else setDone(LARAVEL ? await account.forgot(f.email.trim()) : (await storeApi.post('/password/forgot', { email: f.email.trim() })).message);
     } catch (x) { setErr(x.message); }
     setBusy(false);
   };
@@ -309,9 +312,11 @@ function Profile() {
     try {
       const addr = Object.fromEntries(ADDR.map(([k]) => [k, f[k].trim()]));
       const name = { first_name: f.firstName.trim(), last_name: f.lastName.trim() };
-      const b = await storeApi.put('/me', { firstName: f.firstName, lastName: f.lastName, phone: f.phone, shipping: { ...addr, ...name, country: 'LB' }, billing: { ...addr, ...name, country: 'LB' }, ...(emailChanged ? { email: f.email, currentPassword: f.currentPassword } : {}) });
+      const b = LARAVEL
+        ? await account.updateProfile({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), phone: f.phone.trim(), ...(emailChanged ? { email: f.email.trim(), currentPassword: f.currentPassword } : {}) })
+        : await storeApi.put('/me', { firstName: f.firstName, lastName: f.lastName, phone: f.phone, shipping: { ...addr, ...name, country: 'LB' }, billing: { ...addr, ...name, country: 'LB' }, ...(emailChanged ? { email: f.email, currentPassword: f.currentPassword } : {}) });
       setBuyer(b); setF((x) => ({ ...x, currentPassword: '' }));
-      setMsg({ ok: true, text: 'Saved. Your details will be filled in at checkout.' });
+      setMsg({ ok: true, text: LARAVEL ? 'Saved.' : 'Saved. Your details will be filled in at checkout.' });
     } catch (x) { setMsg({ ok: false, text: x.message }); }
     setBusy(false);
   };
@@ -327,12 +332,14 @@ function Profile() {
         </div>
         {emailChanged && <PasswordField label="Current password (to change your email)" value={f.currentPassword} onChange={(v) => setF((x) => ({ ...x, currentPassword: v }))} autoComplete="current-password" />}
       </fieldset>
-      <fieldset>
-        <legend>Delivery address</legend>
-        <div className={s.two}>
-          {ADDR.map(([k, label, auto, wide]) => <div key={k} className={`field ${wide ? s.wide : ''}`}><label htmlFor={`pf-${k}`}>{label}</label><input id={`pf-${k}`} name={k} className="input" value={f[k]} onChange={set} autoComplete={auto} /></div>)}
-        </div>
-      </fieldset>
+      {!LARAVEL && (
+        <fieldset>
+          <legend>Delivery address</legend>
+          <div className={s.two}>
+            {ADDR.map(([k, label, auto, wide]) => <div key={k} className={`field ${wide ? s.wide : ''}`}><label htmlFor={`pf-${k}`}>{label}</label><input id={`pf-${k}`} name={k} className="input" value={f[k]} onChange={set} autoComplete={auto} /></div>)}
+          </div>
+        </fieldset>
+      )}
       {msg && <p className={msg.ok ? s.okMsg : s.err} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p>}
       <div className={s.formActions}>
         <button type="submit" className="btn btn--primary" disabled={busy || !dirty || !f.firstName.trim() || !f.lastName.trim() || !isEmail(f.email) || (emailChanged && !f.currentPassword)}>{busy ? 'Saving…' : 'Save details'}</button>
@@ -352,7 +359,7 @@ function Security() {
     e.preventDefault();
     if (!ready) return;
     setBusy(true); setMsg(null);
-    try { await storeApi.post('/me/password', f); setF({ current: '', next: '', confirm: '' }); setMsg({ ok: true, text: 'Password changed. Any other devices signed in to your account were signed out.' }); } catch (x) { setMsg({ ok: false, text: x.message }); }
+    try { await (LARAVEL ? account.changePassword(f) : storeApi.post('/me/password', f)); setF({ current: '', next: '', confirm: '' }); setMsg({ ok: true, text: 'Password changed. Any other devices signed in to your account were signed out.' }); } catch (x) { setMsg({ ok: false, text: x.message }); }
     setBusy(false);
   };
   return (
@@ -421,6 +428,7 @@ export default function Account() {
           {tab === 'reviews' && <MyReviews />}
           {tab === 'alerts' && <Alerts />}
           {tab === 'profile' && <Profile key={buyer.email} />}
+          {tab === 'profile' && LARAVEL && <section className={s.form} aria-labelledby="addr-title"><fieldset><legend id="addr-title">Delivery addresses</legend><AddressBook buyer={buyer} /></fieldset></section>}
           {tab === 'security' && <Security />}
           {tab === 'help' && <div className={s.help}>{HELP.map(([t, b]) => <div key={t}><h3>{t}</h3><p>{b}</p></div>)}</div>}
         </section>

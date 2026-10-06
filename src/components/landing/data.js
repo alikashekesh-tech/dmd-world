@@ -2,7 +2,7 @@
    and prices stay honest. Recomputed once per catalog version and shared by every section: useLanding(). */
 import { PRODUCTS, sortProducts, catalog } from '../../data/index.js';
 import { useCatalog } from '../../data/live.js';
-import { groupBySlug, catUrl, resolvePath, NEW_OFFERS, BRAND_GROUPS } from '../../data/dmdMenu.js';
+import { group, catUrl, resolvePath, inNode, NEW_OFFERS, BRAND_GROUPS } from '../../data/dmdMenu.js';
 
 export const usd = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const from = (list) => (list.length ? Math.min(...list.map((p) => p.price)) : null);
@@ -16,20 +16,21 @@ const oneOfEach = (list, key, n) => {
 const PC_BRANDS = ['razer', 'hyperx', 'logitech', 'marvo', 'fantech', 'e-yooso', 'onikuma', 'megavolt', 'pc-parts'];
 export const OFFERS_URL = catUrl('new-offers');
 export const BUDGET_STOPS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 250];
-export const BRANDS = [
-  ...[['PlayStation', 'playstation'], ['Nintendo', 'nintendo-switch'], ['Xbox', 'xbox']].map(([name, slug]) => ({ name, to: catUrl(slug) })),
-  ...BRAND_GROUPS.map((b) => ({ name: b.name, to: catUrl(b.slug) })),
-];
-
 function build() {
   const LIVE = PRODUCTS.filter((p) => p.stock !== 'out');
+
+  /* The brand names that roll like credits: the three platforms, then every brand the store lists. */
+  const BRANDS = [
+    ...[['PlayStation', 'playstation'], ['Nintendo', 'nintendo-switch'], ['Xbox', 'xbox']].filter(([, slug]) => group(slug).slug).map(([name, slug]) => ({ name, to: catUrl(slug) })),
+    ...BRAND_GROUPS.map((b) => ({ name: b.name, to: catUrl(b.slug) })),
+  ];
 
   /* Objects on the hero desk. Each links to a shop search or a category, and "from $X" is computed with the same
      rule that page uses to list products, so the cheapest price in the tooltip is the cheapest one you land on. */
   const bySearch = (q) => ({ to: `/shop?q=${encodeURIComponent(q)}`, list: LIVE.filter((p) => p.search.includes(q)) });
   const byCategory = (...path) => {
-    const ids = new Set(resolvePath(path.join('/')).at(-1).allIds);
-    return { to: catUrl(...path), list: LIVE.filter((p) => p.cats.some((c) => ids.has(c))) };
+    const node = resolvePath(path.join('/'))?.at(-1);
+    return { to: catUrl(...path), list: node ? LIVE.filter((p) => inNode(p, node)) : [] };
   };
   const SPOTS = [
     { id: 'monitor', label: 'Monitors', ...byCategory('pc-parts', 'monitors') },
@@ -46,21 +47,21 @@ function build() {
   const PLATFORMS = [
     {
       id: 'playstation', name: 'PlayStation', short: 'PlayStation', accent: '#4f8dff',
-      count: groupBySlug.playstation.count, to: catUrl('playstation'),
+      count: group('playstation').count, to: catUrl('playstation'),
       line: 'From PS2 classics to PS5, plus PS cards and the accessories that go with them.',
       links: [['PS5', catUrl('playstation', 'ps5')], ['PS5 games', catUrl('playstation', 'ps5', 'games')], ['PS4', catUrl('playstation', 'ps4')], ['PS cards', catUrl('playstation', 'ps-cards')]],
       products: best(LIVE.filter((p) => p.brand === 'playstation')),
     },
     {
       id: 'switch', name: 'Nintendo Switch', short: 'Switch', accent: '#ff4b55',
-      count: groupBySlug['nintendo-switch'].count, to: catUrl('nintendo-switch'),
+      count: group('nintendo-switch').count, to: catUrl('nintendo-switch'),
       line: 'New and used games, consoles and the accessories that make handheld nights longer.',
       links: [['Games', catUrl('nintendo-switch', 'games')], ['Used games', catUrl('nintendo-switch', 'games', 'used')], ['Consoles', catUrl('nintendo-switch', 'consoles')], ['Accessories', catUrl('nintendo-switch', 'accessories')]],
       products: best(LIVE.filter((p) => p.brand === 'nintendo-switch')),
     },
     {
       id: 'xbox', name: 'Xbox', short: 'Xbox', accent: '#3ccf6e',
-      count: groupBySlug.xbox.count, to: catUrl('xbox'),
+      count: group('xbox').count, to: catUrl('xbox'),
       line: 'Series X|S, One and 360: controllers, games and consoles across three generations.',
       links: [['Xbox Series', catUrl('xbox', 'xbox-series')], ['Xbox One', catUrl('xbox', 'xbox-one')], ['Xbox 360', catUrl('xbox', 'xbox-360')]],
       products: best(LIVE.filter((p) => p.brand === 'xbox')),
@@ -85,20 +86,21 @@ function build() {
   };
 
   /* Categories beyond consoles and peripherals. */
-  const other = Object.fromEntries(groupBySlug.other.children.map((c) => [c.slug, c]));
-  const tile = (slug, art, size, node = other[slug]) => ({ slug, art, size, name: node.name, count: node.count, to: node === other[slug] ? catUrl('other', slug) : catUrl(node.slug) });
+  const other = Object.fromEntries(group('other').children.map((c) => [c.slug, c]));
+  // A tile whose category the owner removed simply isn't shown.
+  const tile = (slug, art, size, node = other[slug]) => (node ? { slug, art, size, name: node.name, count: node.count, to: node === other[slug] ? catUrl('other', slug) : catUrl(node.slug) } : null);
   const WORLD = [
     tile('action-figures', 'figure', 'xl'),
     tile('retro-games-and-consoles', 'retro', 'wide'),
     tile('speakers', 'speaker'),
     tile('phone-accessories', 'phone'),
-    tile('laptops', 'laptop', null, groupBySlug.laptops),
+    tile('laptops', 'laptop', null, group('laptops').slug ? group('laptops') : undefined),
     tile('network-products', 'router'),
     tile('electronic-toys', 'car'),
     tile('smart-watches', 'watch'),
-  ];
+  ].filter(Boolean);
 
-  return { HOTSPOTS, PLATFORMS, OFFERS, OFFER_COUNT: NEW_OFFERS.count, underBudget, WORLD };
+  return { HOTSPOTS, PLATFORMS, OFFERS, OFFER_COUNT: NEW_OFFERS.count, underBudget, WORLD, BRANDS };
 }
 
 let cache = { v: -1, data: null };

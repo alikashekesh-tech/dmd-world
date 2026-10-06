@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { getProduct, applyRatings, catalog } from '../data/index.js';
 import { useCatalog, keepCatalogFresh } from '../data/live.js';
 import { storeApi, guestOrders } from '../lib/storeApi.js';
+import { LARAVEL } from '../lib/backend.js';
+import { account } from '../lib/account.js';
 
 const StoreCtx = createContext(null);
 const KEY = 'loadout:v1';
@@ -74,6 +76,16 @@ export function StoreProvider({ children }) {
   const loadAccount = useCallback(async () => {
     // Bring this device's guest wishlist into the account once, then the account's list is the one shown.
     const local = toIds(read().wishlist || []);
+    if (LARAVEL) {
+      // The account's wishlist is kept in MySQL; the server checks every merged id.
+      await Promise.allSettled([(async () => {
+        const saved = toIds(local.length ? await account.wishlist.merge(local) : await account.wishlist.ids());
+        if (local.length) { try { localStorage.setItem(KEY, JSON.stringify({ ...read(), wishlist: [] })); } catch { /* ignore */ } }
+        synced.current = JSON.stringify(saved);
+        dispatch({ type: 'wishlist', ids: saved });
+      })()]);
+      return;
+    }
     const tasks = [
       (async () => {
         const { ids: saved } = await storeApi.get('/me/wishlist');
@@ -91,13 +103,14 @@ export function StoreProvider({ children }) {
 
   const checkSession = useCallback(() => {
     setSessionError(false);
-    return storeApi.get('/session')
+    return (LARAVEL ? account.session() : storeApi.get('/session'))
       .then((r) => { setAccounts(r.accounts); setBuyer(r.buyer); if (r.buyer) loadAccount(); })
       .catch(() => { setBuyer(null); setSessionError(true); });
   }, [loadAccount]);
   useEffect(() => {
     checkSession();
-    storeApi.get('/ratings').then(applyRatings).catch(() => {});
+    // Laravel sends ratings inside the catalog; the legacy server has a separate endpoint.
+    if (!LARAVEL) storeApi.get('/ratings').then(applyRatings).catch(() => {});
   }, [checkSession]);
   // Coming back online (or to the tab) after the store couldn't be reached tries again on its own.
   useEffect(() => {
@@ -109,14 +122,14 @@ export function StoreProvider({ children }) {
   }, [sessionError, checkSession]);
   // Replies from DMD show up without a reload.
   useEffect(() => {
-    if (!buyer) return undefined;
+    if (!buyer || LARAVEL) return undefined;
     const t = setInterval(() => { if (document.visibilityState === 'visible') loadInbox(); }, 3 * 60e3);
     return () => clearInterval(t);
   }, [buyer, loadInbox]);
 
-  // Save the account's wishlist shortly after it changes.
+  // Save the account's wishlist shortly after it changes (legacy server; with Laravel each change is saved at once).
   useEffect(() => {
-    if (!buyer || synced.current === null) return undefined;
+    if (!buyer || LARAVEL || synced.current === null) return undefined;
     const now = JSON.stringify(state.wishlist);
     if (now === synced.current) return undefined;
     const t = setTimeout(() => {
@@ -126,10 +139,10 @@ export function StoreProvider({ children }) {
   }, [state.wishlist, buyer]);
 
   const signedIn = useCallback(async (b) => { setBuyer(b); setSessionError(false); await loadAccount(); return b; }, [loadAccount]);
-  const signIn = useCallback(async (email, password) => signedIn((await storeApi.post('/login', { email, password })).buyer), [signedIn]);
-  const register = useCallback(async (fields) => signedIn((await storeApi.post('/register', fields)).buyer), [signedIn]);
+  const signIn = useCallback(async (email, password) => signedIn(LARAVEL ? await account.login(email, password) : (await storeApi.post('/login', { email, password })).buyer), [signedIn]);
+  const register = useCallback(async (fields) => signedIn(LARAVEL ? await account.register(fields) : (await storeApi.post('/register', fields)).buyer), [signedIn]);
   const signOut = useCallback(async () => {
-    await storeApi.post('/logout').catch(() => {});
+    await (LARAVEL ? account.logout() : storeApi.post('/logout')).catch(() => {});
     // Nothing from the account stays on screen for the next person using this device.
     synced.current = null;
     setBuyer(null); setOrders([]); setOrdersMore(false); setAlerts([]); setUnread(0); dispatch({ type: 'wishlist', ids: [] });
@@ -155,7 +168,13 @@ export function StoreProvider({ children }) {
     const had = state.wishlist.includes(id);
     dispatch({ type: 'wish', id });
     setToast(had ? `Removed ${p?.name || 'item'} from your wishlist` : `Saved ${p?.name || 'item'} to your wishlist`);
-  }, [state.wishlist]);
+    // Laravel: saved to the account straight away; if the store refuses, the heart goes back.
+    if (LARAVEL && buyer) {
+      (had ? account.wishlist.remove(id) : account.wishlist.add(id))
+        .then(() => { synced.current = null; })
+        .catch((e) => { dispatch({ type: 'wish', id }); setToast(e.status === 404 ? 'That product isn’t available any more.' : 'Couldn’t save your wishlist. Check your connection.'); });
+    }
+  }, [state.wishlist, buyer]);
   /** Back-in-stock email for a sold-out product (signed-in buyers). */
   const toggleAlert = useCallback(async (id) => {
     const on = alerts.includes(String(id));

@@ -30,7 +30,7 @@ class ProductController extends Controller
             'sort' => ['nullable', 'in:updated,newest,name,price_asc,price_desc,stock'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $tree = ProductResource::$tree = CategoryTree::load(true);
-        $q = Product::query()->with(['images:id,product_id,url,position', 'categories:id,name,parent_id,brand_id,slug', 'brand:id,name']);
+        $q = Product::query()->with(['images:id,product_id,url,alt,position', 'categories:id,name,parent_id,brand_id,slug', 'brand:id,name']);
         match ($v['archived'] ?? null) {
             'only' => $q->onlyTrashed(),
             'with' => $q->withTrashed(),

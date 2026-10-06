@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:laravel": "vite --mode laravel --port 5175",
     "build": "vite build",
+    "build:laravel": "vite build --mode laravel",
     "preview": "vite preview",
     "build:all": "vite build && npm --prefix server run build:admin",
     "lint": "eslint .",

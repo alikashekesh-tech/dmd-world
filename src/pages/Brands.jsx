@@ -2,7 +2,7 @@ import { Link } from '../router/index.jsx';
 import PageHero from '../components/ui/PageHero.jsx';
 import CategoryArt, { artFor } from '../components/art/CategoryArt.jsx';
 import { Credits } from '../components/landing/Continue.jsx';
-import { BRANDS } from '../components/landing/data.js';
+import { useLanding } from '../components/landing/data.js';
 import { ArrowRight } from '../components/common/icons.jsx';
 import { BRAND_GROUPS, catUrl } from '../data/dmdMenu.js';
 import { usePageMeta } from '../lib/meta.js';
@@ -10,6 +10,7 @@ import s from './Brands.module.css';
 
 export function BrandsIndex() {
   usePageMeta({ title: 'Brands', description: 'The gear brands DMD World stocks next to PlayStation, Nintendo and Xbox: Razer, HyperX, Logitech, Marvo, Fantech, Onikuma and more.' });
+  const { BRANDS } = useLanding(); // also re-renders when the catalog (and its brands) change
   const half = Math.ceil(BRANDS.length / 2);
   return (
     <>

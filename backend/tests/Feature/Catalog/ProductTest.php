@@ -58,6 +58,8 @@ class ProductTest extends TestCase
         $product->categories()->attach($cat->id, ['is_primary' => true]);
         $first = $this->client()->get('/api/v1/catalog')->assertOk();
         $etag = $first->headers->get('ETag');
+        // Browsers must ask every time (a 304 when unchanged), so an admin change is never hidden by a cached copy.
+        $this->assertStringContainsString('no-cache', $first->headers->get('Cache-Control'));
         $this->client()->get('/api/v1/catalog', ['If-None-Match' => $etag])->assertStatus(304);
 
         $owner->put(self::ADMIN."/{$product->id}", ['name' => 'Renamed', 'regular_price' => 40, 'sale_price' => 35])->assertOk();
@@ -157,6 +159,18 @@ class ProductTest extends TestCase
         $owner->post(self::ADMIN.'/bulk', ['action' => 'archive', 'ids' => $drafts->pluck('id')->all()])->assertOk();
         $this->assertSame(0, Product::count());
         $owner->post(self::ADMIN.'/bulk', ['action' => 'explode', 'ids' => [1]])->assertStatus(422);
+    }
+
+    public function test_admin_lists_and_the_stock_screen_show_product_images(): void
+    {
+        // Regression: the lists loaded images without their alt text and failed for any product with an image.
+        $owner = $this->owner();
+        $p = Product::factory()->create(['stock_quantity' => 1]);
+        $p->images()->create(['url' => 'https://cdn.example.com/a.png', 'alt' => 'Front', 'position' => 0]);
+
+        $owner->get(self::ADMIN)->assertOk()->assertJsonPath('data.0.images.0.alt', 'Front');
+        $owner->get('/api/v1/admin/inventory')->assertOk()->assertJsonPath('data.0.image', 'https://cdn.example.com/a.png');
+        $owner->put("/api/v1/admin/inventory/{$p->id}", ['adjust' => 1])->assertOk()->assertJsonPath('data.images.0.alt', 'Front');
     }
 
     public function test_only_the_owner_can_manage_products(): void

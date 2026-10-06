@@ -7,6 +7,8 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -32,6 +34,17 @@ class User extends Authenticatable
     public static function normalizeEmail(mixed $email): string
     {
         return is_string($email) ? mb_strtolower(trim($email)) : '';
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class)->orderByDesc('is_default')->orderByDesc('updated_at');
+    }
+
+    /** Saved products (wishlist_items). */
+    public function wishlist(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'wishlist_items')->withPivot('created_at');
     }
 
     public function fullName(): string

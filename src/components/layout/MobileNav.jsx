@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from '../../router/index.jsx';
-import { DMD_GROUPS, MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
+import { MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
+import { useCatalog } from '../../data/live.js';
 import { CloseIcon, ChevronDown, UserIcon, HeartIcon, ArrowRight } from '../common/icons.jsx';
 import Logo from './Logo.jsx';
 import SearchBox from './SearchBox.jsx';
@@ -21,6 +22,7 @@ function Acc({ title, children, defaultOpen }) {
 export default function MobileNav({ open, onClose }) {
   const { wishlist, user } = useStore();
   const panel = useDialog(open, onClose);
+  useCatalog(); // the tree comes with the catalog
   return (
     <div className={`${s.root} ${open ? s.open : ''}`} aria-hidden={!open}>
       <div className={s.scrim} onClick={onClose} />
@@ -32,7 +34,7 @@ export default function MobileNav({ open, onClose }) {
           {[['Home', '/'], ['Shop', '/shop'], ['New Offers', '/product-category/new-offers']].map(([l, to]) => <Link key={to} to={to} className={s.row} onClick={onClose}>{l}</Link>)}
           {MENU_SECTIONS.map((sec, i) => (
             <Acc key={sec.label} title={i ? 'Brands' : 'Categories'} defaultOpen={!i}>
-              {sec.slugs.map((sl) => { const g = groupBySlug[sl]; return (
+              {sec.slugs.filter((sl) => groupBySlug[sl]).map((sl) => { const g = groupBySlug[sl]; return (
                 <div key={sl} className={s.group}>
                   <h5><Link to={catUrl(sl)} onClick={onClose}>{g.name}</Link></h5>
                   {g.children?.length > 0 && <ul>{g.children.map((c) => <li key={c.slug}><Link to={catUrl(sl, c.slug)} onClick={onClose}>{c.name}</Link>

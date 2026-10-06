@@ -1,9 +1,14 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Account\AddressController;
+use App\Http\Controllers\Api\V1\Account\ProfileController;
+use App\Http\Controllers\Api\V1\Account\WishlistController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\CheckoutController;
+use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ProductController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +38,31 @@ Route::prefix('auth')->name('auth.')->middleware('session')->group(function () {
         Route::put('password', [PasswordController::class, 'update'])->name('password');
     });
 });
+
+/* ── the signed-in buyer's own data (never another buyer's: everything is scoped to the session) ── */
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('account', [ProfileController::class, 'show'])->name('account.show');
+    Route::patch('account', [ProfileController::class, 'update'])->name('account.update');
+
+    Route::get('account/addresses', [AddressController::class, 'index'])->name('addresses.index');
+    Route::post('account/addresses', [AddressController::class, 'store'])->name('addresses.store');
+    Route::patch('account/addresses/{id}', [AddressController::class, 'update'])->whereNumber('id')->name('addresses.update');
+    Route::delete('account/addresses/{id}', [AddressController::class, 'destroy'])->whereNumber('id')->name('addresses.destroy');
+    Route::post('account/addresses/{id}/default', [AddressController::class, 'makeDefault'])->whereNumber('id')->name('addresses.default');
+
+    Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+    Route::post('wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
+    Route::post('wishlist/merge', [WishlistController::class, 'merge'])->name('wishlist.merge');
+    Route::delete('wishlist/{productId}', [WishlistController::class, 'destroy'])->whereNumber('productId')->name('wishlist.destroy');
+});
+
+/* ── cart, checkout and orders (guests too: a guest opens their order with the private token from checkout) ── */
+Route::get('checkout/options', [CheckoutController::class, 'options'])->name('checkout.options');
+Route::post('cart/quote', [CheckoutController::class, 'quote'])->middleware('throttle:quote')->name('cart.quote');
+Route::post('orders', [CheckoutController::class, 'store'])->middleware(['session', 'throttle:orders'])->name('orders.store');
+Route::get('orders', [OrderController::class, 'index'])->middleware('auth:sanctum')->name('orders.index');
+Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('orders.show');
+Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id')->middleware(['session', 'throttle:cancel'])->name('orders.cancel');
 
 /* ── catalog: what the storefront shows ─────────────────────────────── */
 Route::get('catalog', [ProductController::class, 'catalog'])->name('catalog');

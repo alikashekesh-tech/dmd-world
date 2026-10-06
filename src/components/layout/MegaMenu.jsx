@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import CategoryArt, { artFor } from '../art/CategoryArt.jsx';
 import { ArrowRight, ChevronRight } from '../common/icons.jsx';
-import { DMD_GROUPS, MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
+import { DMD_GROUPS, MENU_SECTIONS, groupBySlug, group, catUrl } from '../../data/dmdMenu.js';
+import { useCatalog } from '../../data/live.js';
 import s from './MegaMenu.module.css';
 
 export default function MegaMenu({ onNavigate }) {
+  useCatalog(); // the tree comes with the catalog
   const [active, setActive] = useState('playstation');
-  const g = groupBySlug[active];
+  const g = groupBySlug[active] || DMD_GROUPS[0] || group('');
   const kids = g.children || [];
   const nested = kids.some((k) => k.children?.length);
   const leaves = kids.filter((k) => !k.children?.length);

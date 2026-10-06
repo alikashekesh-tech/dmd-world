@@ -263,3 +263,58 @@ The tests use a browser-like client (`tests/SpaClient.php`). Each "browser" has 
 **Blockers:** none.
 
 **Next:** Phase 5, the storefront reads its catalog from Laravel.
+
+## Phase 5: the storefront reads its catalog from Laravel (6 Oct 2026)
+
+**Implemented**
+- **One switch, one backend per build:** `VITE_BACKEND=laravel` (`npm run dev:laravel` on port 5175, `npm run build:laravel`, and the `.env.laravel` mode file, which holds no secrets).
+  - **Laravel mode:** the storefront's catalog comes from `/api/v1/catalog`, that is from MySQL.
+  - **Without the switch:** the app runs exactly as before on the legacy Node server.
+  - **Default:** stays Node until Phase 11, because cart, checkout and account still depend on it until their phases.
+- **API client** (`src/lib/laravelApi.js`):
+  - **Session:** the cookie stays same-origin and HttpOnly.
+  - **CSRF:** it fetches `/api/v1/sanctum/csrf-cookie` before the first write and sends `X-XSRF-TOKEN`; after a 419 it gets a fresh token and retries once.
+  - **Errors:** Laravel's `{error: {code, message, fields}}` is raised as the existing `StoreApiError`, so the UI's error handling is unchanged.
+- **Data layer:** the same exports the components already used (`PRODUCTS`, `DMD_GROUPS`, `MENU_SECTIONS`, `groupBySlug`, `BRAND_GROUPS`, `NEW_OFFERS`, `resolvePath`, `getBrand`, `catName`, `search`, the filters) are now filled from the API in Laravel mode.
+  - `applyLaravelCatalog` maps API products to the storefront's product shape (`fromApi`).
+  - `applyTaxonomy` rebuilds the menu tree: top-level categories become "Shop by category", brands become "Shop by brand" with their product lines, and "new-offers" becomes the offers row.
+  - A brand's page lists every product of that brand (`inNode`), not just products filed under the brand's categories.
+- **No bundled data in Laravel mode:**
+  - **Snapshot unused:** `dmdCatalog.js` isn't used (the product list starts empty). It's still in the bundle until Phase 11 deletes it with the Node mode.
+  - **Waiting for the catalog:** the app shows a short loading state until the catalog arrives (`CatalogGate`), or renders at once from this device's cached copy (`dmd:catalog:v2`, at most 24 hours old, only a cache).
+  - **Store unreachable:** visitors see "The store can't be reached right now" with *Try again*. Nothing made-up is shown.
+- **Freshness:**
+  - **The catalog is never served stale:** it's sent with `Cache-Control: public, no-cache` plus an ETag. Browsers ask every time; an unchanged catalog costs a 304.
+  - **Polling:** the storefront refreshes it every 5 minutes, when the tab is shown again and when the connection returns.
+- **Product page:** in Laravel mode, details (description paragraphs, specifications, weight, dimensions) come from `/api/v1/products/{id}`. The legacy ratings call is skipped, because ratings will come with the catalog (Phase 8).
+- **Duplicated taxonomy removed from the UI code:**
+  - **Footer:** its category and brand columns are built from the store's tree (they were hand-written lists).
+  - **`src/data/nav.js`:** its unused `MEGA_SHOP`, `MEGA_PLATFORMS` and `MEGA_BRANDS` (from the old template's taxonomy) are deleted.
+  - **Home page:** its brand credits are built from the live brands.
+- **Robustness:** every lookup of a named group (`playstation`, `other`, `laptops`) goes through `group()`. A category the owner archives or renames hides the matching home-page tile instead of crashing the page. The mega menu falls back to the first group.
+
+**Endpoints:** `/api/v1/catalog` now sends `Cache-Control: public, no-cache` (see above). No new endpoints.
+
+**Tests**
+- **Laravel:** two cases added, so 110 tests in total.
+  - **Image regression:** admin lists and the stock screen show images, alt text included.
+  - **Catalog caching:** `/api/v1/catalog` sends `no-cache`.
+- **Browser** (Laravel mode, port 5175, data imported in Phase 4):
+  - **Home:** renders from MySQL ("187 products", "24 PlayStation products", "10 gear brands"), with no console errors.
+  - **Category pages:** `/product-category/playstation/ps5/games` shows its New and Used chips with a product.
+  - **Brand page:** `/product-category/razer` lists 7 products with product-line counts and "Only 2 left".
+  - **Product page:** price $28, was $32, −13%, SKU, category and related products.
+  - **Search:** "fc 2026" finds the product.
+  - **Mobile menu:** built from the database tree.
+- **Owner change seen by the storefront:** I signed in as the development owner and changed product 34198 through `/api/v1/admin` (name, price, sale price, stock 2). One reload showed the new name, price and "Only 2 left" on the product page, in search and in its category list. A second change ($25.50) also showed on the first reload. The product was then restored.
+- **Node mode:** your dev server on 5173 still works: the Razer page shows the same counts, with no console errors.
+
+**Bugs found and fixed**
+- **Admin lists with images failed:** the admin product list, the stock screen and stock updates loaded images without their `alt` column, so they failed for any product that has an image. Strict mode caught it during browser testing. Fixed, with a regression test.
+- **Stale catalog:** the catalog was cacheable for 30 seconds (`max-age=30`), so a reload could still show an old price. It now uses `no-cache` with the ETag.
+
+**Development owner:** `php artisan dmd:owner --local-test` created `owner@dmdworld.local`. Its password is in `backend/storage/app/private/local-owner-login.txt`, which git ignores and which only works with `APP_ENV=local`.
+
+**Blockers:** none.
+
+**Next:** Phase 6, buyer profile, addresses and wishlist.

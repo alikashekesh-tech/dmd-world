@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '../../router/index.jsx';
-import { groupBySlug, BRAND_GROUPS } from '../../data/dmdMenu.js';
+import { group, BRAND_GROUPS } from '../../data/dmdMenu.js';
 import { PRODUCTS } from '../../data/index.js';
 import { useLanding, usd } from './data.js';
 import useInView, { prefersReducedMotion } from './useInView.js';
@@ -97,8 +97,8 @@ export default function HeroRoom() {
     };
   };
 
-  const ps = useTween(0, groupBySlug.playstation.count, seen, { delay: 900, duration: 1400 });
-  const sw = useTween(0, groupBySlug['nintendo-switch'].count, seen, { delay: 1000, duration: 1400 });
+  const ps = useTween(0, group('playstation').count, seen, { delay: 900, duration: 1400 });
+  const sw = useTween(0, group('nintendo-switch').count, seen, { delay: 1000, duration: 1400 });
   const br = useTween(0, BRAND_GROUPS.length, seen, { delay: 1100, duration: 1400 });
 
   const tip = active && BY_ID[active];

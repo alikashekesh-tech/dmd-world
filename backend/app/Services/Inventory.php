@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
  * The only code that changes stock_quantity. Every change locks the product row, can't take stock below zero, and
  * leaves an inventory_movements line with the result. Availability everywhere is read from the same number.
  */
-final class Inventory
+class Inventory
 {
     public const IN_STOCK = 'in_stock';
 

@@ -20,7 +20,7 @@ class ProductController extends Controller
 {
     /**
      * GET /products?category=&category_path=&brand=&q=&min_price=&max_price=&in_stock=1&on_sale=1&featured=1&ids=1,2&sort=&per_page=
-     * sort: newest (default) | price_asc | price_desc | name | featured
+     * sort: newest (default) | price_asc | price_desc | name | featured | best
      */
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -28,7 +28,7 @@ class ProductController extends Controller
             'category' => ['nullable', 'integer'], 'category_path' => ['nullable', 'string', 'max:300'], 'brand' => ['nullable', 'string', 'max:80'],
             'q' => ['nullable', 'string', 'max:100'], 'min_price' => ['nullable', 'numeric', 'min:0'], 'max_price' => ['nullable', 'numeric', 'min:0'],
             'in_stock' => ['nullable', 'boolean'], 'on_sale' => ['nullable', 'boolean'], 'featured' => ['nullable', 'boolean'],
-            'ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'], 'sort' => ['nullable', 'in:newest,price_asc,price_desc,name,featured'],
+            'ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'], 'sort' => ['nullable', 'in:newest,price_asc,price_desc,name,featured,best'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $q = Product::published()->with(['images:id,product_id,url,position', 'categories:id']);
@@ -84,7 +84,7 @@ class ProductController extends Controller
     public function catalog(Request $request): Response
     {
         ['body' => $body, 'etag' => $etag] = Catalog::payload();
-        $headers = ['Content-Type' => 'application/json', 'ETag' => $etag, 'Cache-Control' => 'public, max-age=30, stale-while-revalidate=300'];
+        $headers = ['Content-Type' => 'application/json', 'ETag' => $etag, 'Cache-Control' => 'public, no-cache'];
         if ($request->headers->get('If-None-Match') === $etag) {
             return response('', 304, $headers);
         }

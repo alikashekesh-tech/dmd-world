@@ -17,6 +17,8 @@ import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
 import { storeApi } from '../lib/storeApi.js';
+import { laravelApi } from '../lib/laravelApi.js';
+import { LARAVEL } from '../lib/backend.js';
 import NotFound from './NotFound.jsx';
 import s from './ProductPage.module.css';
 
@@ -57,6 +59,15 @@ function NotifyMe({ p }) {
 
 const TABS = [['overview', 'Details'], ['specs', 'Specifications'], ['reviews', 'Reviews']];
 
+/** Laravel's product detail → the details shape this page reads (paragraphs, attributes, size and weight). */
+const detailsFromApi = (d) => ({
+  short: d.short_description || '',
+  description: String(d.description || '').split(/\n{2,}/).map((x) => x.trim()).filter(Boolean),
+  attributes: (d.specifications || []).map((x) => ({ name: x.name, value: x.value })),
+  weight: d.weight_kg ?? null,
+  dimensions: d.dimensions_cm ? `${d.dimensions_cm.join(' × ')} cm` : null,
+});
+
 export default function ProductPage() {
   const { slug } = useParams();
   const version = useCatalog();
@@ -74,7 +85,8 @@ export default function ProductPage() {
   useEffect(() => {
     let live = true;
     setDetails(null);
-    storeApi.get(`/products/${encodeURIComponent(slug)}`).then((d) => { if (live) setDetails(d); }).catch(() => {});
+    const load = LARAVEL ? laravelApi.get(`/products/${encodeURIComponent(slug)}`).then(({ data: d }) => detailsFromApi(d)) : storeApi.get(`/products/${encodeURIComponent(slug)}`);
+    load.then((d) => { if (live) setDetails(d); }).catch(() => {});
     return () => { live = false; };
   }, [slug]);
   useEffect(() => {

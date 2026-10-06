@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import { ArrowRight } from '../common/icons.jsx';
-import { BRANDS, OFFERS_URL } from './data.js';
+import { OFFERS_URL, useLanding } from './data.js';
 import useInView, { prefersReducedMotion } from './useInView.js';
 import PixelText from '../ui/PixelText.jsx';
 import s from './Continue.module.css';
@@ -24,6 +24,7 @@ export function Credits({ list, reverse }) {
 }
 
 export default function Continue() {
+  const { BRANDS } = useLanding();
   const [ref, { seen, live }] = useInView({ threshold: 0.25 });
   const [d, setD] = useState(9);
   useEffect(() => {

@@ -24,7 +24,7 @@ class InventoryController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $v = $request->validate(['level' => ['nullable', 'in:out,low,in,untracked'], 'q' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
-        $q = Product::query()->with(['images:id,product_id,url,position', 'brand:id,name']);
+        $q = Product::query()->with(['images:id,product_id,url,alt,position', 'brand:id,name']);
         if (! empty($v['level'])) {
             ProductQuery::stockLevel($q, $v['level']);
         }
@@ -74,7 +74,7 @@ class InventoryController extends Controller
             }
         });
 
-        return new ProductResource($product->refresh()->load(['images:id,product_id,url,position', 'brand:id,name']));
+        return new ProductResource($product->refresh()->load(['images:id,product_id,url,alt,position', 'brand:id,name']));
     }
 
     public function movements(Request $request, Product $product): JsonResponse

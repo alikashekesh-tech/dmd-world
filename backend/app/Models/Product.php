@@ -80,6 +80,15 @@ class Product extends Model
         return $this->hasMany(InventoryMovement::class)->latest('id');
     }
 
+    /** Adds `units_sold`: how many were bought in orders that count as sales. Computed from orders, never stored. */
+    public function scopeWithUnitsSold(Builder $query): void
+    {
+        $query->addSelect(['units_sold' => OrderItem::query()->selectRaw('COALESCE(SUM(order_items.quantity), 0)')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereColumn('order_items.product_id', 'products.id')
+            ->whereIn('orders.status', Order::PAID)]);
+    }
+
     /** On the storefront: published and not archived. */
     public function scopePublished(Builder $query): void
     {

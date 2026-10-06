@@ -1,13 +1,20 @@
-/* DMD World category tree. Names follow the store's menu; `ids` are the WooCommerce category ids
-   (see dmdCatalog.js) used to list products. URLs: /product-category/<group>/<sub>/... */
+/* DMD World category tree: the groups of the mega menu, mobile menu, category and brand pages.
+   URLs: /product-category/<group>/<sub>/...
+
+   With the Laravel backend (VITE_BACKEND=laravel) the tree is built from MySQL (applyTaxonomy, called when the
+   catalog arrives): categories, brands and their product lines exactly as the owner manages them in the admin.
+   With the legacy Node backend it is the hand-written tree below, whose `ids` are WooCommerce category ids.
+   Either way the exported objects keep their identity (they are refilled in place) so every importer stays valid. */
+import { LARAVEL } from '../lib/backend.js';
 import { CATS } from './dmdCatalog.js';
-const COUNT = Object.fromEntries(CATS.map((c) => [c[0], c[4]]));
+
 const slugify = (s) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const n = (name, ids, children = [], extra = {}) => ({ name, slug: slugify(name), ids: ids || [], children, ...extra });
 const games = (all, nw, used) => n('Games', [all], [n('New', [nw]), n('Used', [used])]);
 const U = 'https://dmdworld.store/wp-content/uploads/';
 
-export const DMD_GROUPS = [
+/* ── legacy (Node) tree ─────────────────────────────────────────────────────── */
+const legacyGroups = () => [
   n('PC Parts', [393], [n('Chair and Table', [413]), n('Monitors', [412]), n('Hard Disk and Flash', [924], [n('Hard Disk', [961]), n('Flash Memory', [])])], { art: { t: 'monitor', a: '#1f6feb' }, blurb: 'Chairs, tables, monitors and storage', img: `${U}2025/11/computer-parts-icons-black-vector.jpg` }),
   n('PlayStation', [295], [
     n('PS5', [300], [games(338, 293, 339), n('Accessories', [294]), n('Consoles', [304]), n('Repair Parts', [])]),
@@ -33,39 +40,99 @@ export const DMD_GROUPS = [
     n('AirPods', [321]), n('Speakers', [285]), n('Computer Accessories', [281]), n('Network Products', [349]), n('Smart Watches', [322]),
   ], { art: { t: 'light', a: '#1f6feb' }, blurb: 'Gadgets, toys, phone, computer and network accessories' }),
 ];
-
-// Mega-menu sections: how the groups are bucketed in the left column.
-export const MENU_SECTIONS = [
+const LEGACY_SECTIONS = [
   { label: 'Shop by category', slugs: ['pc-parts', 'playstation', 'nintendo-switch', 'xbox', 'tablets', 'laptops', 'other'] },
   { label: 'Shop by brand', slugs: ['marvo', 'onikuma', 'hyperx', 'logitech', 'moxom', 'megavolt', 'razer', 'e-yooso', 'fantech', 'xiaomi'] },
 ];
 
-export const NEW_OFFERS = n('New Offers', [996], [], { art: { t: 'light', a: '#ff5d4d' }, blurb: 'The latest discounts across the store' });
+/* ── the exported tree (filled once here for Node, by applyTaxonomy for Laravel) ── */
+export const DMD_GROUPS = [];
+// Mega-menu sections: how the groups are bucketed in the left column.
+export const MENU_SECTIONS = [];
+export const NEW_OFFERS = n('New Offers', [], [], { art: { t: 'light', a: '#ff5d4d' }, blurb: 'The latest discounts across the store' });
+export const groupBySlug = {};
+export const BRAND_GROUPS = [];
+const EMPTY = Object.freeze({ name: '', slug: '', ids: [], allIds: [], children: [], path: [], count: 0 });
+/** A group by slug, or an empty one (a group the owner archived or renamed never breaks a page). */
+export const group = (slug) => groupBySlug[slug] || EMPTY;
 
 // Give every node its full id set (own + descendants) and its URL path.
 const prep = (node, path = []) => {
   node.path = [...path, node.slug];
   node.allIds = [...node.ids, ...node.children.flatMap((c) => prep(c, node.path).allIds)];
-  node.count = node.ids.reduce((a, id) => a + (COUNT[id] || 0), 0) || node.children.reduce((a, c) => a + c.count, 0);
+  node.count = node.count || 0;
   return node;
 };
-DMD_GROUPS.forEach((g) => prep(g));
-prep(NEW_OFFERS);
+const reindex = () => {
+  for (const k of Object.keys(groupBySlug)) delete groupBySlug[k];
+  for (const g of DMD_GROUPS) groupBySlug[g.slug] = g;
+  BRAND_GROUPS.splice(0, BRAND_GROUPS.length, ...DMD_GROUPS.filter((g) => g.brand));
+};
+
+if (!LARAVEL) {
+  const COUNT = Object.fromEntries(CATS.map((c) => [c[0], c[4]]));
+  DMD_GROUPS.push(...legacyGroups());
+  MENU_SECTIONS.push(...LEGACY_SECTIONS);
+  Object.assign(NEW_OFFERS, { ids: [996] });
+  const count = (node) => {
+    const below = node.children.reduce((a, c) => a + count(c), 0);
+    node.count = node.ids.reduce((a, id) => a + (COUNT[id] || 0), 0) || below;
+    return node.count;
+  };
+  DMD_GROUPS.forEach((g) => { prep(g); count(g); });
+  prep(NEW_OFFERS); count(NEW_OFFERS);
+  reindex();
+}
+
+/**
+ * Laravel: rebuilds the tree from the API's categories (flat, with parent_id/brand_id/path/position) and brands.
+ * Top-level categories are the "Shop by category" groups, brands the "Shop by brand" groups (their product lines as
+ * children); the category with slug "new-offers" is the offers row.
+ */
+export function applyTaxonomy({ categories = [], brands = [] }) {
+  const kids = new Map();
+  for (const c of categories) {
+    const key = c.parent_id ? `c${c.parent_id}` : c.brand_id ? `b${c.brand_id}` : 'top';
+    if (!kids.has(key)) kids.set(key, []);
+    kids.get(key).push(c);
+  }
+  for (const list of kids.values()) list.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+  const nodeOf = (c) => ({
+    name: c.name, slug: c.slug, ids: [c.id], id: c.id, blurb: c.description || '', img: c.image_url || null,
+    art: c.icon ? { t: c.icon, a: c.accent_color || '#1f6feb' } : undefined,
+    children: (kids.get(`c${c.id}`) || []).map(nodeOf),
+  });
+  const top = (kids.get('top') || []).filter((c) => c.slug !== 'new-offers').map(nodeOf);
+  const brandGroups = [...brands].sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)).map((b) => ({
+    name: b.name, slug: b.slug, ids: [], brand: true, brandId: b.id, blurb: b.description || '', img: b.logo_url || null,
+    children: (kids.get(`b${b.id}`) || []).map(nodeOf),
+  }));
+  DMD_GROUPS.splice(0, DMD_GROUPS.length, ...top, ...brandGroups);
+  DMD_GROUPS.forEach((g) => prep(g));
+  const offers = (kids.get('top') || []).find((c) => c.slug === 'new-offers');
+  Object.assign(NEW_OFFERS, { ids: offers ? [offers.id] : [], id: offers?.id });
+  prep(NEW_OFFERS);
+  MENU_SECTIONS.splice(0, MENU_SECTIONS.length,
+    { label: 'Shop by category', slugs: top.map((g) => g.slug) },
+    { label: 'Shop by brand', slugs: brandGroups.map((g) => g.slug) });
+  reindex();
+}
+
+/** Is this product listed under this menu node? (A brand's group lists everything of that brand.) */
+export const inNode = (p, node) => (node.brandId != null && p.brandId === node.brandId) || p.cats.some((c) => node.allIds.includes(c));
 
 /** Counts follow the products the storefront can actually list, so "N products" always matches the page. */
 export function recountMenu(products) {
   const walk = (node) => {
     const ids = new Set(node.allIds);
-    node.count = products.reduce((a, p) => a + (p.cats.some((c) => ids.has(c)) ? 1 : 0), 0);
+    node.count = products.reduce((a, p) => a + ((node.brandId != null && p.brandId === node.brandId) || p.cats.some((c) => ids.has(c)) ? 1 : 0), 0);
     node.children.forEach(walk);
   };
   DMD_GROUPS.forEach(walk);
   walk(NEW_OFFERS);
 }
 
-export const groupBySlug = Object.fromEntries(DMD_GROUPS.map((g) => [g.slug, g]));
 export const catUrl = (...path) => `/product-category/${path.join('/')}`;
-export const BRAND_GROUPS = DMD_GROUPS.filter((g) => g.brand);
 
 /** Resolve /product-category/a/b/c to [nodes], or null. */
 export function resolvePath(path) {

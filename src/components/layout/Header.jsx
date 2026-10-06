@@ -64,10 +64,10 @@ export default function Header() {
           <div className={s.search}><SearchBox placeholder="Search products, brands, categories..." /></div>
           <div className={s.actions}>
             <button type="button" className={`${s.iconBtn} ${s.searchBtn}`} aria-label="Search" onClick={() => setSearchOpen((v) => !v)}>{searchOpen ? <CloseIcon /> : <SearchIcon />}</button>
-            <Link to="/compare" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Compare, ${compare.length} items`} title="Compare"><CompareIcon />{compare.length > 0 && <span className={s.badge}>{compare.length > 99 ? '99+' : compare.length}</span>}</Link>
-            <Link to="/wishlist" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Wishlist, ${wishlist.length} items`} title="Wishlist"><HeartIcon />{wishlist.length > 0 && <span className={s.badge}>{wishlist.length > 99 ? '99+' : wishlist.length}</span>}</Link>
+            <Link to="/compare" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Compare, ${compare.length} ${compare.length === 1 ? 'item' : 'items'}`} title="Compare"><CompareIcon />{compare.length > 0 && <span className={s.badge}>{compare.length > 99 ? '99+' : compare.length}</span>}</Link>
+            <Link to="/wishlist" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Wishlist, ${wishlist.length} ${wishlist.length === 1 ? 'item' : 'items'}`} title="Wishlist"><HeartIcon />{wishlist.length > 0 && <span className={s.badge}>{wishlist.length > 99 ? '99+' : wishlist.length}</span>}</Link>
             <Link to={unread ? '/account?tab=messages' : '/account'} className={`${s.iconBtn} ${s.hideSm2}`} aria-label={user ? `My account${unread ? `, ${unread} new ${unread === 1 ? 'reply' : 'replies'} from DMD` : ''}` : 'Sign in'} title={unread ? 'New reply from DMD' : 'Account'}><UserIcon />{unread > 0 && <span className={s.badge}>{unread}</span>}</Link>
-            <button type="button" className={s.cart} aria-label={`Cart, ${count} items, ${money(subtotal)}`} onClick={() => setDrawer(true)}>
+            <button type="button" className={s.cart} aria-label={`Cart, ${count} ${count === 1 ? 'item' : 'items'}, ${money(subtotal)}`} onClick={() => setDrawer(true)}>
               <span className={s.cartIcon}><BagIcon />{count > 0 && <span className={s.count}>{count}</span>}</span>
               <span className={s.cartTxt}><small>Cart</small><b>{money(subtotal)}</b></span>
             </button>

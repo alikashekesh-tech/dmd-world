@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\V1\Admin\AuthController;
 use App\Http\Controllers\Api\V1\Admin\BrandController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
+use App\Http\Controllers\Api\V1\Admin\CustomerController;
+use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\UploadController;
@@ -44,4 +46,16 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::get('inventory/{product}/movements', [InventoryController::class, 'movements'])->whereNumber('product')->name('inventory.movements');
 
     Route::post('uploads', [UploadController::class, 'store'])->name('uploads.store');
+
+    // Orders: every order in the store; status changes go through OrderService (stock follows cancellations).
+    Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+    Route::put('orders/{order}/status', [OrderController::class, 'status'])->whereNumber('order')->name('orders.status');
+    Route::put('orders/{order}/payment', [OrderController::class, 'payment'])->whereNumber('order')->name('orders.payment');
+    Route::post('orders/{order}/notes', [OrderController::class, 'note'])->whereNumber('order')->name('orders.notes');
+
+    // Customers: registered buyers and guests, with what they ordered.
+    Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('customers/{user}', [CustomerController::class, 'show'])->whereNumber('user')->name('customers.show');
+    Route::put('customers/{user}', [CustomerController::class, 'update'])->whereNumber('user')->name('customers.update');
 });
