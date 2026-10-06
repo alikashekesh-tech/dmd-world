@@ -12,7 +12,8 @@
 | 3 | Categories and brands | Done |
 | 4 | Products, images and inventory | Done |
 | 5 | Storefront catalog from Laravel | Done |
-| 6–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 6 | Buyer profile, addresses and wishlist | Done |
+| 7–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---
 
@@ -201,7 +202,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 3 ✔ | `brands` and `categories` (tree, path, visibility, archive), public and admin CRUD, an import from the curated menu and WooCommerce source | CRUD and validation tests; storefront URL paths resolve |
 | 4 ✔ | `products`, images, specifications, inventory and movements; admin CRUD with archive and restore; a public catalog endpoint; `dmd:import-woocommerce` (read-only, keeps ids) | an admin change shows up in the public API; one stock value |
 | 5 ✔ | React catalog client: catalog, product page, category and brand pages, menus from the API, search; admin catalog screens | `VITE_BACKEND=laravel` browses the imported catalog; both builds pass |
-| 6 | Profile, `addresses`, `wishlist_items` (and guest-wishlist merge) | ownership tests (buyer A ≠ buyer B) |
+| 6 ✔ | Profile, `addresses`, `wishlist_items` (and guest-wishlist merge) | ownership tests (buyer A ≠ buyer B) |
 | 7 | `orders`, `order_items`, status history, checkout (prices and stock locked in one transaction, idempotency, guest token), cancel, admin orders | totals recomputed server-side; overselling is impossible; history survives product edits |
 | 8 | `reviews` (one per buyer per product, moderation), `conversations` and `messages`, `stock_alerts` | participant and ownership tests |
 | 9 | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |

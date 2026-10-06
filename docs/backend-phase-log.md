@@ -318,3 +318,70 @@ The tests use a browser-like client (`tests/SpaClient.php`). Each "browser" has 
 **Blockers:** none.
 
 **Next:** Phase 6, buyer profile, addresses and wishlist.
+
+## Phase 6: buyer profile, addresses and wishlist (6 Oct 2026)
+
+**Implemented (backend)**
+- **Profile** (`GET`/`PATCH /api/v1/account`): first name, last name, phone, and the marketing preference.
+  - **Changing the sign-in email:** it needs the current password, with its own limit of 5 wrong tries per 15 minutes, and a free address (`409 EMAIL_ALREADY_EXISTS`). Email verification resets, and the **old** address gets an "your sign-in email was changed" email (`EmailChanged`, with the new address masked).
+  - **Fields nobody may set:** id, password and verification are ignored. Passwords only change through the password endpoints.
+- **Addresses** (`addresses`): label, first and last name, phone, country (ISO-2, default LB), city, area, street, building, floor, notes, `is_default`.
+  - **One default per buyer, enforced by MySQL:** a generated `default_for` column holds `IF(is_default, user_id, NULL)` and has a unique index.
+  - **Default rules** (`AddressBook` service): the first address becomes the default; choosing another moves it, clearing the old one first in one transaction; removing the default promotes the most recent address. The default can't be changed through mass assignment.
+  - **Limits:** at most 10 addresses. Markup (`<`, `>`) is refused in every field.
+  - **Ownership:** every lookup is `where user_id = <session user>`, so another buyer's address is a 404. It can't be read, changed or even confirmed to exist. A `user_id` sent in the body is ignored.
+- **Wishlist** (`wishlist_items`):
+  - **No duplicates:** the primary key is (user_id, product_id). Saving again is harmless (`200`, `added: false`).
+  - **Availability:** only published products can be saved. Archived or draft products drop out of the list but come back if restored; a deleted product's row goes with it (cascade). At most 200 items.
+  - **Guest merge:** `POST /wishlist/merge` brings a guest's device wishlist into the account at sign-in. The server checks every id, and unknown or hidden ones are skipped.
+
+**Implemented (storefront, Laravel mode)**
+- **`src/lib/account.js`:** signing in, signing up, signing out, the session check, forgot, check and reset password, password change, profile, addresses and wishlist. Laravel's answers are mapped to the shapes the components already use; no buyer id is ever sent.
+- **`StoreContext`:**
+  - **Sign-in calls:** the session check, sign-in, sign-up and sign-out use Laravel.
+  - **Wishlist sync:** at sign-in the device's guest wishlist is merged into the account in MySQL, then cleared from the device. Each heart is saved straight away and rolled back with a message if the store refuses. The legacy debounced whole-list save stays for Node mode only.
+- **Account page:** forgot password and password change call Laravel. The Profile tab saves details and has a new **address book** (`components/account/AddressBook.jsx`): list, add, edit, remove and make default, styled like the rest of the account page. The legacy single-address fields stay for Node mode.
+- **Reset page:** Laravel's link carries the token and the email. Both are read once and removed from the address bar, the link is checked before the form is shown, and the buyer is signed in after the reset.
+- **Header:** the wishlist, compare and cart labels now say "1 item" rather than "1 items".
+
+**Migrations:** `2026_10_06_000500_create_addresses_and_wishlist_tables`.
+
+**Endpoints** (all need a buyer session):
+
+| Method | Path |
+|---|---|
+| GET PATCH | /api/v1/account |
+| GET POST | /api/v1/account/addresses |
+| PATCH DELETE | /api/v1/account/addresses/{id} |
+| POST | /api/v1/account/addresses/{id}/default |
+| GET POST | /api/v1/wishlist |
+| POST | /api/v1/wishlist/merge |
+| DELETE | /api/v1/wishlist/{productId} |
+
+**Tests added:** 16
+- **Profile:** read and edit; forbidden fields ignored; an email change needs the current password and notifies the old address; the old email no longer signs in and the new one does; a taken email is refused; guests and the owner have no buyer profile.
+- **Addresses:**
+  - **Default:** exactly one, moved and promoted correctly; MySQL itself refuses a second default.
+  - **Validation:** required fields, country format and markup are checked; the 10-address limit holds.
+  - **Isolation:** buyer A can't list, change, make default or delete buyer B's address (404), and can't create one as B.
+  - **Access:** a buyer session is required.
+- **Wishlist:** persists across devices without duplicates; hidden products drop out and come back, deleted ones go, draft and unknown ones are refused; a guest wishlist merges (skipping drafts and unknown ids); each buyer has their own list; a buyer session is required.
+
+**Results**
+- **Tests:** Laravel 125 of 125 (965 assertions). Lint passes; the Node-mode and Laravel-mode builds pass.
+- **Browser** (Laravel mode, 5175):
+  - **Account flow:** created an account (sign-up goes to Laravel); the session survives a full reload; added an address, which became the default and looks right; saved a product (`POST /api/v1/wishlist` → 201); signed out (the wishlist count cleared) and back in (the wishlist came back from MySQL).
+  - **Reset flow:** forgot password showed the neutral message. The reset email was written to Laravel's log with the link to `FRONTEND_URL/account/reset?token=…&email=…`. A link older than 60 minutes was correctly refused as expired. A fresh link opened the form, saved the new password and signed the buyer in.
+
+**Bugs found and fixed**
+- **`is_default` mass assignment:** strict mode caught `is_default` going through `fill()`. That field must only change through the address book's default logic.
+- **Phase 5 regression: the legacy Node server could not start.**
+  - **Cause:** `server/index.mjs` imports `src/data/dmdMenu.js`, which now imports `src/lib/backend.js`. That file read `import.meta.env.VITE_BACKEND`, and `import.meta.env` only exists in Vite.
+  - **Effect:** every Node test failed (and two runs hung). Your running Node dev server was only unaffected because it started before the change.
+  - **Fix:** `import.meta.env?.VITE_BACKEND`. The Node suite is back to 53 of 53.
+
+**Not yet in Laravel mode:** the account page's Orders, Messages, Reviews and Stock alerts tabs still read the legacy server, and cart and checkout still use Node. They move in Phases 7–8. The default build (Node) is unaffected.
+
+**Blockers:** none. Real email delivery needs SMTP settings.
+
+**Next:** Phase 7, orders and order items.
