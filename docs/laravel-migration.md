@@ -10,7 +10,8 @@
 | 1 | Laravel app, MySQL connection, environment, dev proxy | Done |
 | 2 | Authentication: buyers, owner, authorization | Done |
 | 3 | Categories and brands | Done |
-| 4–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 4 | Products, images and inventory | Done |
+| 5–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---
 
@@ -197,7 +198,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 1 ✔ | Laravel 13 in `backend/`, MySQL, `/api/v1`, Sanctum SPA config, error format, security headers, health check, `db:provision`, Vite proxy | 19 tests green on MySQL; `/api/v1/health` reached through Vite |
 | 2 ✔ | `users` and `admins`, both guards, register, login, logout, me, change password, forgot and reset (mail to log), owner command, throttling | auth and authorization tests (duplicate email, weak password, wrong login, logged-out protection, buyer cannot reach admin, guards separate) |
 | 3 ✔ | `brands` and `categories` (tree, path, visibility, archive), public and admin CRUD, an import from the curated menu and WooCommerce source | CRUD and validation tests; storefront URL paths resolve |
-| 4 | `products`, images, specifications, inventory and movements; admin CRUD with archive and restore; a public catalog endpoint; `dmd:import-woocommerce` (read-only, keeps ids) | an admin change shows up in the public API; one stock value |
+| 4 ✔ | `products`, images, specifications, inventory and movements; admin CRUD with archive and restore; a public catalog endpoint; `dmd:import-woocommerce` (read-only, keeps ids) | an admin change shows up in the public API; one stock value |
 | 5 | React catalog client: catalog, product page, category and brand pages, menus from the API, search; admin catalog screens | `VITE_BACKEND=laravel` browses the imported catalog; both builds pass |
 | 6 | Profile, `addresses`, `wishlist_items` (and guest-wishlist merge) | ownership tests (buyer A ≠ buyer B) |
 | 7 | `orders`, `order_items`, status history, checkout (prices and stock locked in one transaction, idempotency, guest token), cancel, admin orders | totals recomputed server-side; overselling is impossible; history survives product edits |

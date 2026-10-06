@@ -183,3 +183,83 @@ The tests use a browser-like client (`tests/SpaClient.php`). Each "browser" has 
 **Blockers:** none.
 
 **Next:** Phase 4, products, images and inventory.
+
+## Phase 4: products, images and inventory (6 Oct 2026)
+
+**Implemented**
+- **`products`:** one row per product, the single source for its name, prices, stock and status.
+  - **Fields:** brand_id, name, slug, sku, short_description and description (plain text), regular_price, sale_price with optional sale_starts_at and sale_ends_at, status, is_featured, track_stock, stock_quantity, low_stock_threshold, stock_status, weight and dimensions, published_at, and archive by soft delete.
+  - **Status:** `draft` or `published`; archived means soft deleted.
+  - **Money:** `DECIMAL(10,2)`. All arithmetic uses integer cents (`App\Support\Money`).
+  - **Database checks:** MySQL CHECK constraints enforce sale below regular, price above zero, and valid statuses.
+- **`category_product`:** a product can sit in several categories (e.g. "PS4 › Games › New" and "New Offers"). One is marked primary (breadcrumbs and the "type" filter).
+- **`product_images`:** ordered, and position 0 is the main image. Imported images keep their URLs; uploaded ones live at `/storage/uploads/…`.
+- **`product_specifications`:** real rows, one name per product. The old store's visible attributes become specifications. I chose rows over a JSON column, so specifications can be validated and edited one by one.
+- **Inventory:**
+  - **One number:** `stock_quantity` is the single stock value, and only `App\Services\Inventory` changes it. It locks the row, refuses to go below zero (`409 INSUFFICIENT_STOCK`), and writes an `inventory_movements` line (change, result, reason, owner, note).
+  - **Availability:** `in_stock`, `low_stock` or `out_of_stock`, computed by one rule using the product's own threshold or the store default.
+  - **Untracked products:** they use a manual `stock_status`.
+  - **Privacy:** the storefront only sees exact stock when it's low ("Only 2 left").
+- **Pricing** (`App\Services\Pricing`): the one selling-price rule. The sale price applies only inside its dates, and `ProductQuery` has the matching SQL expression for price filters and sorting. Store-wide offers will plug in here in Phase 9; product prices are never overwritten to fake an offer.
+- **Catalog:**
+  - **One response:** `/api/v1/catalog` carries all published products, visible categories and active brands, which keeps browsing and filtering instant in the SPA.
+  - **Caching:** it's cached for 60 seconds, with an ETag (`304` when unchanged).
+  - **Freshness:** any product, image, category or brand write clears the cache *after the transaction commits*, so a storefront request can't re-cache old data, and the change shows on the next request.
+- **Product service** (`ProductService`): slug and SKU uniqueness (including archived products), sale below the regular price it will actually have, a sale that ends after it starts, a primary category that is one of the product's categories, starting stock as a movement line, and bulk actions (publish, unpublish, feature, unfeature, archive, restore).
+- **Uploads** (`POST /api/v1/admin/uploads`):
+  - **Accepted:** JPEG, PNG, WebP and GIF only, decided by the file's real content. SVG is refused because it can carry script.
+  - **Limits:** at most 5 MB and 6000×6000 pixels.
+  - **Storage:** a random UUID file name with the extension of the real type, on the public disk, served at `/storage/…`. `php artisan storage:link` was run (a junction on Windows), and Vite now proxies `/storage` to Laravel.
+- **Import** (`php artisan dmd:import`, with taxonomy and then products):
+  - **What's kept:** WooCommerce product ids, prices, sale and dates, status (a hidden catalog visibility becomes draft), featured, stock with an "import" movement, threshold, images, attributes as specifications, and creation and modification dates.
+  - **Brand and categories:** taken from the product's categories; the primary category is the deepest one, never "New Offers".
+  - **Edge cases:** duplicate SKUs are dropped with a warning; variable products and products without a price are reported and skipped.
+  - **Running it again:** the same rows are updated, images and specifications are replaced, and stock moves by the difference.
+
+**Migrations**
+- `2026_10_06_000400_create_products_tables`: products (ids from 1,000,000), category_product, product_images, product_specifications, inventory_movements.
+
+**Endpoints**
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /api/v1/catalog | the whole storefront catalog, cached, with an ETag |
+| GET | /api/v1/products | `category`, `category_path`, `brand`, `q`, `min_price`, `max_price`, `in_stock`, `on_sale`, `featured`, `ids`, `sort` (newest, price_asc, price_desc, name, featured), paginated |
+| GET | /api/v1/products/{id} | detail: text, gallery, specifications, brand, dimensions |
+| GET POST | /api/v1/admin/products | filters `q`, `status`, `category`, `brand`, `stock`, `featured`, `on_sale`, `archived`, `sort`; counts per status |
+| GET PUT DELETE | /api/v1/admin/products/{id} | DELETE archives |
+| POST | /api/v1/admin/products/{id}/restore · DELETE …/permanent · POST /api/v1/admin/products/bulk | |
+| GET | /api/v1/admin/inventory | `level`=out, low, in or untracked; sold-out first; counts |
+| PUT | /api/v1/admin/inventory/{id} | `stock_quantity` (stocktake) or `adjust` (±), `track_stock`, `low_stock_threshold`, `stock_status`, `note` |
+| GET | /api/v1/admin/inventory/{id}/movements | stock history |
+| POST | /api/v1/admin/uploads | multipart `file` |
+
+**Tests added:** 22
+- **Products:**
+  - **Same rows everywhere:** the owner adds a product and it appears on its page, in the parent category, by category path, by brand, by name and SKU search, and in the catalog.
+  - **Changes show at once:** an admin change shows immediately on the product page, in the category list and in the catalog (the ETag changes; an unchanged ETag gets a 304).
+  - **Visibility:** drafts and archived products stay off the storefront; archive, restore and permanent delete work.
+  - **Price validation:** zero, negative, three decimals, a sale at or above the price, dates in the wrong order, and lowering the price below an existing sale are all refused.
+  - **Uniqueness:** SKUs are unique in any case and including archived products; slugs are unique.
+  - **Categories and lists:** the primary category must be one of the product's categories; filters and sorting work; unknown values are refused.
+  - **Admin tools:** bulk actions work; only the owner can manage products and stock.
+- **Inventory:** one stock number drives availability on the product page, catalog, in-stock filter and admin; every change leaves a movement line with who and why; stock can never go below zero (through the API or the service); untracked products use their manual availability; the stock screen lists sold-out first, with counts.
+- **Pricing:** a sale applies only inside its dates (`travel()` checks that it ends by itself), and the SQL filter agrees with PHP; money stays exact in cents.
+- **Uploads:** stored under a random name with the real type (the browser's `../../evil name.png` is ignored); SVG with script, PHP disguised as PNG and oversized files are refused; buyers can't upload.
+- **Import:** 187 products with ids, prices, stock, categories (primary not New Offers) and brand; importing again doesn't duplicate, and a changed price and stock follow with one movement for the difference; unsellable products are reported, not half-imported.
+
+**Results**
+- **Tests:** Laravel 108 of 108 (833 assertions). Lint passes and the storefront builds. Node isn't affected (no Node changes).
+- **Real import from the local emulator into the dev database:** 187 products (all published), 187 images, 175 import movements (12 products had no stock), 44 on sale and 68 with a brand. Run twice, with identical counts.
+- **Through the Vite proxy:** `/api/v1/catalog` returns 187 products, 105 categories and 10 brands, about 133 KB or 17 KB gzipped, with an ETag and public caching. Product 34198 shows price 28, regular price 32 and 13% off, in categories 291, 336 and 996 with primary 291. `/products?category_path=playstation/ps4/games&sort=price_asc` returns 17 products, cheapest first.
+
+**Decisions**
+- **Best-seller ordering and ratings:** these come from orders (Phase 7) and reviews (Phase 8). Nothing is copied into product rows ahead of time.
+- **Stock privacy:** exact stock is private unless it's low, as before.
+- **Brand visibility:** a product stays visible when its brand is inactive; only the brand's pages and filters go.
+
+**Legacy dependencies removed:** none yet. That's the next phase.
+
+**Blockers:** none.
+
+**Next:** Phase 5, the storefront reads its catalog from Laravel.

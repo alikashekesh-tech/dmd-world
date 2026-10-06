@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Auth\PasswordController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\ProductController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
@@ -33,7 +34,10 @@ Route::prefix('auth')->name('auth.')->middleware('session')->group(function () {
     });
 });
 
-/* ── catalog: categories and brands (what the storefront shows) ─────── */
+/* ── catalog: what the storefront shows ─────────────────────────────── */
+Route::get('catalog', [ProductController::class, 'catalog'])->name('catalog');
+Route::get('products', [ProductController::class, 'index'])->name('products.index');
+Route::get('products/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('products.show');
 Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
 Route::get('categories/lookup', [CategoryController::class, 'lookup'])->name('categories.lookup');
 Route::get('categories/{id}', [CategoryController::class, 'show'])->whereNumber('id')->name('categories.show');

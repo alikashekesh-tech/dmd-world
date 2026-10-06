@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Catalog;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,18 @@ class Brand extends Model
     protected function casts(): array
     {
         return ['is_active' => 'boolean', 'position' => 'integer'];
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => Catalog::bust());
+        static::deleted(fn () => Catalog::bust());
+        static::restored(fn () => Catalog::bust());
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
     }
 
     /** The brand's product lines (Razer › Mouse, Razer › Keyboards…). */

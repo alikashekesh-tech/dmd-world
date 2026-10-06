@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Import\ProductImporter;
 use App\Services\Import\TaxonomyImporter;
 use App\Services\Import\WooCommerceSource;
 use Illuminate\Console\Command;
@@ -20,12 +21,12 @@ use Throwable;
 class ImportFromWooCommerce extends Command
 {
     protected $signature = 'dmd:import
-        {--only=* : Limit to some parts: taxonomy}
+        {--only=* : Limit to some parts: taxonomy, products}
         {--force : Allow running with APP_ENV=production (only before go-live)}';
 
     protected $description = 'Import the old WooCommerce store into MySQL (categories, brands, …), keeping legacy ids';
 
-    public const PARTS = ['taxonomy'];
+    public const PARTS = ['taxonomy', 'products'];
 
     public function handle(): int
     {
@@ -57,6 +58,17 @@ class ImportFromWooCommerce extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function products(WooCommerceSource $source): array
+    {
+        $importer = app(ProductImporter::class);
+        $stats = $importer->import($source->all('/products', ['status' => 'any']));
+        foreach ($importer->warnings as $warning) {
+            $this->warn("  {$warning}");
+        }
+
+        return $stats;
     }
 
     private function taxonomy(WooCommerceSource $source): array
