@@ -1,42 +1,55 @@
-# DMD World — storefront redesign (React + Vite)
+# DMD World
 
-**Data:** `src/data/dmdCatalog.js` is a snapshot of dmdworld.store (112 categories, 187 of 1,993 products, real prices and photos, captured 2026-10-02). The photos are hotlinked from dmdworld.store. The store's public API blocks cross-origin requests, so to use the full catalog either deploy this frontend on the store's domain / behind a proxy and fetch `/wp-json/wc/store/v1/products`, or regenerate the snapshot from a full WooCommerce export.
+The DMD World storefront (React + Vite) and the owner's back office (`admin/`).
 
-**Placeholders:** the logo is a text wordmark (`Logo.jsx`); delivery, returns and payment are not defined by DMD, so the cart and checkout show "confirmed on order". Checkout is a demo and takes no payment.
+**Architecture: moving to React + Laravel + MySQL.** The Laravel API in `backend/` is the target backend, and MySQL becomes the single source of truth. It replaces the Node server and WooCommerce feature by feature, without breaking the running app. The plan, the audit and the schema are in [docs/laravel-migration.md](docs/laravel-migration.md). Until the switch, the app runs on the legacy Node server described below and in [admin/README.md](admin/README.md).
 
-## Run
+```
+src/        storefront: pages, layout, catalog data, store state (cart, account, orders)
+admin/      owner back office (served at /admin)
+backend/    Laravel API (/api/v1) and MySQL schema: the target backend (see backend/README.md)
+server/     legacy Node API (/api for buyers, /admin/api for the owner), WooCommerce client, tests
+shared/     code used by all three (password rules)
+wordpress/  DMD Buyer Auth plugin for the WordPress site (buyer sign-in, reset and stock-alert emails)
+deploy/     example production configuration (Caddy, systemd)
+```
+
+## Run it locally
+
+Each command in its own terminal:
 
 ```bash
-npm install
-npm run dev      # http://localhost:5173
-npm run build    # production build in dist/
+npm --prefix server run emulator
 ```
 
-## Structure
-
-```
-src/
-  router/        tiny History-API router (Link, NavLink, useParams, useSearchParams, /* splats)
-  context/       StoreContext: cart, wishlist, user, orders (persisted to localStorage)
-  data/          meta.js (types, platform tree, brands, filters), products/*.js, nav.js, index.js (queries)
-  components/
-    art/         procedural SVG product renders, hero scene, brand wordmarks, photo override (Media.jsx)
-    layout/      Header, MegaMenu, MobileNav, SearchBox, CartDrawer, Footer
-    home/        Hero, CategoryGrid, PlatformSection, ProductRail, SetupShowcase, BrandSection, PromoBanner, Newsletter ...
-    product/     ProductCard, ProductGrid
-    shop/        ProductBrowser, FilterPanel, useFilters (filters live in the URL, so every view is shareable)
-    setup/       SetupBuilder
-  pages/         Home, Shop, Categories, CategoryPage, PlatformPage, Brands, Deals, ProductPage, Cart, Checkout, Order, Account, Wishlist, Build
+```bash
+npm --prefix server start
 ```
 
-Styling is CSS Modules plus design tokens in `src/styles/global.css`.
+```bash
+npm run dev
+```
 
-## Real photography
+- **Storefront:** http://localhost:5173 (any port works: Vite forwards `/api` and `/admin/api` to the server on :8787).
+- **Admin:** http://localhost:5173/admin/. The local password is in `server/dev/LOCAL-TEST-LOGIN.txt`.
+- **Emails** from the emulator (password resets, back-in-stock) are written to `server/dev/outbox/`.
 
-Product and hero art is generated SVG so the project runs with no assets. To use real photos, drop files in `public/images/` and list them in `public/images/manifest.json`; anything listed replaces the generated art. See `public/images/README.md`.
+## Check everything
 
-## Before launch
+```bash
+npm run check
+```
 
-- Product names, prices, specs and ratings are **sample data** (Fantech, Marvo and Onikuma entries especially). Verify against supplier feeds.
-- Checkout and account are client-side demos: nothing is sent anywhere and no payment is processed. Connect a real backend and payment provider (Stripe, etc.) before selling.
-- Brand names are shown as typographic wordmarks. Use licensed logos only with permission from each brand.
+Runs the linter, both production builds, the Node server's unit and end-to-end tests (against a private emulator with its own temporary data) and the Laravel tests (against the `dmd_world_testing` MySQL database, see [backend/README.md](backend/README.md)). Separately: `npm run lint`, `npm run build:all`, `npm test`, `npm run test:api`.
+
+## Catalog
+
+The storefront loads the live WooCommerce catalog from `/api/catalog`: prices, sales, stock and new products, refreshed every few minutes. `src/data/dmdCatalog.js` is a bundled snapshot of dmdworld.store (captured 2026-10-02) used only until the live catalog arrives, or when the server can't be reached. Product photos are hotlinked from dmdworld.store.
+
+## Payments
+
+Orders are real WooCommerce orders paid on delivery or by bank transfer, confirmed by DMD. No card payments are taken online; adding them needs a payment provider and is a business decision.
+
+## Brands
+
+Brand names are shown as typographic wordmarks. Use licensed logos only with permission from each brand.

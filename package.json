@@ -10,7 +10,9 @@
     "build:all": "vite build && npm --prefix server run build:admin",
     "lint": "eslint .",
     "test": "npm --prefix server test",
-    "check": "npm run lint && npm test && npm run build:all"
+    "api:serve": "php backend/artisan serve --host=127.0.0.1 --port=8000",
+    "test:api": "cd backend && php artisan test",
+    "check": "npm run lint && npm run build:all && npm test && npm run test:api"
   },
   "dependencies": {
     "react": "^19.0.0",

@@ -12,8 +12,10 @@ admin/                    owner UI (dashboard + 15 sections)
 server/index.mjs          owner API, WooCommerce client, hosting
 server/buyer.mjs          buyer API: accounts, orders, wishlist, reviews, messages
 server/dev/               local WooCommerce emulator (test data only) + email outbox
+server/test/              unit and end-to-end tests (npm test)
 shared/passwordPolicy.js  the one password policy, used by server, admin and storefront
-wordpress/dmd-buyer-auth  WordPress plugin that checks buyer passwords and sends reset emails
+wordpress/dmd-buyer-auth  WordPress plugin: buyer passwords, reset and back-in-stock emails
+deploy/                   example Caddy and systemd configuration
 ```
 
 ## Run it locally (emulator)
@@ -38,7 +40,16 @@ npm run dev
 
 - Owner admin: `http://localhost:5173/admin/` (or build it with `npm --prefix server run build:admin`, then open `http://localhost:8787/admin/`). The password is in `server/dev/LOCAL-TEST-LOGIN.txt`.
 - Storefront: `http://localhost:5173`. Create a buyer account under Account → Create an account.
-- Password-reset emails from the emulator are written to `server/dev/outbox/` instead of being sent.
+- Vite forwards `/api` and `/admin/api` to the server (`vite.config.js`), so the storefront works on any port, exactly like production. Set `DMD_API_ORIGIN` if the server isn't on `127.0.0.1:8787`.
+- Emails from the emulator (password resets, back-in-stock) are written to `server/dev/outbox/` instead of being sent.
+
+### Checks
+
+```bash
+npm run check
+```
+
+That runs the linter (`npm run lint`), the tests (`npm test`) and both builds. The tests start their own emulator and server on free ports with temporary data, so they never touch `server/.env` or `server/data/`. They cover sign-in and lockouts, owner/buyer separation, order privacy, cross-site refusals, the live catalog, quotes and coupons, retry-safe orders, cancelling, reviews and stock alerts.
 
 ## Connect a staging store
 
@@ -66,6 +77,34 @@ At least 8 characters, an uppercase letter, a lowercase letter, a number and a s
 - **Owner and buyers:** a buyer cookie can't open `/admin/api`, and the owner cookie can't act as a buyer. Only WordPress `customer` accounts can sign in to the storefront.
 - **Guest checkout:** guests can still check out. They reopen their confirmation with WooCommerce's private order key.
 
+## What buyers get
+
+- **Live catalog:** prices, sales, stock, photos and new products come from WooCommerce, and product pages show the store's own description and attributes (`/api/catalog`, refreshed every few minutes and cached on the device), so owner edits show up on the storefront within minutes. The bundled snapshot is only a fallback. Menu counts match what each page lists.
+- **Honest checkout:**
+  - **Live check:** the cart and checkout ask the server for a live quote (prices, stock, discount) and point out items that sold out or are running low, with one-click fixes.
+  - **Codes:** coupons created in Admin → Offers can be redeemed at checkout, with WooCommerce's rules (expiry, minimum and maximum spend, usage limits, products and categories).
+  - **No double orders:** "Place order" can't create two orders. A retried submit (double tap, dropped connection) returns the first order.
+  - **Typing is kept:** the details stay in the tab if the page is refreshed.
+- **After ordering:**
+  - **Order page:** a progress timeline (placed → confirmed → delivered), the discount, and updates from DMD.
+  - **Cancelling:** buyers and guests can cancel an order DMD hasn't confirmed yet. The owner sees the cancellation in the order's history and in Messages.
+- **Account:**
+  - **Orders:** "Buy again" on any order, and older orders load on demand.
+  - **Replies:** a badge shows new replies from DMD, and the "Message DMD" link opens that order's thread.
+  - **Stock alerts:** a list of the products the buyer is waiting for.
+- **Back-in-stock emails:** on a sold-out product, signed-in buyers choose "Email me when it's back". Restocking emails them through the WordPress plugin (1.1), and Admin → Inventory shows how many buyers are waiting for each product.
+- **Small things:**
+  - **Remembering:** recently viewed products appear on the home page and product pages, and wishlist items can go to the cart in one tap.
+  - **Undo:** clearing or removing cart items can be undone.
+  - **Low stock:** "Only N left" is shown only when stock really is low.
+- **Search and sharing:**
+  - **Titles and descriptions:** every page has its own title and description, and private pages are `noindex`.
+  - **Search engines:** product pages carry Product structured data (price, availability, rating), and the server publishes `robots.txt` and a live `sitemap.xml`.
+  - **Link previews:** social preview tags.
+- **Resilience:**
+  - **Store unreachable:** shows a clear message with "Try again" (and retries when the connection returns), never an endless "Checking your account…".
+  - **Page errors:** a failing page shows a reload button instead of a blank screen, and pages load on demand (smaller first download).
+
 ## Security hardening
 
 - **Network:**
@@ -78,12 +117,15 @@ At least 8 characters, an uppercase letter, a lowercase letter, a number and a s
 - **Owner sessions:**
   - The cookie is HttpOnly, `SameSite=Strict` and limited to `/admin`, signed with the session secret plus the password hash.
   - Changing the password signs out every other device, and logout revokes the token on the server.
-  - Lockout after 5 failures per address, plus a store-wide brake on bursts of failures.
+  - Lockout after 5 failures per address, plus a store-wide brake on bursts of failures. Devices the owner has signed in on before skip the store-wide brake, so a stranger flooding wrong passwords can't lock the owner out.
+  - Changing the password in Settings needs the current one, with its own limit (5 wrong tries per 15 minutes).
   - New password hashes use stronger scrypt settings; older ones are upgraded at the next sign-in.
 - **Buyer sessions:**
   - Random tokens; only their hash is stored, in a file readable by the owner only.
   - At most 10 devices per account. Password change or reset signs out the others.
-  - Separate limits on sign-in, sign-up, reset, orders, reviews and messages, plus a per-address API limit.
+  - Separate limits on sign-in, sign-up, reset, orders, quotes, cancelling, reviews, messages and stock alerts, plus a per-address API limit. All limits are bounded in memory.
+  - A wrong "current password" while signed in (changing email or password) is limited per account, so a stolen session can't be used to guess it.
+  - A password-reset token is removed from the address bar as soon as the page reads it.
 - **Input:**
   - Every route ID is checked to be a plain number (or a strict pattern) before it can reach a WooCommerce URL.
   - Writes must be JSON, and cross-site or foreign-origin writes are refused.
@@ -93,12 +135,28 @@ At least 8 characters, an uppercase letter, a lowercase letter, a number and a s
 - **Robustness:**
   - Malformed requests and cookies get clean errors instead of crashing the server.
   - Slow or oversized requests are cut off.
-  - Static files can't be read from outside `admin/dist`.
+  - Static files can't be read from outside `admin/dist` (or `dist/`), and a missing script answers 404 rather than an HTML page.
+  - The server's own files (admin state, buyer sessions) are written atomically. A file that can't be read is kept aside and the server starts with empty data, instead of refusing to start.
+  - The development server refuses to serve `server/`, `wordpress/`, `.env` files and logs.
+- **Logging:** errors, slow requests and refusals (401/403/429, with the address) are always logged. Every request is logged with `LOG_REQUESTS=true`. Query strings are never logged, because they can carry order keys and reset tokens.
 - **WordPress plugin:**
   - The shared secret is compared in constant time, and unknown accounts take as long to answer as wrong passwords.
   - Its own limits: 10 failures per login per 15 minutes, and 3 reset emails per account per hour.
 
 For the storefront's static host, also send `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and HSTS. Keep WordPress, WooCommerce and plugins updated, back up the database, and never commit `server/.env`.
+
+## Production deployment
+
+1. **Build:** `npm ci && npm run build:all` (storefront in `dist/`, admin in `admin/dist/`).
+2. **Configure:** in `server/.env`, set `SERVE_STOREFRONT=true`, `TRUST_PROXY=true`, `COOKIE_SECURE=true` and `STOREFRONT_URL=https://your-domain`. One Node process then serves the storefront pages, `/api`, `/admin`, `robots.txt` and `sitemap.xml`, with compression and long-lived caching for hashed assets.
+3. **Put it behind HTTPS:** use Caddy or nginx; `deploy/Caddyfile` is a working example.
+4. **Run it as a service:** `deploy/dmd-world.service` is a hardened systemd unit. The server stops gracefully on SIGTERM: it finishes open requests and saves buyer sessions.
+5. **Monitor:**
+   - `/healthz` answers 200 while the server is up (the reverse proxy uses it).
+   - `/healthz?store=1` also needs WooCommerce to answer (use it for uptime alerts).
+6. **Back up** `server/data/` along with the WordPress database.
+
+Hosting the storefront elsewhere (a static host) also works: forward `/api` to this server on the same domain, and send the security headers listed above.
 
 ## Buyer reviews
 
@@ -121,4 +179,5 @@ For the storefront's static host, also send `X-Content-Type-Options: nosniff`, `
 - **Hero slider and banners** are designed in Elementor, so the Homepage screen links to the page builder.
 - **Abandoned carts aren't included**, because the store has no cart-tracking plugin.
 - **Blocking an account or setting a password for a buyer** is done in WordPress → Users. Buyers reset their own passwords from the storefront.
-- **The storefront's product catalog is still a snapshot** (`src/data/dmdCatalog.js`). Product edits in the admin reach WooCommerce, and so do orders, accounts and reviews. Prices and stock are always re-checked live at checkout, but product pages show snapshot data until the catalog is loaded live.
+- **Stock that changes through orders** can take up to 30 minutes to show in the storefront catalog: WooCommerce doesn't mark the product as modified then. The cart and checkout always check stock live, so nobody can order what's gone.
+- **Card payments** aren't taken online. Orders are cash on delivery or bank transfer, confirmed by DMD.

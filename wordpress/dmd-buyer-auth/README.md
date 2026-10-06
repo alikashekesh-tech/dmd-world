@@ -6,8 +6,11 @@ What it does:
 
 - **`POST /wp-json/dmd/v1/auth`:** checks a buyer's email and password against WordPress. Only accounts with the `customer` role can sign in, so shop managers and admins are never buyers.
 - **`POST /wp-json/dmd/v1/send-reset`:** emails a buyer their password-reset link. The link must point at your storefront.
+- **`POST /wp-json/dmd/v1/notify-stock`** (version 1.1): emails a buyer that a product they asked about is back in stock. The plugin writes the email itself from the store's own data (the server only names the customer and the product), only to `customer` accounts, at most 10 per account per day.
 - **Password rules on the WordPress site too:** the same rules apply to My Account registration and checkout sign-up, the account-details password change, lost-password resets and wp-admin profiles.
-- **Server-only access:** both endpoints answer only requests that carry the shared secret, which only the DMD World server has.
+- **Server-only access:** every endpoint answers only requests that carry the shared secret, which only the DMD World server has.
+
+**Updating from 1.0:** upload the new zip (Plugins → Add New → Upload Plugin → Replace current with uploaded). Until 1.1 is installed, back-in-stock requests are kept and the emails go out once it is.
 
 ## Install
 

@@ -393,6 +393,29 @@ export function createBuyerApi({ woo, idx, state, file, wooUrl, authSecret, stor
     return res.end(body);
   });
 
+  /* ── product details (description and attributes) for the product page, as plain text ── */
+  const detailCache = new Map();
+  const paragraphs = (html, max) => stripTags(String(html || '').replace(/<\/(p|div|h[1-6]|li)>/gi, '\n\n').replace(/<li[^>]*>/gi, '• ')).replace(/\n{3,}/g, '\n\n').trim().slice(0, max).split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  router.get('/products/:id', async ({ params }) => {
+    const id = Number(params.id);
+    const hit = detailCache.get(id);
+    if (hit && Date.now() - hit.at < 5 * 60e3) return hit.data;
+    let p;
+    try { ({ data: p } = await woo.get(`/products/${id}`)); } catch { throw new HttpError(404, 'Product not found.'); }
+    if (p.status !== 'publish' || p.catalog_visibility === 'hidden') throw new HttpError(404, 'Product not found.');
+    const data = {
+      id: p.id,
+      short: paragraphs(p.short_description, 600).join(' '),
+      description: paragraphs(p.description, 6000).slice(0, 30),
+      attributes: (p.attributes || []).filter((a) => a.visible !== false && a.name && a.options?.length).slice(0, 20).map((a) => ({ name: plainText(a.name, 60), value: a.options.map((o) => plainText(o, 80)).join(', ').slice(0, 200) })),
+      weight: p.weight || null,
+      dimensions: p.dimensions && (p.dimensions.length || p.dimensions.width || p.dimensions.height) ? [p.dimensions.length, p.dimensions.width, p.dimensions.height].filter(Boolean).join(' × ') : null,
+    };
+    detailCache.set(id, { at: Date.now(), data });
+    if (detailCache.size > 2000) detailCache.delete(detailCache.keys().next().value);
+    return data;
+  });
+
   /* ── pricing: one function for quotes and orders, always from live WooCommerce data ── */
   async function catsOfFn() {
     const all = await idx.categories();
@@ -703,7 +726,7 @@ export function createBuyerApi({ woo, idx, state, file, wooUrl, authSecret, stor
   /** Called whenever reviews change (here or in /admin) so ratings and product reviews are fresh. */
   function bustReviews() { ratingsCache = null; reviewCache.clear(); }
   /** Called when the owner changes products, so the storefront catalog and quotes don't wait for the cache. */
-  function bustCatalog() { catalogCache = null; }
+  function bustCatalog() { catalogCache = null; detailCache.clear(); }
   const waiting = (productId) => Object.keys(store.alerts[productId] || {}).length;
   return { router, sessionOf, accountsOn, bustReviews, bustCatalog, sendStockAlerts, waiting, flush, catalog };
 }

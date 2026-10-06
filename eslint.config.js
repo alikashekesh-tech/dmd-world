@@ -6,7 +6,7 @@ import globals from 'globals';
 const jsx = { ecmaVersion: 'latest', sourceType: 'module', parserOptions: { ecmaFeatures: { jsx: true } } };
 
 export default [
-  { ignores: ['**/dist/**', 'node_modules/**', 'server/data/**', 'server/dev/emulator-data.json', 'video/**'] },
+  { ignores: ['**/dist/**', 'node_modules/**', 'server/data/**', 'server/dev/emulator-data.json', 'video/**', 'backend/**'] },
   js.configs.recommended,
   {
     files: ['src/**/*.{js,jsx}', 'admin/src/**/*.{js,jsx}', 'shared/**/*.js'],

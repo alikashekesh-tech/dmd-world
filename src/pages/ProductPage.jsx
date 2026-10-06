@@ -16,6 +16,7 @@ import { catUrl, CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
+import { storeApi } from '../lib/storeApi.js';
 import NotFound from './NotFound.jsx';
 import s from './ProductPage.module.css';
 
@@ -68,7 +69,14 @@ export default function ProductPage() {
   const [params] = useSearchParams();
   const wantReview = params.get('review') === '1'; // from "Review" in order history
   const [tab, setTab] = useState(wantReview ? 'reviews' : 'overview');
+  const [details, setDetails] = useState(null); // description and attributes from WooCommerce, loaded per product
   const tabRefs = useRef({});
+  useEffect(() => {
+    let live = true;
+    setDetails(null);
+    storeApi.get(`/products/${encodeURIComponent(slug)}`).then((d) => { if (live) setDetails(d); }).catch(() => {});
+    return () => { live = false; };
+  }, [slug]);
   useEffect(() => {
     setColor(p?.colors[0]); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
     if (wantReview) setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 150); else window.scrollTo(0, 0);
@@ -92,14 +100,15 @@ export default function ProductPage() {
   const out = p?.stock === 'out';
   const catNames = (p?.cats || []).map((id) => catName(Number(id)));
   const condition = catNames.includes('Used') ? 'Used' : catNames.includes('New') ? 'New' : null;
+  const blurb = details?.short || p?.blurb || '';
   usePageMeta(p ? {
     title: p.name,
-    description: p.blurb || `${p.name} from ${brand.name} at DMD World: ${money(p.price)}${p.was ? ` (was ${money(p.was)})` : ''}. ${out ? 'Currently out of stock.' : 'In stock, order online and pay on delivery in Lebanon.'}`,
+    description: blurb || `${p.name} from ${brand.name} at DMD World: ${money(p.price)}${p.was ? ` (was ${money(p.was)})` : ''}. ${out ? 'Currently out of stock.' : 'In stock, order online and pay on delivery in Lebanon.'}`,
     image: p.img || undefined,
     type: 'product',
     jsonLd: {
       '@context': 'https://schema.org', '@type': 'Product', name: p.name, sku: p.sku || p.id, image: p.gallery?.length ? p.gallery : undefined,
-      brand: { '@type': 'Brand', name: brand.name }, category: cat.name, description: p.blurb || undefined,
+      brand: { '@type': 'Brand', name: brand.name }, category: cat.name, description: blurb || undefined,
       offers: {
         '@type': 'Offer', priceCurrency: 'USD', price: p.price.toFixed(2), url: `${location.origin}/product/${p.slug}`,
         availability: out ? 'https://schema.org/OutOfStock' : p.stock === 'low' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
@@ -111,7 +120,8 @@ export default function ProductPage() {
   } : { title: 'Product not found', noindex: true });
 
   if (!p) return <NotFound />;
-  const descParas = (p.blurb || `${p.name} from ${brand.name}, available at DMD World.`).split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const descParas = details?.description?.length ? details.description : (blurb || `${p.name} from ${brand.name}, available at DMD World. Ask DMD about compatibility, condition or what's in the box.`).split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const specRows = [...(details?.attributes || []).map((a) => [a.name, a.value]), ...Object.entries(p.specs), ...(details?.dimensions ? [['Dimensions', details.dimensions]] : []), ...(details?.weight ? [['Weight', `${details.weight} kg`]] : [])];
   const platformGroup = ['playstation', 'nintendo-switch', 'xbox'].includes(p.brand) ? brand.name : null;
   const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', out ? 'Out of stock' : p.stock === 'low' ? `Only ${p.stockCount} left` : 'In stock'], ...(p.sku ? [['SKU', p.sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
   const wished = isWished(p.id);
@@ -119,7 +129,7 @@ export default function ProductPage() {
   const maxQty = p.stock === 'low' && p.stockCount ? p.stockCount : 10;
   const buyNow = () => { addToCart(p.id, qty, color, { open: false }); nav('/checkout'); };
   const shots = p.img ? p.gallery || [p.img] : ART_VIEWS;
-  const tabs = TABS.filter(([k]) => k !== 'specs' || Object.keys(p.specs).length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
+  const tabs = TABS.filter(([k]) => k !== 'specs' || specRows.length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
   const onTabKey = (e, i) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
     const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : step ? (i + step + tabs.length) % tabs.length : null;
@@ -164,7 +174,7 @@ export default function ProductPage() {
             {p.was ? <DropPrice key={p.id} p={p} /> : <Price price={p.price} size="lg" />}
             <Stock p={p} />
           </div>
-          {p.blurb && <p className={s.blurb}>{p.blurb}</p>}
+          {blurb && <p className={s.blurb}>{blurb}</p>}
 
           {p.colors.length > 1 && (
             <div className={s.block}>
@@ -243,7 +253,7 @@ export default function ProductPage() {
                 <tr><th>Brand</th><td>{brand.name}</td></tr>
                 <tr><th>Type</th><td>{cat?.name}</td></tr>
                 {p.conn && <tr><th>Connection</th><td>{p.conn}</td></tr>}
-                {Object.entries(p.specs).map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}
+                {specRows.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}
                 <tr><th>Compatibility</th><td><Compat p={p} max={10} /></td></tr>
               </tbody></table>
             </div>

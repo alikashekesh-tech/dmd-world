@@ -1008,9 +1008,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204, { 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' });
       return res.end();
     }
+    // /healthz: is this server up (for the reverse proxy). /healthz?store=1: and can it reach WooCommerce (for monitoring).
     if (url.pathname === '/healthz') {
       const h = await healthCheck();
-      res.writeHead(h.ok ? 200 : 503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      const up = url.searchParams.get('store') === '1' ? h.ok : h.configured;
+      res.writeHead(up ? 200 : 503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify(h));
     }
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return await handleBuyer(req, res, url, trusted, ip);

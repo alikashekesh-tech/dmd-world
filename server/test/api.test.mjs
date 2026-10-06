@@ -23,11 +23,12 @@ const contact = (mail = email('guest')) => ({ firstName: 'Guest', lastName: 'Tes
 const key = () => `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 describe('platform', () => {
-  test('health check reports the store connection', async () => {
+  test('health check reports the server and the store connection', async () => {
     const r = await S.client().get('/healthz');
     assert.equal(r.status, 200);
     assert.equal(r.body.ok, true);
     assert.equal(r.body.store, true);
+    assert.equal((await S.client().get('/healthz?store=1')).status, 200);
   });
   test('API answers carry no-store and strict headers', async () => {
     const r = await S.client().get('/api/session');
@@ -160,6 +161,17 @@ describe('live catalog', () => {
     const q = await S.client().post('/api/cart/quote', { items: [{ id: ids.plenty2, qty: 1 }] });
     assert.equal(q.body.lines[0].code, 'unavailable', 'and cannot be bought');
     await owner.put(`/admin/api/products/${ids.plenty2}`, { catalog_visibility: 'visible', regular_price: before.regular_price, sale_price: before.sale_price });
+  });
+  test('product details come back as plain text, and hidden products stay hidden', async () => {
+    await owner.put(`/admin/api/products/${ids.plenty}`, { description: '<p>Fast <b>charging</b> cable.</p><ul><li>2 m</li></ul><script>alert(1)</script>', short_description: '<em>Short</em> intro' });
+    const d = await S.client().get(`/api/products/${ids.plenty}`);
+    assert.equal(d.status, 200);
+    assert.equal(d.body.short, 'Short intro');
+    assert.ok(d.body.description.includes('Fast charging cable.'));
+    assert.ok(d.body.description.every((x) => !/[<>]/.test(x)), 'no markup reaches the storefront');
+    await owner.put(`/admin/api/products/${ids.plenty}`, { catalog_visibility: 'hidden' });
+    assert.equal((await S.client().get(`/api/products/${ids.plenty}`)).status, 404);
+    await owner.put(`/admin/api/products/${ids.plenty}`, { catalog_visibility: 'visible', description: '', short_description: '' });
   });
   test('stock is only revealed when it runs low', async () => {
     const rows = (await S.client().get('/api/catalog')).body.products;
