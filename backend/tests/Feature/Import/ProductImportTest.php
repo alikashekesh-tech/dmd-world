@@ -32,7 +32,7 @@ class ProductImportTest extends TestCase
             'old-store.test/wp-json/wc/v3/products/categories*' => Http::response($categories, 200, ['X-WP-TotalPages' => '1']),
             'old-store.test/wp-json/wc/v3/products*' => Http::response($products ?? $this->products, 200, ['X-WP-TotalPages' => '1']),
         ]);
-        $this->artisan('dmd:import')->assertSuccessful();
+        $this->artisan('dmd:import', ['--only' => ['taxonomy', 'products']])->assertSuccessful();
     }
 
     private function fixture(callable $where): array

@@ -5,7 +5,9 @@ namespace Tests\Feature\Orders;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -107,7 +109,7 @@ class AdminOrderTest extends TestCase
         $owner->get("/api/v1/admin/customers/{$buyer->id}")->assertOk()->assertJsonCount(2, 'data.orders')->assertJsonPath('data.spent', 30);
         $owner->put("/api/v1/admin/customers/{$buyer->id}", ['phone' => '+961 1 234 567', 'password' => 'Hijack-1!'])->assertOk()->assertJsonPath('data.phone', '+961 1 234 567');
         $this->assertNotNull($buyer->fresh()->password);
-        $this->assertTrue(\Illuminate\Support\Facades\Hash::check(\Database\Factories\UserFactory::DEFAULT_PASSWORD, $buyer->fresh()->password), 'the owner can’t set a buyer’s password');
+        $this->assertTrue(Hash::check(UserFactory::DEFAULT_PASSWORD, $buyer->fresh()->password), 'the owner can’t set a buyer’s password');
     }
 
     public function test_buyers_and_guests_cannot_reach_order_management(): void

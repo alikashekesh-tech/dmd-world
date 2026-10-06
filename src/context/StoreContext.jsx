@@ -4,6 +4,7 @@ import { useCatalog, keepCatalogFresh } from '../data/live.js';
 import { storeApi, guestOrders } from '../lib/storeApi.js';
 import { LARAVEL } from '../lib/backend.js';
 import { account } from '../lib/account.js';
+import { orders as orderApi } from '../lib/orders.js';
 
 const StoreCtx = createContext(null);
 const KEY = 'loadout:v1';
@@ -83,7 +84,7 @@ export function StoreProvider({ children }) {
         if (local.length) { try { localStorage.setItem(KEY, JSON.stringify({ ...read(), wishlist: [] })); } catch { /* ignore */ } }
         synced.current = JSON.stringify(saved);
         dispatch({ type: 'wishlist', ids: saved });
-      })()]);
+      })(), (async () => { const r = await orderApi.list(1); ordersPage.current = 1; setOrders(r.items); setOrdersMore(r.pages > 1); })()]);
       return;
     }
     const tasks = [
@@ -149,10 +150,10 @@ export function StoreProvider({ children }) {
   }, []);
   const refreshOrders = useCallback(async () => {
     if (!buyer) return;
-    try { const r = await storeApi.get('/me/orders'); ordersPage.current = 1; setOrders(r.items); setOrdersMore((r.pages || 1) > 1); } catch { /* keep the last list */ }
+    try { const r = LARAVEL ? await orderApi.list(1) : await storeApi.get('/me/orders'); ordersPage.current = 1; setOrders(r.items); setOrdersMore((r.pages || 1) > 1); } catch { /* keep the last list */ }
   }, [buyer]);
   const loadMoreOrders = useCallback(async () => {
-    const r = await storeApi.get(`/me/orders?page=${ordersPage.current + 1}`);
+    const r = LARAVEL ? await orderApi.list(ordersPage.current + 1) : await storeApi.get(`/me/orders?page=${ordersPage.current + 1}`);
     ordersPage.current += 1;
     setOrders((list) => [...list, ...r.items.filter((o) => !list.some((x) => x.id === o.id))]);
     setOrdersMore(ordersPage.current < (r.pages || 1));
@@ -186,7 +187,9 @@ export function StoreProvider({ children }) {
   /** Places a real WooCommerce order. Prices and stock are checked by the server, never trusted from here.
       The idempotency key makes a retried submit (double tap, dropped connection) return the same order. */
   const placeOrder = useCallback(async (payload) => {
-    const r = await storeApi.post('/orders', { ...payload, items: state.cart.map((l) => ({ id: Number(l.id), qty: l.qty })) }, { timeout: 45000 });
+    const r = LARAVEL
+      ? await orderApi.place({ ...payload, items: state.cart.map((l) => ({ id: l.id, qty: l.qty })) })
+      : await storeApi.post('/orders', { ...payload, items: state.cart.map((l) => ({ id: Number(l.id), qty: l.qty })) }, { timeout: 45000 });
     if (r.key) guestOrders.add(r.id, r.key);
     dispatch({ type: 'clear' });
     if (buyer) refreshOrders();

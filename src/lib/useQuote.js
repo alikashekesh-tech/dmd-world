@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { storeApi } from './storeApi.js';
+import { orders } from './orders.js';
+import { LARAVEL } from './backend.js';
 
 /**
  * The live price check for the cart (and an optional coupon): real prices, stock problems per line and the
@@ -18,7 +20,7 @@ export function useQuote(lines, coupon = '', email = '') {
     if (!items.length) { setQuote(null); setChecking(false); return undefined; }
     setChecking(true);
     const t = setTimeout(() => {
-      storeApi.post('/cart/quote', { items, coupon: coupon || undefined, email: mail || undefined })
+      (LARAVEL ? orders.quote(items) : storeApi.post('/cart/quote', { items, coupon: coupon || undefined, email: mail || undefined }))
         .then((q) => { if (n === seq.current) setQuote(q); })
         .catch(() => { if (n === seq.current) setQuote(null); })
         .finally(() => { if (n === seq.current) setChecking(false); });

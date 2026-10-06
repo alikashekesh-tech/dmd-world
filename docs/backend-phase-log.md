@@ -385,3 +385,106 @@ The tests use a browser-like client (`tests/SpaClient.php`). Each "browser" has 
 **Blockers:** none. Real email delivery needs SMTP settings.
 
 **Next:** Phase 7, orders and order items.
+
+## Phase 7: orders and order items (6 Oct 2026)
+
+**Implemented (backend)**
+- **`orders`:** order number, buyer (null for guests), status, currency, and subtotal, discount, shipping and total as `DECIMAL`. Also payment method and payment status, delivery method, a copy of the contact details (name, email, phone), a copy of the delivery address (country, city, area, street, building, floor, notes), the buyer's note, and a coupon code (filled in Phase 9).
+  - **Guest access:** a guest-token hash and an idempotency hash, both with unique indexes.
+  - **Timestamps:** placed, completed and cancelled.
+  - **MySQL checks:** valid statuses (pending, processing, on_hold, completed, cancelled, refunded, failed) and valid payment statuses, non-negative money, and **total = subtotal − discount + shipping**.
+- **`order_items`:** product id (set to null if the product is ever deleted), plus copies of the product name, SKU and image, unit and regular price, quantity, and the line subtotal, discount and total. A CHECK keeps quantity above 0. **Editing or deleting a product never changes an existing order.**
+- **`order_status_history`:** every status change and the owner's private notes, with who made them.
+- **`inventory_movements.order_id`:** now a foreign key to orders.
+- **Checkout service:**
+  - **Quote:** prices every line from MySQL through `Pricing` and flags `UNAVAILABLE`, `SOLD_OUT`, `LOW_STOCK` (with the quantity still available) and `TOO_MANY`.
+  - **Placing an order:** one transaction (retried on deadlock). It locks the product rows in a fixed order, so two checkouts can't deadlock each other. It recomputes every price and total (anything the browser sends as a price, total, discount, status or user id is ignored), takes stock through `Inventory` with an `order` movement linked to the order, records history, and sends an order-confirmation email after commit.
+  - **Idempotency:** the hash of (buyer or guest, client key) is unique. A retried or simultaneous duplicate submit gets the first order back (200, `replayed`); a guest reusing someone else's key gets `409 IDEMPOTENCY_CONFLICT`.
+  - **Guest token:** an HMAC of the order and the key, so the browser that placed the order can always get it back on a retry. Only its SHA-256 is stored.
+  - **Saved addresses:** a buyer's saved address is accepted only if it belongs to them (`ADDRESS_NOT_FOUND` otherwise), and a typed address can be saved to the address book.
+- **Order service:**
+  - **Allowed moves:** a transition table (for example processing → completed or cancelled; completed → refunded). Anything else is `409 STATUS_NOT_ALLOWED`.
+  - **Locking:** the order row is locked during a change, so a buyer and the owner acting at the same time can't both win.
+  - **Stock effects:** cancelling puts the stock back (`cancellation` movement); reopening a cancelled order takes it again, or is refused with `INSUFFICIENT_STOCK`.
+  - **Payment:** completing a cash-on-delivery order marks it paid; refunding marks the payment refunded.
+- **Buyer access:**
+  - **Own orders only:** `GET /orders` lists only the session's own orders.
+  - **Opening one order:** `GET /orders/{id}` works for its owner or with the guest token; anyone else gets 404.
+  - **Cancelling:** only while pending. Cancelling twice never restocks twice.
+  - **Private notes:** the owner's notes are never in buyer responses.
+- **Owner:** an order list with filters (status, search by number, name, email or phone, customer, dates) and counts per status. The detail view adds next allowed statuses, the full history with who did what, and the buyer's track record. Also status and payment changes, and private notes.
+- **Customers (owner):** registered buyers with their orders, money spent (paid orders only) and last order, plus guests grouped by email. The detail view has addresses, orders and wishlist size. The owner can correct a buyer's name, phone or email, but can never set their password.
+- **Best sellers:** `units_sold` is computed from paid order lines (`withUnitsSold`), never stored. It's in the catalog, and `/products?sort=best` sorts by it.
+- **Import** (`dmd:import`, parts `customers` and `orders`):
+  - **Customers:** WooCommerce ids are kept and the password stays null, since WordPress hashes can't be read through the API; buyers choose a password with "Forgot password". Their saved address becomes the default.
+  - **Orders:** ids and numbers are kept, statuses are mapped (on-hold becomes on_hold; bacs becomes bank_transfer), totals are kept (subtotal is total + discount − shipping, so the CHECK holds), and lines keep their names, SKUs and prices, with product ids where the product exists.
+  - **History:** each order gets one history line, "Imported from the old store".
+  - **Stock:** importing old orders never touches today's stock.
+  - **Running it again:** the same rows are updated.
+
+**Implemented (storefront, Laravel mode)**
+- **`src/lib/orders.js`:** quote, checkout options, placing an order, list, view and cancel, mapped to the shapes the pages already use, including field errors mapped onto the checkout form's fields.
+- **`useQuote`:** live line prices and problems now come from `/cart/quote`.
+- **Checkout:** the options come from Laravel. A signed-in buyer chooses one of their **saved addresses** (the default is preselected) or "A new address" (which can be saved). The retry-safe idempotency key is sent as before.
+- **Orders:** the order page loads the buyer's own order or a guest's with their device-held token, and cancels through Laravel. The account's Order history (with "Show older orders") comes from Laravel.
+
+**Migrations:** `2026_10_06_000600_create_orders_tables`.
+
+**Endpoints**
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /api/v1/checkout/options | payment and delivery methods |
+| POST | /api/v1/cart/quote | 120 per 10 minutes per address |
+| POST | /api/v1/orders | guests too; 10 per hour per address and per account |
+| GET | /api/v1/orders | the buyer's own orders, 20 per page |
+| GET | /api/v1/orders/{id} | owner of the order, or `?token=` for a guest |
+| POST | /api/v1/orders/{id}/cancel | pending only; `token` for guests |
+| GET | /api/v1/admin/orders · /admin/orders/{id} | filters and counts; detail with history and customer stats |
+| PUT | /api/v1/admin/orders/{id}/status · /payment | |
+| POST | /api/v1/admin/orders/{id}/notes | private |
+| GET PUT | /api/v1/admin/customers · /admin/customers/{id} | `type=registered` or `guest` |
+
+**Tests added:** 24
+- **Checkout:**
+  - **Quote:** prices come from MySQL (the browser's price is ignored) and the problems are flagged.
+  - **Guest order:** priced and stocked by the server; status, total, discount and user_id sent by the browser are ignored; the confirmation email is sent; the last unit is gone for the next buyer.
+  - **Refusals:** low stock, too many and unavailable products are refused with nothing written.
+  - **Rollback:** a failure halfway (the second stock change throws) rolls everything back (no order, no movements, stock unchanged).
+  - **Retries:** a retried submit returns the same order and the same guest token, and someone else reusing the key is refused.
+  - **Saved addresses:** a buyer orders to their own saved address; another buyer's address is refused; a typed address can be saved.
+  - **Address rules and validation:** delivery needs an address, pickup doesn't, and bad contact details or payment methods are refused.
+  - **Snapshots:** past orders keep the name, price and SKU after the product changes, and even after it's deleted.
+  - **Sales counts:** paid orders count as sales in the catalog and in "best" sorting.
+- **Buyer orders:** buyer A never sees buyer B's orders; a guest opens their order only with its token, and the token opens only that order; a pending order can be cancelled, its stock returns, and cancelling twice doesn't restock twice; a confirmed order can't be cancelled by the buyer; a guest cancels with their token; the owner's private notes never show.
+- **Owner:**
+  - **Orders:** list, filters and detail; status changes follow the rules (refused moves, cancel restocks, reopening re-reserves stock or is refused, completing a COD order marks it paid, history with notes and the owner's name); payment and private notes.
+  - **Customers:** registered and guest customers with correct spending, and the owner can't set a buyer's password.
+  - **Access:** buyers and guests get 401.
+- **Import:** customers and orders arrive with their ids and history (passwords null, addresses, statuses and payment methods mapped, totals consistent, stock untouched); an imported customer resets their password and sees their old orders; importing again updates instead of duplicating; paid imported orders count as sales.
+
+**Concurrency, with real processes**
+
+The automated tests can't run two transactions at once, so I ran `race.php` against `dmd_world_testing` with 8 separate PHP processes released at the same instant.
+- **The last unit:** all 8 tried to buy the last unit of a product. Exactly one got an order; seven were refused with `SOLD_OUT`. Stock ended at 0 with one movement.
+- **Duplicate submits:** 6 processes sent the *same* checkout at once. One order was created and five got the same order back as replays. Stock moved once.
+
+**Results**
+- **Tests:** Laravel 149 of 149 (1185 assertions). Lint passes. The Laravel-mode, Node-mode and admin builds pass. Node 53 of 53.
+- **Real import from the emulator into the dev database:**
+  - **Customers:** 71, with 57 default addresses.
+  - **Orders:** 387, with 564 lines (351 completed, 15 cancelled, 15 processing, 6 pending).
+  - **Paid revenue:** $18,699.
+- **Browser** (Laravel mode, 5175):
+  - **Signed-in buyer:** added to cart, then at checkout the saved default address was preselected. Placed order #1000000, a real `/api/v1/orders` order of $28 cash on delivery. It showed in Order history; cancelled it from the order page.
+  - **Stock and history:** MySQL showed stock 15 → 14 → 15 with `order` and `cancellation` movements, and history pending → cancelled.
+  - **Guest:** placed order #1000001 with a typed address; the page reopened with the device-held token after a reload; the guest cancelled it.
+
+**Bugs found and fixed**
+- **Product import tests:** they ran the whole import, so they started failing once `customers` and `orders` became parts of it. They now import only taxonomy and products.
+
+**Not yet in Laravel mode:** the account page's Messages, Reviews and Stock alerts tabs (Phase 8), and coupons (Phase 9; checkout hides the coupon field while `coupons_enabled` is false).
+
+**Blockers:** none. Real order emails need SMTP settings.
+
+**Next:** Phase 8, reviews and messaging.

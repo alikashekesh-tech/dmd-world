@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Import\CustomerImporter;
+use App\Services\Import\OrderImporter;
 use App\Services\Import\ProductImporter;
 use App\Services\Import\TaxonomyImporter;
 use App\Services\Import\WooCommerceSource;
@@ -21,12 +23,12 @@ use Throwable;
 class ImportFromWooCommerce extends Command
 {
     protected $signature = 'dmd:import
-        {--only=* : Limit to some parts: taxonomy, products}
+        {--only=* : Limit to some parts: taxonomy, products, customers, orders}
         {--force : Allow running with APP_ENV=production (only before go-live)}';
 
     protected $description = 'Import the old WooCommerce store into MySQL (categories, brands, …), keeping legacy ids';
 
-    public const PARTS = ['taxonomy', 'products'];
+    public const PARTS = ['taxonomy', 'products', 'customers', 'orders'];
 
     public function handle(): int
     {
@@ -65,6 +67,26 @@ class ImportFromWooCommerce extends Command
         $importer = app(ProductImporter::class);
         $stats = $importer->import($source->all('/products', ['status' => 'any']));
         foreach ($importer->warnings as $warning) {
+            $this->warn("  {$warning}");
+        }
+
+        return $stats;
+    }
+
+    private function customers(WooCommerceSource $source): array
+    {
+        return $this->report(new CustomerImporter, fn ($i) => $i->import($source->all('/customers', ['role' => 'all'])));
+    }
+
+    private function orders(WooCommerceSource $source): array
+    {
+        return $this->report(new OrderImporter, fn ($i) => $i->import($source->all('/orders', ['status' => 'any'])));
+    }
+
+    private function report(object $importer, callable $run): array
+    {
+        $stats = $run($importer);
+        foreach (array_slice($importer->warnings, 0, 50) as $warning) {
             $this->warn("  {$warning}");
         }
 

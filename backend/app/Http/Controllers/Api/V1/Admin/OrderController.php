@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Admin\OrderResource;
 use App\Models\Order;
+use App\Services\OrderService;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
-use App\Services\OrderService;
 
 /** Every order in the store, for the owner: list, details, status, payment and private notes. */
 class OrderController extends Controller

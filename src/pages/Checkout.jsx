@@ -7,6 +7,9 @@ import LineArt from '../components/art/LineArt.jsx';
 import { OrderSummary } from './Cart.jsx';
 import { LockIcon, CheckIcon, ArrowRight, CloseIcon } from '../components/common/icons.jsx';
 import { storeApi } from '../lib/storeApi.js';
+import { LARAVEL } from '../lib/backend.js';
+import { account } from '../lib/account.js';
+import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
 import { useQuote } from '../lib/useQuote.js';
 import { money } from '../data/index.js';
@@ -66,6 +69,9 @@ export default function Checkout() {
   const [codeInput, setCodeInput] = useState('');
   const [coupon, setCoupon] = useState('');
   const attempt = useRef(newKey()); // one key per checkout: a retried submit can't create a second order
+  // Laravel: a signed-in buyer delivers to one of their saved addresses (the default is preselected) or a new one.
+  const [saved, setSaved] = useState([]);
+  const [addressId, setAddressId] = useState('new');
   const [quote, checking] = useQuote(lines, coupon, f.email);
 
   const set = (e) => { setF((x) => ({ ...x, [e.target.name]: e.target.value })); setErrors((x) => ({ ...x, [e.target.name]: undefined })); };
@@ -79,7 +85,11 @@ export default function Checkout() {
     setSaveAddress(!a.address_1);
   }, [buyer]);
   useEffect(() => {
-    storeApi.get('/checkout-options')
+    if (!LARAVEL || !buyer) { setSaved([]); setAddressId('new'); return; }
+    account.addresses.list().then((list) => { setSaved(list); setAddressId(list.find((a) => a.isDefault)?.id ?? 'new'); }).catch(() => setSaved([]));
+  }, [buyer]);
+  useEffect(() => {
+    (LARAVEL ? orders.options() : storeApi.get('/checkout-options'))
       .then((r) => { setPayments(r.payments); setPayment(r.payments[0]?.id || 'cod'); setCouponsOn(r.coupons !== false); })
       .catch(() => setPayments(FALLBACK_PAYMENTS));
   }, []);
@@ -113,8 +123,9 @@ export default function Checkout() {
     if (!f.lastName.trim()) er.lastName = 'Enter your last name';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim())) er.email = 'Enter a valid email address';
     if (!/^[+\d][\d\s().-]{5,}$/.test(f.phone.trim())) er.phone = 'Enter a phone number DMD can call';
-    if (method === 'delivery' && f.address_1.trim().length < 4) er.address_1 = 'Enter your street address';
-    if (method === 'delivery' && !f.city.trim()) er.city = 'Enter your city';
+    const typed = method === 'delivery' && addressId === 'new';
+    if (typed && f.address_1.trim().length < 4) er.address_1 = 'Enter your street address';
+    if (typed && !f.city.trim()) er.city = 'Enter your city';
     setErrors(er); setProblem('');
     if (Object.keys(er).length) { document.getElementById(Object.keys(er)[0])?.focus(); return; }
     if (stale.length) { setProblem('Some items changed since you added them. Fix them in the summary, then place your order.'); return; }
@@ -126,6 +137,7 @@ export default function Checkout() {
         contact: { firstName: f.firstName, lastName: f.lastName, email: f.email, phone: f.phone },
         method, payment, note: f.note, saveAddress: !!buyer && saveAddress, coupon: coupon || undefined,
         address: { address_1: f.address_1, address_2: f.address_2, city: f.city, country: 'LB' },
+        addressId: addressId !== 'new' ? addressId : undefined,
       });
       try { sessionStorage.removeItem(DRAFT); } catch { /* ignore */ }
       nav(`/order/${r.id}`);
@@ -171,13 +183,29 @@ export default function Checkout() {
           {method === 'delivery' && (
             <section className={s.card} aria-labelledby="co-address">
               <h2 id="co-address"><b>03</b>Delivery address</h2>
-              <div className={s.grid}>
+              {saved.length > 0 && (
+                <div className={s.methods} role="radiogroup" aria-labelledby="co-address">
+                  {saved.map((a) => (
+                    <label key={a.id} className={`${s.method} ${addressId === a.id ? s.on : ''}`}>
+                      <input type="radio" name="address" checked={addressId === a.id} onChange={() => setAddressId(a.id)} />
+                      <span><b>{a.label || 'Saved address'}</b><small>{a.summary}</small></span>
+                      <em>{a.isDefault ? 'Default' : ''}</em>
+                    </label>
+                  ))}
+                  <label className={`${s.method} ${addressId === 'new' ? s.on : ''}`}>
+                    <input type="radio" name="address" checked={addressId === 'new'} onChange={() => setAddressId('new')} />
+                    <span><b>A new address</b><small>Type it below</small></span>
+                    <em />
+                  </label>
+                </div>
+              )}
+              {addressId === 'new' && <div className={s.grid}>
                 <Field wide label="Street address" name="address_1" value={f.address_1} onChange={set} error={errors.address_1} auto="address-line1" />
                 <Field label="Building, floor" name="address_2" value={f.address_2} onChange={set} auto="address-line2" optional />
                 <Field label="City" name="city" value={f.city} onChange={set} error={errors.city} auto="address-level2" />
                 <p className={`${s.hint} ${s.wide}`}>Delivery within Lebanon.</p>
                 {buyer && <label className={`${s.check} ${s.wide}`}><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />Save this address to my account</label>}
-              </div>
+              </div>}
             </section>
           )}
           <section className={s.card} aria-labelledby="co-pay">

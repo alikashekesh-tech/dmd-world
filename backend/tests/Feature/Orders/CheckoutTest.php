@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
+use App\Services\Catalog;
 use App\Services\Inventory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -112,7 +113,7 @@ class CheckoutTest extends TestCase
         {
             private int $calls = 0;
 
-            public function adjust($product, int $change, string $reason, $by = null, ?string $note = null, ?int $orderId = null): \App\Models\Product
+            public function adjust($product, int $change, string $reason, $by = null, ?string $note = null, ?int $orderId = null): Product
             {
                 if (++$this->calls === 2) {
                     throw new RuntimeException('disk full');
@@ -206,7 +207,7 @@ class CheckoutTest extends TestCase
         $this->assertSame(0, $sold(), 'a pending (unpaid) order is not a sale yet');
 
         Order::find($res->json('data.id'))->forceFill(['status' => 'processing'])->save();
-        \App\Services\Catalog::bust();
+        Catalog::bust();
         $this->assertSame(3, $sold());
         $this->assertSame($p->id, $this->client()->get('/api/v1/products?sort=best')->json('data.0.id'));
     }
