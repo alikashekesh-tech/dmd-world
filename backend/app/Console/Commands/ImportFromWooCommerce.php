@@ -3,11 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Models\Order;
+use App\Services\Import\CouponImporter;
 use App\Services\Import\CustomerImporter;
 use App\Services\Import\OrderImporter;
 use App\Services\Import\OrderNoteImporter;
 use App\Services\Import\ProductImporter;
 use App\Services\Import\ReviewImporter;
+use App\Services\Import\SettingsImporter;
 use App\Services\Import\TaxonomyImporter;
 use App\Services\Import\WooCommerceSource;
 use Illuminate\Console\Command;
@@ -26,12 +28,12 @@ use Throwable;
 class ImportFromWooCommerce extends Command
 {
     protected $signature = 'dmd:import
-        {--only=* : Limit to some parts: taxonomy, products, customers, orders, reviews, notes}
+        {--only=* : Limit to some parts: settings, taxonomy, products, customers, orders, reviews, notes, coupons}
         {--force : Allow running with APP_ENV=production (only before go-live)}';
 
     protected $description = 'Import the old WooCommerce store into MySQL (categories, brands, …), keeping legacy ids';
 
-    public const PARTS = ['taxonomy', 'products', 'customers', 'orders', 'reviews', 'notes'];
+    public const PARTS = ['settings', 'taxonomy', 'products', 'customers', 'orders', 'reviews', 'notes', 'coupons'];
 
     public function handle(): int
     {
@@ -102,6 +104,16 @@ class ImportFromWooCommerce extends Command
         }
 
         return $this->report(new OrderNoteImporter, fn ($i) => $i->import($notes));
+    }
+
+    private function coupons(WooCommerceSource $source): array
+    {
+        return $this->report(new CouponImporter, fn ($i) => $i->import([...$source->all('/coupons'), ...$source->all('/coupons', ['status' => 'trash'])]));
+    }
+
+    private function settings(WooCommerceSource $source): array
+    {
+        return (new SettingsImporter)->import(['general' => $source->all('/settings/general'), 'products' => $source->all('/settings/products')]);
     }
 
     private function report(object $importer, callable $run): array

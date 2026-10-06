@@ -6,15 +6,25 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Filters and sorts for product lists, written once for the storefront and the admin. The selling-price expression
- * is the SQL twin of Pricing::forProduct (sale price inside its dates, else the regular price).
+ * is the SQL twin of Pricing::forProduct: the lowest of the regular price, the product's sale inside its dates and
+ * any running offer covering it (picked directly, or through a category in offer_categories).
  */
 final class ProductQuery
 {
     public static function priceExpression(): array
     {
         $now = now()->toDateTimeString();
+        $sale = 'CASE WHEN products.sale_price IS NOT NULL AND (products.sale_starts_at IS NULL OR products.sale_starts_at <= ?) AND (products.sale_ends_at IS NULL OR products.sale_ends_at > ?) THEN products.sale_price ELSE products.regular_price END';
+        $offer = <<<'SQL'
+            (SELECT MIN(CASE WHEN o.discount_type = 'percent' THEN ROUND(products.regular_price * (100 - o.discount_value) / 100, 2)
+                             WHEN o.discount_value < products.regular_price THEN products.regular_price - o.discount_value END)
+             FROM offers o
+             WHERE o.is_active = 1 AND (o.starts_at IS NULL OR o.starts_at <= ?) AND (o.ends_at IS NULL OR o.ends_at > ?)
+               AND (EXISTS (SELECT 1 FROM offer_targets t WHERE t.offer_id = o.id AND t.target_type = 'product' AND t.target_id = products.id)
+                 OR EXISTS (SELECT 1 FROM offer_categories oc JOIN category_product cp ON cp.category_id = oc.category_id WHERE oc.offer_id = o.id AND cp.product_id = products.id)))
+            SQL;
 
-        return ['CASE WHEN sale_price IS NOT NULL AND (sale_starts_at IS NULL OR sale_starts_at <= ?) AND (sale_ends_at IS NULL OR sale_ends_at > ?) THEN sale_price ELSE regular_price END', [$now, $now]];
+        return ["LEAST({$sale}, COALESCE({$offer}, products.regular_price))", [$now, $now, $now, $now]];
     }
 
     public static function search(Builder $q, string $term): void

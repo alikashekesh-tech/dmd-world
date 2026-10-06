@@ -13,7 +13,7 @@ const QUESTIONS = [
   'Is this the original controller or a copy?',
 ];
 
-export default function AskUs() {
+export default function AskUs({ n: number = 5 }) {
   const [ref, { live }] = useInView({ threshold: 0.3 });
   const [n, setN] = useState(0);
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function AskUs() {
     <section ref={ref} className={s.sec} aria-labelledby="ask-title">
       <div className={`container ${s.in}`}>
         <div className={s.copy}>
-          <p className={s.eyebrow}>05 · Ask first</p>
+          <p className={s.eyebrow}>{String(number).padStart(2, '0')} · Ask first</p>
           <h2 id="ask-title" className={s.title}>Not sure it fits? Ask a person, not a filter.</h2>
           <p className={s.sub}>
             Old console, new game, odd connector, a chair for someone tall. Call or email DMD World before you buy, and get an answer

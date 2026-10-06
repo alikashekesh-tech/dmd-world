@@ -7,7 +7,7 @@ import SearchBox from './SearchBox.jsx';
 import MegaMenu from './MegaMenu.jsx';
 import MobileNav from './MobileNav.jsx';
 import { SearchIcon, UserIcon, HeartIcon, BagIcon, MenuIcon, ChevronDown, CloseIcon, CompareIcon, PhoneIcon, MailIcon } from '../common/icons.jsx';
-import { money } from '../../data/index.js';
+import { money, HOMEPAGE } from '../../data/index.js';
 import { CONTACT } from '../../data/dmdMenu.js';
 import s from './Header.module.css';
 
@@ -40,6 +40,15 @@ export default function Header() {
             <a href={`tel:${CONTACT.tel}`}><PhoneIcon size={14} />{CONTACT.phone}</a>
             <a href={`mailto:${CONTACT.email}`} className={s.hideSm}><MailIcon size={14} />{CONTACT.email}</a>
           </div>
+          {HOMEPAGE.announcement && (
+            <p className={s.announce}>
+              {HOMEPAGE.announcement.link_url
+                ? (HOMEPAGE.announcement.link_url.startsWith('/') && !HOMEPAGE.announcement.link_url.startsWith('//')
+                  ? <Link to={HOMEPAGE.announcement.link_url}>{HOMEPAGE.announcement.title}</Link>
+                  : <a href={HOMEPAGE.announcement.link_url} target="_blank" rel="noopener noreferrer">{HOMEPAGE.announcement.title}</a>)
+                : HOMEPAGE.announcement.title}
+            </p>
+          )}
           <div className={s.utilLinks}>
             <Link to="/wishlist">Wishlist{wishlist.length > 0 && ` (${wishlist.length})`}</Link>
             <Link to="/account">{user ? `My account${unread ? ` (${unread} new)` : ''}` : 'Sign in / Register'}</Link>

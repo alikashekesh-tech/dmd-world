@@ -15,6 +15,7 @@ class QuoteRequest extends ApiRequest
             'items.*.product_id' => ['required', 'integer', 'min:1'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.Checkout::MAX_QTY],
             'coupon' => ['nullable', 'string', 'max:60'],
+            'email' => ['nullable', 'string', 'max:254'], // only used for "once per customer" codes
         ];
     }
 

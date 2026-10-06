@@ -10,6 +10,8 @@
 .contact a:first-child::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--led); box-shadow: 0 0 8px var(--led); }
 .contact svg { display: none; }
 .contact a:hover, .utilLinks a:hover { color: #fff; }
+.announce { flex: 1; min-width: 0; margin: 0 24px; text-align: center; color: var(--ink-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.announce a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 
 .bar { position: relative; }
 .barIn { display: flex; align-items: center; gap: 22px; height: var(--header-h); }
@@ -60,4 +62,4 @@
   .cartTxt { display: none; }
   .cart { width: 44px; height: 44px; padding: 0; justify-content: center; margin-left: 2px; }
 }
-@media (max-width: 640px) { .contact .hideSm { display: none; } .contact, .utilLinks { gap: 16px; } .util { font-size: 10.5px; letter-spacing: .08em; } .utilLinks a:first-child { display: none; } }
+@media (max-width: 640px) { .announce { margin: 0 12px; } .contact .hideSm { display: none; } .contact, .utilLinks { gap: 16px; } .util { font-size: 10.5px; letter-spacing: .08em; } .utilLinks a:first-child { display: none; } }

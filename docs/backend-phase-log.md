@@ -593,3 +593,126 @@ The automated tests can't run two transactions at once, so I ran `race.php` agai
 **Blockers:** none. Real reply and back-in-stock emails need SMTP settings, and the scheduled retry needs `php artisan schedule:run` every minute in production.
 
 **Next:** Phase 9, offers, coupons, settings and the homepage.
+
+## Phase 9: offers, coupons, settings and the home page (6–7 Oct 2026)
+
+**Implemented (backend)**
+- **`settings`:** the owner's store settings as JSON values, with defaults in code for anything not stored.
+  - **Keys:** store name, contact phone and email, low-stock threshold, reviews on and requiring purchase, coupons on, payment and delivery methods, bank-transfer note, daily revenue target.
+  - **Reading:** once per request (kept on the application instance; a long-running process looks for changes at most once a minute), so reading a setting in a loop costs nothing.
+  - **Writing:** saving clears the cached copy and refreshes the storefront catalog.
+  - **Public values:** the name, contact details and whether reviews and coupons are on are sent with the catalog. The others are owner-only.
+- **Settings now in use:**
+  - **Checkout:** offers only the payment and delivery methods that are switched on, and refuses the others.
+  - **Low-stock level:** availability everywhere follows it.
+  - **Reviews:** "require a purchase" and "reviews off" are enforced.
+  - **Coupons:** switching codes off store-wide hides and refuses them.
+- **Offers** (`offers`, `offer_targets`, derived `offer_categories`): a percentage or fixed amount off chosen products and/or categories (a category covers everything below it), with optional dates.
+  - **Never stored in products:** `Pricing` takes the lowest of the regular price, the product's own sale and any running offer. Switching an offer off or deleting it restores nothing, because nothing was changed.
+  - **Limits:** an offer never raises a price, and a fixed amount as large as the price doesn't apply (an offer never makes something free).
+  - **Prices everywhere:** the catalog, product pages, `/products` sorting and filters (the SQL twin of `Pricing`, which reaches categories through `offer_categories`), cart quotes and checkout all use the same price. The order keeps the price it was sold at after the offer ends.
+  - **Category tree:** `offer_categories` is rebuilt when an offer's targets change and when a category is created or moved.
+  - **Storefront:** products show "−X%" as for any sale, and the API names the offer (`offer.label`).
+- **Coupons** (`coupons`, `coupon_targets`, `coupon_redemptions`):
+  - **Types:** percent, fixed off the cart, or fixed off each item.
+  - **Rules:** minimum and maximum spend, total and per-customer limits (per account or email), start and expiry, on or off, included or excluded products and categories (with everything below), and sale items excluded if asked.
+  - **Quote:** the cart quote reports a code that can't be used with its reason (`COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_NOT_STARTED`, `COUPON_MIN_SPEND`, `COUPON_MAX_SPEND`, `COUPON_USED_UP`, `COUPON_CUSTOMER_LIMIT`, `COUPON_NOT_APPLICABLE`, `COUPONS_DISABLED`). It never drops a code silently.
+  - **Placing the order:** the code is checked again with its row locked inside the order transaction. A refused code places nothing (`422`, field `coupon`).
+  - **Discount math:** in cents. Each line keeps its share (`line_discount`), and the shares always add up to the order's discount.
+  - **Usage:** counted from redemptions of orders that weren't cancelled or failed, so cancelling an order gives the use back. Old-store uses with no imported order are kept as `imported_uses`.
+  - **Owner:** the trash, restore (switched off) and permanent delete (refused if any order used the code).
+- **Home page** (`homepage_sections`, `homepage_items`, `banners`):
+  - **Sections:** the owner sets the order of the home page's sections and shows or hides each.
+  - **Picks:** hand-picked products for "Price drops" and categories for "Beyond the console". With none, they're chosen automatically as before.
+  - **Banners:** promotional banners on the home page and an announcement line at the top of every page, with dates.
+  - **Banner safety:** links must be a store path (`/…`, never `//…`) or `https://`; images must be an upload (`/storage/…`) or `https://`. `javascript:`, `data:` and `http:` are refused.
+  - **Delivery:** all of it is sent inside the catalog payload (one request, cached, refreshed on every change).
+- **Import** (`dmd:import`, parts `settings` and `coupons`; the full import order is now settings, taxonomy, products, customers, orders, reviews, notes, coupons):
+  - **Settings:** low-stock level, reviews on, verification required and coupons on.
+  - **Coupons:** ids, codes in capitals, amounts, limits, spend range, expiry, rules and state (on, off or in the trash).
+  - **Redemptions:** imported orders that used a code become its redemptions, so usage totals match the old store exactly.
+- **Old campaigns:** the Node server's campaigns wrote sale prices into WooCommerce products. Those prices were already imported in Phase 4 as the products' own sales. The emulator's state file has no campaigns, so there was nothing else to migrate.
+
+**Implemented (storefront, Laravel mode)**
+- **Home page:**
+  - **Order:** it follows the owner's order and visibility, and the "01 · …" section labels count only what is shown.
+  - **New banner strip** (`PromoBanners`, built from the site's existing tokens): store paths use the router; https links open in a new tab with `noopener`.
+  - **Picks:** "Price drops" shows the hand-picked products while they're discounted. "Beyond the console" puts the hand-picked categories in the grid's places in order, each with the drawing its name suggests (`artFor`), and fills any places left with the built-in tiles.
+- **Header:** the announcement line shows in the top strip.
+- **Contact details:** the phone and email in the header, footer and "Ask first" come from the settings.
+- **Checkout:** the discount-code field is back. Quotes send the code (and the email, for once-per-customer codes), and placing the order sends the code.
+
+**Migrations:** `2026_10_06_000800_create_offers_coupons_settings_and_homepage_tables` (settings, offers, offer_targets, offer_categories, coupons, coupon_targets, coupon_redemptions, homepage_sections with the default order, homepage_items, banners; CHECKs on types, amounts, dates, placements).
+
+**Endpoints**
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /api/v1/catalog | now also `homepage` (sections, picks, banners, announcement) and `store` (public settings) |
+| POST | /api/v1/cart/quote | `coupon`, `email`; answers `discount`, `total`, `coupon` {code, ok, discount, label, message, error} |
+| POST | /api/v1/orders | `coupon` |
+| GET | /api/v1/checkout/options | payment and delivery methods and `coupons_enabled` from the settings |
+| GET PUT | /api/v1/admin/settings | only the keys sent are validated and saved; unknown keys refused |
+| GET POST | /api/v1/admin/offers | list (state, products covered); create |
+| GET PUT DELETE | /api/v1/admin/offers/{id} | |
+| PUT | /api/v1/admin/offers/{id}/active | switch on or off |
+| GET POST | /api/v1/admin/coupons | list (`trashed=only\|with`, `q`; uses and discount given); create |
+| GET PUT DELETE | /api/v1/admin/coupons/{id} | detail with recent orders; DELETE moves it to the trash |
+| POST | /api/v1/admin/coupons/{id}/restore | comes back switched off |
+| DELETE | /api/v1/admin/coupons/{id}/permanent | only if no order used it |
+| GET | /api/v1/admin/homepage | sections with their picks, all banners |
+| PUT | /api/v1/admin/homepage/sections | every section once, in order, with visibility |
+| PUT | /api/v1/admin/homepage/sections/{key}/items | `price_drops` (products, published) or `world` (categories), up to 12 |
+| POST | /api/v1/admin/banners · /banners/reorder | |
+| PUT DELETE | /api/v1/admin/banners/{id} | |
+
+**Tests added:** 23
+- **Offers (7):**
+  - **A category offer:** it prices everything below the category and leaves the product rows untouched. The price filter, sorting and cart agree. Switching it off or deleting it restores the price.
+  - **Lowest price wins:** a product's deeper sale beats the offer, and a fixed offer larger than the price doesn't apply.
+  - **Dates:** a scheduled offer starts and ends on time.
+  - **Moving a category:** moving a category under an offer brings its products in.
+  - **PHP and SQL agree:** to the cent, for awkward prices and percentages (12.5%, 33.33%).
+  - **Orders:** an order keeps the offer price after the offer is deleted.
+  - **Validation:** checked, and the endpoints are owner-only.
+- **Coupons (7):**
+  - **Quote, charge, record:** a code is quoted, charged, split over the lines and recorded.
+  - **Unusable codes:** every refusal is reported in the quote and refused at checkout with nothing written.
+  - **Limits:** a total limit, with a cancelled order giving the use back, and per-customer limits by email and by account.
+  - **Targets:** categories (with everything below), exclusions and sale items.
+  - **Fixed amounts:** never more than the cart or the line, and the line shares add up exactly.
+  - **Store-wide switch:** codes can be switched off.
+  - **Owner management:** validation, duplicates, trash, restore and permanent delete (refused if the code was used). Buyers and guests get 401.
+- **Settings (3):** defaults, saving only what's sent, and validation, owner-only; the storefront follows them (low-stock level, public values only, payment methods at checkout); reviews requiring a purchase, or switched off.
+- **Home page (3):** order and visibility (the full list is required); picks (published products only, at most 12, only for sections that take them, empty means automatic); banner dates, safe links and images only, the announcement, owner-only.
+- **Import (3):** coupons with ids, rules and usage equal to the old store's counts; settings carry over; importing again updates instead of duplicating.
+- **The import tests now share one fake old store** (`FakesOldStore`). It refuses any request it doesn't know (`Http::preventStrayRequests`), so a new import part can never reach the network from a test.
+
+**Concurrency, with real processes** (`coupon-race.php` on `dmd_world_testing`)
+- **One total use:** 8 processes used a code limited to 1 use at the same instant. One order got it; seven were refused with `COUPON_USED_UP`.
+- **One use per customer:** 6 processes used a once-per-customer code with the same email at once. One got it; five were refused with `COUPON_CUSTOMER_LIMIT`.
+
+**Results**
+- **Tests:** Laravel 191 of 191 (1758 assertions). Lint passes; Pint passes on the changed files. The Laravel-mode, Node-mode and admin builds pass. Node 53 of 53.
+- **Real import into the dev database:**
+  - **Settings:** low-stock level 4 (the old store's), reviews on, coupons on.
+  - **Coupons:** 2 (PS4GAMES5, WELCOME10) with 2 redemptions.
+- **Through the owner's HTTP API on the dev server:**
+  - **Created:** a 15% offer on product 36843, a home banner, an announcement and a Price drops pick.
+  - **Refused:** a `javascript:` link (422).
+  - **Price:** the API showed $11.05 (was $13.00, "Weekend deal"), the `max_price=11.05` filter found it, and the product row still said 13.00 with no sale price.
+- **Browser** (Laravel mode, 5175):
+  - **Home page:** the announcement in the top strip, the banner, sections numbered 01–05, and Price drops showing the picked product at −15%.
+  - **Product page:** $11.05, was $13.00, −15%.
+  - **Checkout:** an unknown code showed "That code isn’t valid." WELCOME10 on 2 items gave −$2.21 and a total of $19.89. Placed as the test buyer, order #1000002 stored those amounts, the line discount and the redemption.
+  - **Cleanup:** cancelling it returned the stock (26 → 28) and the code's use (back to 14). The test offer, banners and pick were then removed through the API, leaving the dev data as imported.
+
+**Bugs found and fixed**
+- **Section numbering:** "Ask first" already used `n` for its rotating answers, so the new section number became the `number` prop there.
+- **Test arithmetic:** one test expected a $2-per-item discount to be capped on a $3.33 item. The code was right; the test now uses a $1.50 item to check the cap.
+
+**Not yet in Laravel mode:** the owner's Offers, Homepage and Settings screens still talk to Node until the admin is switched in Phase 11. Their Laravel endpoints are done and tested.
+
+**Blockers:** none.
+
+**Next:** Phase 10, the owner's dashboard numbers from MySQL.

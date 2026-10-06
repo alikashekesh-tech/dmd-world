@@ -5,7 +5,7 @@ import { laravelApi } from './laravelApi.js';
 
 const CODES = { SOLD_OUT: 'sold_out', LOW_STOCK: 'low_stock', TOO_MANY: 'low_stock', UNAVAILABLE: 'unavailable' };
 // Laravel's field names → the checkout form's field ids (so the first wrong field gets the focus).
-const FIELDS = { 'contact.first_name': 'firstName', 'contact.last_name': 'lastName', 'contact.email': 'email', 'contact.phone': 'phone', 'address.street': 'address_1', 'address.city': 'city', address: 'address_1', address_id: 'address_1' };
+const FIELDS = { 'contact.first_name': 'firstName', 'contact.last_name': 'lastName', 'contact.email': 'email', 'contact.phone': 'phone', 'address.street': 'address_1', 'address.city': 'city', address: 'address_1', address_id: 'address_1', coupon: 'coupon' };
 
 /** Laravel's order → the storefront's order. */
 export const orderFromApi = (o) => ({
@@ -26,12 +26,13 @@ const rethrowFields = (e) => {
 };
 
 export const orders = {
-  /** The live price check for the cart: same shape as the legacy quote. */
-  async quote(items) {
-    const { data } = await laravelApi.post('/cart/quote', { items: items.map((l) => ({ product_id: l.id, quantity: l.qty })) });
+  /** The live price check for the cart (and an optional code): same shape as the legacy quote. */
+  async quote(items, coupon, email) {
+    const { data } = await laravelApi.post('/cart/quote', { items: items.map((l) => ({ product_id: l.id, quantity: l.qty })), coupon: coupon || undefined, email: email || undefined });
     return {
       lines: data.lines.map((l) => ({ id: l.product_id, qty: l.quantity, name: l.name, price: l.unit_price, regular: l.regular_price, problem: l.problem, code: CODES[l.code] || null, max: l.max_quantity })),
-      subtotal: data.subtotal, discount: data.discount, total: data.total, coupon: data.coupon, couponsEnabled: false, ok: data.ok,
+      subtotal: data.subtotal, discount: data.discount, total: data.total, ok: data.ok,
+      coupon: data.coupon ? { code: data.coupon.code, ok: data.coupon.ok, discount: data.coupon.discount, label: data.coupon.label, message: data.coupon.message } : null,
     };
   },
   async options() {
@@ -39,12 +40,12 @@ export const orders = {
     return { payments: data.payment_methods, coupons: data.coupons_enabled };
   },
   /** Places the order; a guest gets back the private token that opens it later. */
-  async place({ idempotencyKey, items, contact, method, payment, note, address, addressId, saveAddress }) {
+  async place({ idempotencyKey, items, contact, method, payment, note, address, addressId, saveAddress, coupon }) {
     const body = {
       idempotency_key: idempotencyKey,
       items: items.map((l) => ({ product_id: Number(l.id), quantity: l.qty })),
       contact: { first_name: contact.firstName, last_name: contact.lastName, email: contact.email, phone: contact.phone },
-      delivery_method: method, payment_method: payment, note: note || null,
+      delivery_method: method, payment_method: payment, note: note || null, coupon: coupon || null,
       ...(method === 'delivery' ? (addressId ? { address_id: addressId } : { address: { street: address.address_1, building: address.address_2 || null, city: address.city, country: 'LB' }, save_address: !!saveAddress }) : {}),
     };
     const r = await laravelApi.post('/orders', body, { timeout: 45000 }).catch(rethrowFields);

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\ApiException;
 use App\Models\Activity;
 use App\Models\Address;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderStatusEvent;
 use App\Models\Product;
@@ -26,7 +27,7 @@ final class Checkout
 
     public const MAX_QTY = 10;
 
-    public function __construct(private Inventory $inventory) {}
+    public function __construct(private Inventory $inventory, private Coupons $coupons) {}
 
     /**
      * Prices cart lines from the products as they are now. With $lock the product rows are locked until the
@@ -42,7 +43,7 @@ final class Checkout
             $wanted[(int) $item['product_id']] = ($wanted[(int) $item['product_id']] ?? 0) + (int) $item['quantity'];
         }
         ksort($wanted); // a fixed lock order: two checkouts can't deadlock on each other's products
-        $query = Product::query()->whereKey(array_keys($wanted))->with('images:id,product_id,url,position');
+        $query = Product::query()->whereKey(array_keys($wanted))->with(['images:id,product_id,url,position', 'categories:id']);
         $products = ($lock ? $query->lockForUpdate() : $query)->get()->keyBy('id');
 
         $lines = [];
@@ -74,6 +75,29 @@ final class Checkout
         }
 
         return ['lines' => $lines, 'subtotal' => $subtotal, 'ok' => collect($lines)->every(fn ($l) => $l['problem'] === null)];
+    }
+
+    /**
+     * A quote with an optional discount code. A code that can't be used is reported, never silently dropped.
+     *
+     * @return array{lines: list<array>, subtotal: int, ok: bool, discount: int, coupon: ?array}
+     */
+    public function quote(array $items, ?string $code, ?User $user, ?string $email): array
+    {
+        $priced = $this->price($items);
+        $priced['discount'] = 0;
+        $priced['coupon'] = null;
+        if ($code !== null && trim($code) !== '') {
+            try {
+                $c = $this->coupons->apply($code, $priced['lines'], $user, $email);
+                $priced['discount'] = $c['discount'];
+                $priced['coupon'] = ['code' => $c['coupon']->code, 'ok' => true, 'discount' => $c['discount'], 'label' => $c['label'], 'message' => null];
+            } catch (ApiException $e) {
+                $priced['coupon'] = ['code' => Coupon::normalize($code), 'ok' => false, 'discount' => 0, 'label' => null, 'message' => $e->getMessage(), 'error' => $e->errorCode];
+            }
+        }
+
+        return $priced;
     }
 
     /**
@@ -116,7 +140,10 @@ final class Checkout
         $contact = $data['contact'];
         $delivery = $data['delivery_method'];
         $ship = $delivery === 'delivery' ? $this->shippingAddress($data, $user) : [];
-        $discount = 0; // store-wide offers and coupons plug in here (Phase 9)
+        // Offers are already in each line's price (Pricing). A code is checked again here with its row locked,
+        // so its last allowed use can't be taken by two orders at once.
+        $coupon = ! empty($data['coupon']) ? $this->coupons->apply($data['coupon'], $priced['lines'], $user, $contact['email'], lock: true) : null;
+        $discount = $coupon['discount'] ?? 0;
         $shipping = 0; // delivery cost is confirmed by DMD with the buyer after the order
         $subtotal = $priced['subtotal'];
 
@@ -138,6 +165,7 @@ final class Checkout
             'ship_street' => $ship['street'] ?? null, 'ship_building' => $ship['building'] ?? null, 'ship_floor' => $ship['floor'] ?? null,
             'ship_notes' => $ship['notes'] ?? null,
             'customer_note' => ($data['note'] ?? null) ?: null,
+            'coupon_code' => $coupon ? $coupon['coupon']->code : null,
             'idempotency_hash' => $hash,
             'placed_at' => now(),
         ])->save();
@@ -145,16 +173,20 @@ final class Checkout
 
         foreach ($priced['lines'] as $line) {
             $p = $line['product'];
+            $lineDiscount = $coupon['lines'][$p->id] ?? 0;
             $order->items()->forceCreate([
                 'product_id' => $p->id, 'product_name' => $p->name, 'sku' => $p->sku, 'image_url' => $p->images->first()?->url,
                 'unit_price' => Money::decimal($line['unit']), 'regular_price' => Money::decimal($line['regular']), 'quantity' => $line['quantity'],
-                'line_subtotal' => Money::decimal($line['subtotal']), 'line_discount' => '0.00', 'line_total' => Money::decimal($line['subtotal']),
+                'line_subtotal' => Money::decimal($line['subtotal']), 'line_discount' => Money::decimal($lineDiscount), 'line_total' => Money::decimal($line['subtotal'] - $lineDiscount),
             ]);
             if ($p->track_stock) {
                 $this->inventory->adjust($p, -$line['quantity'], 'order', null, null, $order->id);
             }
         }
 
+        if ($coupon) {
+            $this->coupons->redeem($coupon['coupon'], $order, $discount);
+        }
         (new OrderStatusEvent)->forceFill(['order_id' => $order->id, 'from_status' => null, 'to_status' => 'pending', 'actor' => $user ? 'buyer' : 'system', 'note' => 'Order placed'])->save();
 
         if ($user && $delivery === 'delivery' && empty($data['address_id']) && ! empty($data['save_address'])) {

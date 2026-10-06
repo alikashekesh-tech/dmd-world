@@ -1,0 +1,46 @@
+[
+ {
+  "id": 8002,
+  "code": "ps4games5",
+  "amount": "5.00",
+  "status": "publish",
+  "discount_type": "fixed_cart",
+  "description": "$5 off PS4 games",
+  "date_expires": "2026-10-13T07:12:39",
+  "usage_count": 6,
+  "individual_use": false,
+  "product_ids": [],
+  "excluded_product_ids": [],
+  "usage_limit": 100,
+  "usage_limit_per_user": null,
+  "free_shipping": false,
+  "product_categories": [
+   336
+  ],
+  "excluded_product_categories": [],
+  "minimum_amount": "0.00",
+  "maximum_amount": "0.00",
+  "date_created": "2026-09-22T07:12:39"
+ },
+ {
+  "id": 8001,
+  "code": "welcome10",
+  "amount": "10.00",
+  "status": "publish",
+  "discount_type": "percent",
+  "description": "First order, 10% off",
+  "date_expires": null,
+  "usage_count": 14,
+  "individual_use": true,
+  "product_ids": [],
+  "excluded_product_ids": [],
+  "usage_limit": null,
+  "usage_limit_per_user": 1,
+  "free_shipping": false,
+  "product_categories": [],
+  "excluded_product_categories": [],
+  "minimum_amount": "20.00",
+  "maximum_amount": "0.00",
+  "date_created": "2026-08-05T07:12:39"
+ }
+]

@@ -11,42 +11,25 @@ use App\Models\User;
 use App\Support\Money;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Factory;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /** The old store's customers and orders (fixtures: the emulator's customers and 76 orders of every status). */
 class OrderImportTest extends TestCase
 {
-    use RefreshDatabase;
+    use FakesOldStore, RefreshDatabase;
 
     private array $orders;
 
     protected function setUp(): void
     {
         parent::setUp();
-        config(['dmd.import.woocommerce' => ['url' => 'https://old-store.test', 'key' => 'ck_test', 'secret' => 'cs_test']]);
         $this->orders = $this->fixture('orders');
-    }
-
-    private function fixture(string $name): array
-    {
-        return json_decode(file_get_contents(base_path("tests/Fixtures/woocommerce/{$name}.json")), true);
     }
 
     private function import(): void
     {
-        Http::swap(new Factory(app('events')));
-        Http::fake([
-            'old-store.test/wp-json/wc/v3/products/categories*' => Http::response($this->fixture('categories'), 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/products/reviews*' => Http::response([], 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/products*' => Http::response($this->fixture('products'), 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/customers*' => Http::response($this->fixture('customers'), 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/orders/*/notes*' => Http::response([]),
-            'old-store.test/wp-json/wc/v3/orders*' => Http::response($this->orders, 200, ['X-WP-TotalPages' => '1']),
-        ]);
-        $this->artisan('dmd:import')->assertSuccessful();
+        $this->importOldStore(['orders' => $this->orders]);
     }
 
     public function test_customers_and_orders_arrive_with_their_ids_and_history(): void

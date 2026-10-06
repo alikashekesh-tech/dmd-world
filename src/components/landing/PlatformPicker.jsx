@@ -13,7 +13,7 @@ import s from './PlatformPicker.module.css';
 const KEY = 'dmd:platform';
 const readSaved = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
 
-export default function PlatformPicker() {
+export default function PlatformPicker({ n = 1 }) {
   const { PLATFORMS } = useLanding();
   const [saved] = useState(() => PLATFORMS.find((x) => x.id === readSaved()) || null);
   const [id, setId] = useState(saved?.id || 'playstation');
@@ -41,7 +41,7 @@ export default function PlatformPicker() {
       <div className="container">
         <div className={s.head}>
           <div>
-            <p className={s.eyebrow}>01 · Your platform</p>
+            <p className={s.eyebrow}>{String(n).padStart(2, '0')} · Your platform</p>
             <h2 id="pp-title" className={s.title}>What do you play on?</h2>
           </div>
           <p className={s.sub}>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Catalog;
+use App\Services\Offers;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,7 +30,12 @@ class Category extends Model
 
     protected static function booted(): void
     {
-        static::saved(fn () => Catalog::bust());
+        static::saved(function (Category $c) {
+            Catalog::bust();
+            if ($c->wasRecentlyCreated || $c->wasChanged('parent_id')) {
+                Offers::treeChanged(); // an offer on a parent category now covers a different set below it
+            }
+        });
         static::deleted(fn () => Catalog::bust());
         static::restored(fn () => Catalog::bust());
     }

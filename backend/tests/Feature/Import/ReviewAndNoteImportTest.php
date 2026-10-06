@@ -9,9 +9,6 @@ use App\Models\Review;
 use App\Models\User;
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Factory;
-use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -22,7 +19,7 @@ use Tests\TestCase;
  */
 class ReviewAndNoteImportTest extends TestCase
 {
-    use RefreshDatabase;
+    use FakesOldStore, RefreshDatabase;
 
     private array $reviews;
 
@@ -31,28 +28,13 @@ class ReviewAndNoteImportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['dmd.import.woocommerce' => ['url' => 'https://old-store.test', 'key' => 'ck_test', 'secret' => 'cs_test']]);
         $this->reviews = $this->fixture('reviews');
         $this->notes = $this->fixture('order-notes');
     }
 
-    private function fixture(string $name): array
-    {
-        return json_decode(file_get_contents(base_path("tests/Fixtures/woocommerce/{$name}.json")), true);
-    }
-
     private function import(): void
     {
-        Http::swap(new Factory(app('events')));
-        Http::fake([
-            'old-store.test/wp-json/wc/v3/products/categories*' => Http::response($this->fixture('categories'), 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/products/reviews*' => Http::response($this->reviews, 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/products*' => Http::response($this->fixture('products'), 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/customers*' => Http::response($this->fixture('customers'), 200, ['X-WP-TotalPages' => '1']),
-            'old-store.test/wp-json/wc/v3/orders/*/notes*' => fn (Request $r) => Http::response($this->notes[Str::between($r->url(), '/orders/', '/notes')] ?? []),
-            'old-store.test/wp-json/wc/v3/orders*' => Http::response($this->fixture('orders'), 200, ['X-WP-TotalPages' => '1']),
-        ]);
-        $this->artisan('dmd:import')->assertSuccessful();
+        $this->importOldStore(['reviews' => $this->reviews, 'order-notes' => $this->notes]);
     }
 
     public function test_reviews_arrive_with_their_ids_titles_and_approval_state(): void

@@ -20,7 +20,7 @@ function Ticker({ p, run, i }) {
   );
 }
 
-export default function PriceDrop() {
+export default function PriceDrop({ n = 2 }) {
   const { OFFERS, OFFER_COUNT } = useLanding();
   const [ref, { seen }] = useInView({ threshold: 0.2 });
   if (!OFFERS.length) return null;
@@ -30,7 +30,7 @@ export default function PriceDrop() {
       <div className="container">
         <div className={s.head}>
           <div>
-            <p className={s.eyebrow}>02 · Price drops</p>
+            <p className={s.eyebrow}>{String(n).padStart(2, '0')} · Price drops</p>
             <h2 id="pd-title" className={s.title}>Prices that just <span>dropped.</span></h2>
             <p className={s.sub}>Real reductions on things in stock, biggest first. The crossed-out number is what it cost before.</p>
           </div>

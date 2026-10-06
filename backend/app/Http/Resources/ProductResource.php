@@ -35,6 +35,7 @@ class ProductResource extends JsonResource
             'on_sale' => $price['on_sale'],
             'discount_percent' => $price['on_sale'] ? (int) round(100 - $price['price'] * 100 / max(1, $price['regular'])) : 0,
             'sale_ends_at' => $price['sale_ends_at']?->toIso8601String(),
+            'offer' => $price['offer'] ? ['id' => $price['offer']['id'], 'label' => $price['offer']['label'] ?: $price['offer']['name']] : null,
             'availability' => $availability,
             'stock_left' => $availability === Inventory::LOW_STOCK ? $this->stock_quantity : null,
             'image' => $images->first()?->url,

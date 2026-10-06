@@ -1,8 +1,9 @@
 /* Everything the landing page shows is derived from the live catalog (or the snapshot until it arrives), so counts
    and prices stay honest. Recomputed once per catalog version and shared by every section: useLanding(). */
-import { PRODUCTS, sortProducts, catalog } from '../../data/index.js';
+import { PRODUCTS, sortProducts, catalog, getProduct, HOMEPAGE } from '../../data/index.js';
 import { useCatalog } from '../../data/live.js';
-import { group, catUrl, resolvePath, inNode, NEW_OFFERS, BRAND_GROUPS } from '../../data/dmdMenu.js';
+import { group, catUrl, resolvePath, inNode, NEW_OFFERS, BRAND_GROUPS, DMD_GROUPS } from '../../data/dmdMenu.js';
+import { artFor } from '../art/CategoryArt.jsx';
 
 export const usd = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const from = (list) => (list.length ? Math.min(...list.map((p) => p.price)) : null);
@@ -15,6 +16,22 @@ const oneOfEach = (list, key, n) => {
 };
 const PC_BRANDS = ['razer', 'hyperx', 'logitech', 'marvo', 'fantech', 'e-yooso', 'onikuma', 'megavolt', 'pc-parts'];
 export const OFFERS_URL = catUrl('new-offers');
+/* The bento grid's places, in reading order (see WorldGrid.module.css), and the size of the first two. */
+const AREAS = ['fig', 'retro', 'spk', 'phone', 'lap', 'net', 'car', 'watch'];
+const SIZES = ['xl', 'wide'];
+/** The menu path (top group → … → node) to a category id, or null. */
+function categoryPath(id) {
+  const walk = (nodes, path) => {
+    for (const node of nodes) {
+      const here = [...path, node];
+      if (node.id === id) return here;
+      const hit = walk(node.children || [], here);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  return walk(DMD_GROUPS, []);
+}
 export const BUDGET_STOPS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 250];
 function build() {
   const LIVE = PRODUCTS.filter((p) => p.stock !== 'out');
@@ -75,8 +92,10 @@ function build() {
     },
   ];
 
-  /* Offers, deepest real discount first. */
-  const OFFERS = LIVE.filter((p) => p.was && p.was > p.price).sort((a, b) => b.discount - a.discount || b.was - b.price - (a.was - a.price)).slice(0, 8);
+  /* Offers, deepest real discount first; or the owner's hand-picked ones, in their order (while they're discounted). */
+  const dropped = (p) => p && p.stock !== 'out' && p.was && p.was > p.price;
+  const picked = (HOMEPAGE.picks.price_drops || []).map((id) => getProduct(String(id))).filter(dropped);
+  const OFFERS = picked.length ? picked.slice(0, 8) : LIVE.filter(dropped).sort((a, b) => b.discount - a.discount || b.was - b.price - (a.was - a.price)).slice(0, 8);
 
   /* Budget stops for the coin stack: most product for the money, closest to the budget first, one per brand before repeats. */
   const underBudget = (max) => {
@@ -89,7 +108,7 @@ function build() {
   const other = Object.fromEntries(group('other').children.map((c) => [c.slug, c]));
   // A tile whose category the owner removed simply isn't shown.
   const tile = (slug, art, size, node = other[slug]) => (node ? { slug, art, size, name: node.name, count: node.count, to: node === other[slug] ? catUrl('other', slug) : catUrl(node.slug) } : null);
-  const WORLD = [
+  const builtIn = [
     tile('action-figures', 'figure', 'xl'),
     tile('retro-games-and-consoles', 'retro', 'wide'),
     tile('speakers', 'speaker'),
@@ -99,6 +118,14 @@ function build() {
     tile('electronic-toys', 'car'),
     tile('smart-watches', 'watch'),
   ].filter(Boolean);
+  /* The owner's hand-picked categories take the grid's places in order (each with the drawing its name suggests);
+     the built-in tiles fill any places left, so the layout stays whole. */
+  const pickedTiles = (HOMEPAGE.picks.world || []).map(categoryPath).filter(Boolean).map((path) => {
+    const node = path[path.length - 1];
+    return { slug: node.slug, name: node.name, count: node.count, to: catUrl(...path.map((x) => x.slug)), spec: artFor(path) };
+  });
+  const WORLD = [...pickedTiles, ...builtIn.filter((t) => !pickedTiles.some((p) => p.slug === t.slug))].slice(0, AREAS.length)
+    .map((t, i) => ({ ...t, area: AREAS[i], size: SIZES[i] || null }));
 
   return { HOTSPOTS, PLATFORMS, OFFERS, OFFER_COUNT: NEW_OFFERS.count, underBudget, WORLD, BRANDS };
 }

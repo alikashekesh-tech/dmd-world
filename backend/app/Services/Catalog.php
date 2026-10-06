@@ -11,10 +11,11 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The storefront's whole catalog in one response (products, categories, brands), so browsing, filtering and search
- * are instant in the browser. It is built from MySQL and cached briefly; any write to a product, image, category
- * or brand clears the cache, so the storefront shows the change on its next request. A browser keeps it only as a
- * cache with an ETag, never as the source of truth.
+ * The storefront's whole catalog in one response (products, categories, brands, the home page and the public store
+ * settings), so browsing, filtering and search are instant in the browser. It is built from MySQL and cached
+ * briefly; any write to a product, image, category, brand, review, offer, banner or setting clears the cache, so the
+ * storefront shows the change on its next request. A browser keeps it only as a cache with an ETag, never as the
+ * source of truth.
  */
 final class Catalog
 {
@@ -46,6 +47,8 @@ final class Catalog
                 'products' => ProductResource::collection($products)->resolve(),
                 'categories' => CategoryResource::list($tree->visible(), $tree),
                 'brands' => BrandResource::collection(Brand::onStorefront()->orderBy('position')->orderBy('name')->get())->resolve(),
+                'homepage' => Homepage::payload(),
+                'store' => StoreSettings::publicValues(),
             ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
             return ['body' => $body, 'etag' => '"'.substr(sha1($body), 0, 32).'"'];

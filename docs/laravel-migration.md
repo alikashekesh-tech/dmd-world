@@ -15,7 +15,8 @@
 | 6 | Buyer profile, addresses and wishlist | Done |
 | 7 | Orders and order items | Done |
 | 8 | Reviews, messaging and stock alerts | Done |
-| 9–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 9 | Offers, coupons, settings and the home page | Done |
+| 10–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---
 
@@ -179,11 +180,11 @@ InnoDB, utf8mb4. Money is `DECIMAL(10,2)` in USD. All tables have timestamps.
 | `reviews` | product_id, user_id, author_name, author_email (imported reviews with no account only), rating, title, body, status (pending, approved, rejected, spam), is_verified_purchase, moderated_by, moderated_at | unique (user_id, product_id); CHECK rating 1–5 and status; text stored as plain text; WooCommerce ids kept, new ones from 100000 |
 | `conversations` | user_id, order_id (unique: one per order), subject, last_message_at, last_buyer_message_id, last_admin_message_id, buyer_read_id, admin_read_id, buyer_read_at, admin_read_at | two parties (buyer and owner), so no participants table is needed; read state is the last message id each side has seen |
 | `messages` | conversation_id, sender_type (buyer, admin, system), user_id, admin_id, body, created_at | FK cascade; body is plain text; CHECK sender; imported order notes keep their ids, new ones from 1000000 |
-| `offers` | name, type (percent, fixed), value, starts_at, ends_at, is_active, deleted_at | plus pivots `offer_product` and `offer_category`. Applied when prices are calculated; never written into product prices. |
-| `coupons` | code, type (percent, fixed_cart, fixed_product), amount, min_subtotal, max_subtotal, usage_limit, usage_limit_per_user, starts_at, expires_at, exclude_sale_items, is_active, deleted_at | `code` unique (upper-cased); plus pivots `coupon_product` and `coupon_category` |
-| `coupon_redemptions` | coupon_id, order_id, user_id, email | usage limits are checked under a row lock inside the order transaction |
-| `banners` | placement (announcement, hero, promo), title, body, cta_label, cta_url, image_path, starts_at, ends_at, is_active, position | the homepage copy the owner edits; no general CMS |
-| `settings` | key (PK), value (JSON) | store name, contact, currency, default low-stock threshold, reviews on and requiring purchase, coupons on, payment and delivery options, daily target |
+| `offers` | name, label, discount_type (percent, fixed), discount_value, starts_at, ends_at, is_active, created_by | plus `offer_targets` (the products and categories the owner picked) and `offer_categories` (derived: each picked category and everything below it, rebuilt when targets or the tree change). Applied by `Pricing` and its SQL twin; never written into product prices. CHECK type, value (percent below 100) and dates |
+| `coupons` | code, description, discount_type (percent, fixed_cart, fixed_product), amount, minimum_spend, maximum_spend, usage_limit, usage_limit_per_customer, imported_uses, exclude_sale_items, starts_at, expires_at, is_active, deleted_at | `code` unique (upper-cased); WooCommerce ids kept, new ones from 100000; plus `coupon_targets` (product or category, included or excluded). CHECK type, amount, spend range |
+| `coupon_redemptions` | coupon_id, order_id (unique), user_id, email, discount | the source of usage counts (cancelled and failed orders don't count); limits are checked under a row lock inside the order transaction |
+| `banners` | placement (home, announcement), title, text, link_url, link_label, image_url, position, is_active, starts_at, ends_at | links are a store path or https only; images are uploads or https; no general CMS. Plus `homepage_sections` (key, position, is_visible) and `homepage_items` (hand-picked products for Price drops, categories for Beyond the console) |
+| `settings` | key (PK), value (JSON), updated_by | store name, contact phone and email, low-stock threshold, reviews on and requiring purchase, coupons on, payment and delivery methods, bank-transfer note, daily revenue target; defaults in code for keys not stored |
 | `activity_log` | admin_id, action, subject_type, subject_id, description | the dashboard feed and audit trail |
 
 **Not created, on purpose**
@@ -207,7 +208,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 6 ✔ | Profile, `addresses`, `wishlist_items` (and guest-wishlist merge) | ownership tests (buyer A ≠ buyer B) |
 | 7 ✔ | `orders`, `order_items`, status history, checkout (prices and stock locked in one transaction, idempotency, guest token), cancel, admin orders | totals recomputed server-side; overselling is impossible; history survives product edits |
 | 8 ✔ | `reviews` (one per buyer per product, moderation), `conversations` and `messages`, `stock_alerts` | participant and ownership tests |
-| 9 | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |
+| 9 ✔ | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |
 | 10 | Admin analytics (revenue, orders by status, top products, categories and brands, low stock, customers) as queries | zeros and empty states when there's no data, never invented numbers |
 | 11 | Final import from the live store; switch the default to `laravel`; delete the Node server, emulator, WordPress plugin (if unused), `dmdCatalog.js`, the static menu ids, the JSON stores and the Node tests | the app runs on Laravel only |
 | 12 | Security and regression pass, production config (Caddy and php-fpm, queue and scheduler, backups, `APP_DEBUG=false`, secure cookies) | full test suite and manual flows pass |

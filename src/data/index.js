@@ -1,6 +1,6 @@
 import { COMPAT, COMPAT_ORDER, CATEGORIES, categoryBySlug, brandBySlug, BRANDS, FILTERS_BY_TYPE, FACET_LABELS } from './meta.js';
 import { DMD_PRODUCTS, catName, toProduct, fromApi, setCategories } from './dmdProducts.js';
-import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS } from './dmdMenu.js';
+import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS, CONTACT } from './dmdMenu.js';
 export * from './meta.js';
 const FALLBACK_BRAND = { slug: 'dmd', name: 'DMD World' };
 export const getBrand = (slug) => (groupBySlug[slug] ? { slug, name: groupBySlug[slug].name } : brandBySlug[slug] || FALLBACK_BRAND);
@@ -33,7 +33,23 @@ const rate = () => { if (ratings) for (const p of PRODUCTS) { const v = ratings[
 /** Real ratings from approved WooCommerce reviews: { productId: [average, count] }. */
 export function applyRatings(map) { ratings = map && typeof map === 'object' ? map : null; rate(); changed(); }
 
-/** Laravel: swaps in /api/v1/catalog ({ generated_at, products, categories, brands }) from MySQL. */
+/** Laravel: what the home page shows (the owner's section order, hand-picked items, banners), from the catalog.
+    `sections` stays null with the legacy backend, which shows the home page in its built-in order. */
+export const HOMEPAGE = { sections: null, picks: {}, banners: [], announcement: null };
+/** Laravel: the public store settings (the legacy backend keeps the defaults). */
+export const STORE = { name: 'DMD World', couponsEnabled: true, reviewsEnabled: true };
+
+function applyStore(home = {}, store = {}) {
+  Object.assign(HOMEPAGE, {
+    sections: Array.isArray(home.sections) ? home.sections : null, picks: home.picks && typeof home.picks === 'object' ? home.picks : {},
+    banners: Array.isArray(home.banners) ? home.banners : [], announcement: home.announcement || null,
+  });
+  if (store.contact_phone) Object.assign(CONTACT, { phone: store.contact_phone, tel: store.contact_phone.replace(/[^\d+]/g, '') });
+  if (store.contact_email) CONTACT.email = store.contact_email;
+  Object.assign(STORE, { name: store.store_name || STORE.name, couponsEnabled: store.coupons_enabled !== false, reviewsEnabled: store.reviews_enabled !== false });
+}
+
+/** Laravel: swaps in /api/v1/catalog ({ generated_at, products, categories, brands, homepage, store }) from MySQL. */
 export function applyLaravelCatalog(data) {
   if (!data || !Array.isArray(data.products) || !Array.isArray(data.categories)) return false;
   setCategories(data.categories.map((c) => [c.id, c.name, c.slug, c.parent_id || 0, 0, c.brand_id ?? null]));
@@ -44,6 +60,7 @@ export function applyLaravelCatalog(data) {
   for (const p of data.products) { try { next.push(fromApi(p, ctx)); } catch { /* skip a malformed product */ } }
   PRODUCTS.splice(0, PRODUCTS.length, ...next);
   reindex(); rate(); recountMenu(PRODUCTS);
+  applyStore(data.homepage, data.store);
   liveAt = Date.parse(data.generated_at) || Date.now();
   changed();
   return true;

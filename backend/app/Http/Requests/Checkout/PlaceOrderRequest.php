@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Checkout;
 
-use App\Models\Order;
 use App\Models\User;
+use App\Services\StoreSettings;
 use Illuminate\Validation\Rule;
 
 /**
@@ -35,8 +35,9 @@ class PlaceOrderRequest extends QuoteRequest
             'contact.last_name' => array_merge(['required'], array_slice(self::nameRules(), 1)),
             'contact.email' => ['required', 'string', 'email:rfc', 'max:254'],
             'contact.phone' => self::phoneRules(true),
-            'delivery_method' => ['required', Rule::in(array_keys(Order::DELIVERY_METHODS))],
-            'payment_method' => ['required', Rule::in(array_keys(Order::PAYMENT_METHODS))],
+            'delivery_method' => ['required', Rule::in(array_keys(StoreSettings::deliveryMethods()))],
+            'payment_method' => ['required', Rule::in(array_keys(StoreSettings::paymentMethods()))],
+            'coupon' => ['nullable', 'string', 'max:60'],
             'address_id' => ['nullable', 'integer', 'min:1'],
             'address' => [$typed ? 'required' : 'nullable', 'array'],
             'address.country' => ['nullable', 'string', 'regex:/^[A-Za-z]{2}$/'],

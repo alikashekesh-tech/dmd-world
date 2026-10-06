@@ -4,11 +4,15 @@ use App\Http\Controllers\Api\V1\Admin\AuthController;
 use App\Http\Controllers\Api\V1\Admin\BrandController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
 use App\Http\Controllers\Api\V1\Admin\ConversationController;
+use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController;
+use App\Http\Controllers\Api\V1\Admin\HomepageController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController;
+use App\Http\Controllers\Api\V1\Admin\OfferController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReviewController;
+use App\Http\Controllers\Api\V1\Admin\SettingsController;
 use App\Http\Controllers\Api\V1\Admin\StockAlertController;
 use App\Http\Controllers\Api\V1\Admin\UploadController;
 use Illuminate\Support\Facades\Route;
@@ -76,4 +80,23 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::post('conversations/{conversation}/unread', [ConversationController::class, 'unread'])->whereNumber('conversation')->name('conversations.unread');
 
     Route::get('stock-alerts', [StockAlertController::class, 'index'])->name('stock-alerts.index');
+
+    // Offers: discounts computed into prices (products are never edited). Coupons: codes checked at checkout.
+    Route::apiResource('offers', OfferController::class)->whereNumber('offer');
+    Route::put('offers/{offer}/active', [OfferController::class, 'toggle'])->whereNumber('offer')->name('offers.toggle');
+    Route::post('coupons/{id}/restore', [CouponController::class, 'restore'])->whereNumber('id')->name('coupons.restore');
+    Route::delete('coupons/{id}/permanent', [CouponController::class, 'forceDestroy'])->whereNumber('id')->name('coupons.force-destroy');
+    Route::apiResource('coupons', CouponController::class)->whereNumber('coupon');
+
+    // The storefront home and its banners.
+    Route::get('homepage', [HomepageController::class, 'show'])->name('homepage.show');
+    Route::put('homepage/sections', [HomepageController::class, 'arrange'])->name('homepage.arrange');
+    Route::put('homepage/sections/{key}/items', [HomepageController::class, 'pick'])->where('key', '[a-z_]+')->name('homepage.pick');
+    Route::post('banners', [HomepageController::class, 'storeBanner'])->name('banners.store');
+    Route::post('banners/reorder', [HomepageController::class, 'reorderBanners'])->name('banners.reorder');
+    Route::put('banners/{banner}', [HomepageController::class, 'updateBanner'])->whereNumber('banner')->name('banners.update');
+    Route::delete('banners/{banner}', [HomepageController::class, 'destroyBanner'])->whereNumber('banner')->name('banners.destroy');
+
+    Route::get('settings', [SettingsController::class, 'show'])->name('settings.show');
+    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 });
