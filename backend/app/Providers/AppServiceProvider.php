@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -26,13 +28,35 @@ class AppServiceProvider extends ServiceProvider
 
         TrustProxies::at(config('dmd.trusted_proxies'));
 
-        // A general ceiling per signed-in account (or address); sign-in, sign-up and checkout get tighter limits.
-        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(240)->by($request->user()?->getAuthIdentifier() ?: $request->ip()));
+        $this->rateLimits();
+
+        // Reset links open the storefront's reset page, which posts the new password back to the API.
+        ResetPassword::createUrlUsing(fn (User $user, string $token) => config('dmd.frontend_url').'/account/reset?'.http_build_query(['token' => $token, 'email' => $user->email]));
 
         // Development catches lazy loading, unknown attributes and mass-assignment mistakes early.
         Model::shouldBeStrict(! $this->app->isProduction());
 
         // migrate:fresh, db:wipe and friends refuse to run against production.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+    }
+
+    private function rateLimits(): void
+    {
+        $tooMany = fn (string $message) => fn (Request $request, array $headers) => response()->json(['error' => ['code' => 'TOO_MANY_REQUESTS', 'message' => $message]], 429, $headers);
+
+        // A general ceiling per signed-in account (or address).
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(240)->by($request->user()?->getAuthIdentifier() ?: $request->ip()));
+
+        RateLimiter::for('register', fn (Request $request) => Limit::perHour(8)->by($request->ip())
+            ->response($tooMany('Too many sign-ups from this connection. Please try again later.')));
+
+        // Reset emails: per address and per email, so nobody can flood a buyer's inbox.
+        RateLimiter::for('password-email', fn (Request $request) => [
+            Limit::perHour(10)->by('ip:'.$request->ip())->response($tooMany('Too many reset requests. Please try again later.')),
+            Limit::perHour(3)->by('email:'.sha1(User::normalizeEmail($request->input('email'))))->response($tooMany('Too many reset requests for this email. Please try again later.')),
+        ]);
+
+        RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinutes(15, 20)->by($request->ip())
+            ->response($tooMany('Too many attempts. Please wait a few minutes.')));
     }
 }

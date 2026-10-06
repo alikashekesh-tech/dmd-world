@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\Secrets;
 use Illuminate\Console\Command;
 use PDO;
 use Throwable;
@@ -116,18 +117,7 @@ class ProvisionDatabase extends Command
     /** 32 characters with upper and lower case, digits and a symbol (satisfies MySQL's validate_password). */
     public static function generatePassword(int $length = 32): string
     {
-        $sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '-_'];
-        $all = implode('', $sets);
-        $chars = array_map(fn (string $set) => $set[random_int(0, strlen($set) - 1)], $sets);
-        while (count($chars) < $length) {
-            $chars[] = $all[random_int(0, strlen($all) - 1)];
-        }
-        for ($i = count($chars) - 1; $i > 0; $i--) {
-            $j = random_int(0, $i);
-            [$chars[$i], $chars[$j]] = [$chars[$j], $chars[$i]];
-        }
-
-        return implode('', $chars);
+        return Secrets::password($length);
     }
 
     private function writeEnv(string $key, string $value): void

@@ -11,12 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Buyers. The store owner is a separate account in `admins`.
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('first_name', 60);
+            $table->string('last_name', 60);
+            // Stored trimmed and lower-cased; the column's collation is case-insensitive too.
             $table->string('email')->unique();
+            $table->string('phone', 30)->nullable();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            // Null for customers imported from the old store: they choose a password with "Forgot password".
+            $table->string('password')->nullable();
+            $table->boolean('marketing_opt_in')->default(false);
+            $table->timestamp('last_login_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

@@ -3,8 +3,10 @@
 namespace App\Exceptions;
 
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -29,8 +31,13 @@ class ApiExceptionRenderer
         503 => ['SERVICE_UNAVAILABLE', 'The store is briefly unavailable. Please try again shortly.'],
     ];
 
-    public static function render(Throwable $e): JsonResponse
+    public static function render(Throwable $e): Response
     {
+        // A response built on purpose (e.g. a rate limiter's own 429 body) is sent as it is.
+        if ($e instanceof HttpResponseException) {
+            return $e->getResponse();
+        }
+
         if ($e instanceof ApiException) {
             return self::json($e->status, $e->errorCode, $e->getMessage(), $e->fields, $e->headers);
         }
