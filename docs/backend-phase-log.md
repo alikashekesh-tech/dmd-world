@@ -488,3 +488,108 @@ The automated tests can't run two transactions at once, so I ran `race.php` agai
 **Blockers:** none. Real order emails need SMTP settings.
 
 **Next:** Phase 8, reviews and messaging.
+
+## Phase 8: reviews, messaging and stock alerts (6 Oct 2026)
+
+**Implemented (backend)**
+- **`reviews`:** product, buyer, display name ("Rana K."), rating, title, body, status (pending, approved, rejected, spam), verified purchase, who moderated it and when.
+  - **One per buyer per product:** a unique index, so two tabs submitting at once can't both land (the loser gets `409 ALREADY_REVIEWED`).
+  - **MySQL checks:** rating 1–5 and a valid status.
+  - **Ids:** WooCommerce review ids are kept; new reviews start at 100000.
+- **Review rules:**
+  - **Moderation:** a new review waits for the owner (`pending`). Only `approved` reviews are public or counted in ratings.
+  - **Editing:** an edited review goes back to `pending` (its old rating stops counting until it's approved again); a spam review stays spam.
+  - **Ownership:** a buyer reads, edits and deletes only their own reviews; anyone else's id is a 404.
+  - **Verified purchase:** set when the buyer has a paid order (processing, completed or on hold) containing the product. A pending order doesn't count.
+- **Ratings:** `withRating()` adds the average and count of approved reviews to the catalog, `/products`, the product page and the new `rated` sort. Computed, never stored. Any approval, rejection or rating change refreshes the catalog cache at once.
+- **Safe text:** reviews and messages are stored as the characters typed, never as HTML.
+  - **Cleaning:** invisible control and direction-override characters and runs of blank lines are removed first, then the length rules run.
+  - **Serving:** the API always serves text as JSON strings (`nosniff`), and no client renders HTML from it. "<b>" stays four characters.
+- **`conversations` and `messages`:** a conversation between one buyer and the store, optionally about one of their orders (one conversation per order).
+  - **Senders:** buyer, store (owner) or system.
+  - **Read state:** the id of the last message each side has seen, so a reply arriving in the same second as a read is still unread. The owner can mark a conversation unread again.
+  - **Locking:** every message updates its conversation under a row lock.
+  - **Ids:** imported messages keep their WooCommerce note ids; new ones start at 1000000.
+  - **Emails:** an owner reply emails the buyer (`StoreReplied`, after commit; a mail failure is logged, not lost).
+- **`stock_alerts`:** a signed-in buyer follows a sold-out, published product (an in-stock product gets `409 IN_STOCK`; at most 50 at a time).
+  - **Trigger:** when any save makes the product orderable again (a stock adjustment, a cancelled order returning stock, the owner setting it in stock or publishing it), everyone waiting gets one email after commit.
+  - **Claiming:** each alert is claimed with a conditional UPDATE before its email is sent, so two triggers never email twice.
+  - **Retries:** `dmd:stock-alerts`, scheduled every 10 minutes, retries any that failed and prunes alerts answered more than 90 days ago.
+- **Rate limits:** reviews 10 per hour; messages 6 per minute and 30 per hour; stock alerts 40 per hour (per account).
+- **Import** (`dmd:import`, parts `reviews` and `notes`):
+  - **Reviews:** ids, ratings, dates and approval state are kept. `<strong>Title</strong>` becomes the title and the rest plain text. A reviewer whose email matches an imported customer owns the review. A second review by the same customer for the same product stays unlinked, with its email kept for the owner only.
+  - **Notes:** `[Buyer message]` notes and notes to the customer become the order's conversation, with their note ids. Status-change notes and private notes become the order's history; history lines remember their note id, so importing again updates them. Imported conversations count as read on both sides.
+
+**Implemented (storefront, Laravel mode)**
+- **`src/lib/community.js`:** reviews, conversations and stock alerts, mapped to the shapes the components already use.
+- **Product page:** approved reviews and the summary, 20 at a time with "Show more reviews". Writing a review, and the buyer's own review with its status.
+- **Account:**
+  - **Messages:** the buyer's orders, each with its conversation, plus any general conversations. The first message starts the order's conversation. The checkout note shows first, and the link in the reply email (`?order=`) opens the thread.
+  - **My reviews** and **Stock alerts** use the new endpoints.
+  - **Unread badge:** checked every minute while the page is visible.
+- **Ratings:** product cards' ratings now come from MySQL through the catalog.
+
+**Migrations:** `2026_10_06_000700_create_reviews_messaging_and_stock_alerts_tables` (also `order_status_history.legacy_note_id`).
+
+**Endpoints**
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /api/v1/products/{id}/reviews | approved only; `meta.summary` (average, count, verified, breakdown); `sort=newest\|highest\|lowest` |
+| GET POST | /api/v1/account/reviews | own reviews (`?product=`); create (rate-limited) |
+| PUT DELETE | /api/v1/account/reviews/{id} | own only, else 404 |
+| GET POST | /api/v1/account/conversations | own list (`?order=`, `meta.unread`); start (about an own order, or a general question) |
+| GET | /api/v1/account/conversations/unread | badge count |
+| GET | /api/v1/account/conversations/{id} | own only; marks the store's messages read |
+| POST | /api/v1/account/conversations/{id}/messages | reply |
+| GET POST | /api/v1/account/stock-alerts | list; follow a sold-out product |
+| DELETE | /api/v1/account/stock-alerts/{productId} | stop waiting |
+| GET | /api/v1/admin/reviews · /admin/reviews/{id} | filters (status, rating, product, search) and counts per status |
+| PUT DELETE | /api/v1/admin/reviews/{id} | moderate (`status`); delete |
+| GET POST | /api/v1/admin/conversations | inbox (`unread=1`, search, customer; unread and total counts); write to a buyer first |
+| GET | /api/v1/admin/conversations/{id} | marks the buyer's messages read |
+| POST | /api/v1/admin/conversations/{id}/messages · /unread | reply (emails the buyer); mark unread |
+| GET | /api/v1/admin/stock-alerts | sold-out products buyers are waiting for, most wanted first |
+
+**Tests added:** 19
+- **Reviews (7):**
+  - **Moderation flow:** a review waits for approval, then appears with the rating, and the cached catalog follows at once. The public output has no email and no account id.
+  - **One per product:** one review per buyer and product.
+  - **Ownership:** another buyer can't read, edit or delete it. Editing re-queues moderation; deleting allows a new review.
+  - **Verified purchase:** set only after the order is confirmed.
+  - **Validation and safe text:** ratings, lengths, drafts and guests are refused. Markup comes back exactly as typed, invisible characters are gone, and the response is JSON with nosniff.
+  - **Owner moderation:** every status, counts per status, spam stays spam after an edit, and delete. Buyers and guests get 401.
+  - **Hidden products:** reviews of hidden or unknown products aren't public.
+- **Messaging (4):**
+  - **A full exchange:** one conversation per order, the owner's unread count, opening marks it read, the reply email, the buyer's badge, "you"/"store" labels with no owner account details. A reply in the same second as a read stays unread.
+  - **Isolation:** buyers never see, reply to or start conversations about each other's orders. Guests and buyers get 401 on the owner's inbox.
+  - **General and owner-started conversations:** general questions, conversations the owner starts (only about that buyer's own order), and mark unread.
+  - **Validation and plain text:** empty, invisible-only and too-long messages are refused, and HTML is kept as text.
+- **Stock alerts (5):**
+  - **Restock:** both waiting buyers get one email when the owner restocks; no repeats on later restocks; the owner's "waiting" list.
+  - **Cancelled order:** a cancelled order returning the last unit emails the waiter.
+  - **Following:** only sold-out, published products can be followed; following twice is harmless, and buyers manage only their own list.
+  - **Untracked stock:** an untracked product set back in stock counts too.
+  - **Scheduled run:** sends what is still waiting and prunes old alerts.
+- **Import (3):** reviews arrive with ids, titles, approval state, account links (duplicates unlinked) and the same storefront average. Notes become conversations and history, with ids kept and the private note hidden from the buyer. Importing again updates instead of duplicating.
+
+**Results**
+- **Tests:** Laravel 168 of 168 (1448 assertions). Lint passes. The Laravel-mode, Node-mode and admin builds pass. Node 53 of 53.
+- **Real import from the emulator into the dev database:**
+  - **Reviews:** 48, 31 linked to accounts. Five extra reviews by the same customer for the same product were kept unlinked.
+  - **Notes:** 7 conversations with 13 messages, and 393 history notes.
+- **Browser** (Laravel mode, 5175):
+  - **Product reviews:** the panel shows the imported approved reviews and the breakdown. An old test review titled `Love it <script>` shows as plain text.
+  - **A review:** the test buyer reviewed MARVO CM310 WH; it shows "Pending approval" on the product and in My reviews, and the public count stays 2.
+  - **Messages:** the buyer messaged about order #1000000 (HTML shown as text). An owner reply through the same service the owner endpoint calls logged the "DMD World replied about your order #1000000" email. The badge showed "1 unread" and cleared when the thread was opened from the email link.
+  - **Stock alert:** following sold-out product 39356 appeared in Stock alerts after a reload. Restocking it through `Inventory` emailed the buyer (in the mail log), then the stock was set back to 0.
+
+**Bugs found and fixed:** none in application code; two test helpers were corrected while the tests were written.
+
+**Not yet in Laravel mode:**
+- **Owner screens:** the Reviews and Messages screens stay on Node until the admin is switched in Phase 11. Their Laravel endpoints are done and tested.
+- **The "only buyers can review" setting:** it exists with a default (off) and is enforced. Its switch arrives with the settings table in Phase 9.
+
+**Blockers:** none. Real reply and back-in-stock emails need SMTP settings, and the scheduled retry needs `php artisan schedule:run` every minute in production.
+
+**Next:** Phase 9, offers, coupons, settings and the homepage.

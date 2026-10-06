@@ -14,7 +14,8 @@
 | 5 | Storefront catalog from Laravel | Done |
 | 6 | Buyer profile, addresses and wishlist | Done |
 | 7 | Orders and order items | Done |
-| 8–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 8 | Reviews, messaging and stock alerts | Done |
+| 9–12 | See §7 | In progress, phase by phase. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
 
 ---
 
@@ -174,10 +175,10 @@ InnoDB, utf8mb4. Money is `DECIMAL(10,2)` in USD. All tables have timestamps.
 | `order_items` | order_id, product_id, product_name, sku, image_url, unit_price, regular_price, quantity, line_subtotal, line_discount, line_total | FK orders cascade; FK products null on delete, so history survives product changes |
 | `order_status_history` | order_id, from_status, to_status, actor (buyer, admin, system), note | the order timeline and the owner's audit trail |
 | `wishlist_items` | user_id, product_id | composite PK (no duplicates); FKs cascade |
-| `stock_alerts` | user_id, product_id, notified_at | unique (user_id, product_id) |
-| `reviews` | product_id, user_id, rating, title, body, status (pending, approved, rejected, spam), is_verified_purchase, moderated_by, moderated_at | unique (user_id, product_id); CHECK rating 1–5; text stored as plain text |
-| `conversations` | user_id, order_id, subject, status, last_message_at, buyer_read_at, admin_read_at | two parties (buyer and owner), so no participants table is needed |
-| `messages` | conversation_id, sender (buyer, admin, system), user_id, admin_id, body | FK cascade; body is plain text |
+| `stock_alerts` | user_id, product_id, notified_at | unique (user_id, product_id); the email is claimed with a conditional UPDATE, so it goes once |
+| `reviews` | product_id, user_id, author_name, author_email (imported reviews with no account only), rating, title, body, status (pending, approved, rejected, spam), is_verified_purchase, moderated_by, moderated_at | unique (user_id, product_id); CHECK rating 1–5 and status; text stored as plain text; WooCommerce ids kept, new ones from 100000 |
+| `conversations` | user_id, order_id (unique: one per order), subject, last_message_at, last_buyer_message_id, last_admin_message_id, buyer_read_id, admin_read_id, buyer_read_at, admin_read_at | two parties (buyer and owner), so no participants table is needed; read state is the last message id each side has seen |
+| `messages` | conversation_id, sender_type (buyer, admin, system), user_id, admin_id, body, created_at | FK cascade; body is plain text; CHECK sender; imported order notes keep their ids, new ones from 1000000 |
 | `offers` | name, type (percent, fixed), value, starts_at, ends_at, is_active, deleted_at | plus pivots `offer_product` and `offer_category`. Applied when prices are calculated; never written into product prices. |
 | `coupons` | code, type (percent, fixed_cart, fixed_product), amount, min_subtotal, max_subtotal, usage_limit, usage_limit_per_user, starts_at, expires_at, exclude_sale_items, is_active, deleted_at | `code` unique (upper-cased); plus pivots `coupon_product` and `coupon_category` |
 | `coupon_redemptions` | coupon_id, order_id, user_id, email | usage limits are checked under a row lock inside the order transaction |
@@ -205,7 +206,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 5 ✔ | React catalog client: catalog, product page, category and brand pages, menus from the API, search; admin catalog screens | `VITE_BACKEND=laravel` browses the imported catalog; both builds pass |
 | 6 ✔ | Profile, `addresses`, `wishlist_items` (and guest-wishlist merge) | ownership tests (buyer A ≠ buyer B) |
 | 7 ✔ | `orders`, `order_items`, status history, checkout (prices and stock locked in one transaction, idempotency, guest token), cancel, admin orders | totals recomputed server-side; overselling is impossible; history survives product edits |
-| 8 | `reviews` (one per buyer per product, moderation), `conversations` and `messages`, `stock_alerts` | participant and ownership tests |
+| 8 ✔ | `reviews` (one per buyer per product, moderation), `conversations` and `messages`, `stock_alerts` | participant and ownership tests |
 | 9 | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |
 | 10 | Admin analytics (revenue, orders by status, top products, categories and brands, low stock, customers) as queries | zeros and empty states when there's no data, never invented numbers |
 | 11 | Final import from the live store; switch the default to `laravel`; delete the Node server, emulator, WordPress plugin (if unused), `dmdCatalog.js`, the static menu ids, the JSON stores and the Node tests | the app runs on Laravel only |

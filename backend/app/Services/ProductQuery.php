@@ -83,6 +83,7 @@ final class ProductQuery
             'name' => $q->orderBy('name'),
             'featured' => $q->orderByDesc('is_featured')->orderByDesc('published_at'),
             'best' => $q->withUnitsSold()->orderByDesc('units_sold')->orderByDesc('published_at'),
+            'rated' => $q->orderByRaw('rating_avg IS NULL')->orderByDesc('rating_avg')->orderByDesc('rating_count'), // needs withRating()
             'updated' => $q->orderByDesc('updated_at'),
             'stock' => $q->orderBy('stock_quantity'),
             default => $q->orderByDesc('published_at'),

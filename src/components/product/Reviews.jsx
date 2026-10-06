@@ -3,6 +3,8 @@ import { Link } from '../../router/index.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { Rating } from '../common/bits.jsx';
 import { storeApi } from '../../lib/storeApi.js';
+import { LARAVEL } from '../../lib/backend.js';
+import { reviews } from '../../lib/community.js';
 import page from '../../pages/ProductPage.module.css';
 import s from './Reviews.module.css';
 
@@ -34,7 +36,7 @@ function ReviewForm({ productId, onDone, autoFocus }) {
     e.preventDefault();
     if (!ready || busy) return;
     setBusy(true); setErr('');
-    try { onDone(await storeApi.post('/me/reviews', { productId: Number(productId), ...f })); } catch (x) { setErr(x.message); setBusy(false); }
+    try { onDone(LARAVEL ? await reviews.create(productId, f) : await storeApi.post('/me/reviews', { productId: Number(productId), ...f })); } catch (x) { setErr(x.message); setBusy(false); }
   };
   return (
     <form className={s.form} onSubmit={submit} noValidate id="write-review">
@@ -56,20 +58,27 @@ function ReviewForm({ productId, onDone, autoFocus }) {
   );
 }
 
-/** Real WooCommerce reviews: approved ones for everyone, plus the signed-in buyer's own (with its status). */
+/** Approved reviews for everyone, plus the signed-in buyer's own (with its status). Laravel pages them 20 at a time. */
 export default function Reviews({ product, open }) {
   const { buyer, checking } = useStore();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [mine, setMine] = useState(null);
+  const [more, setMore] = useState(false);
   useEffect(() => {
     setData(null); setError('');
-    storeApi.get(`/products/${product.id}/reviews`).then(setData).catch((e) => setError(e.message));
+    (LARAVEL ? reviews.forProduct(product.id) : storeApi.get(`/products/${product.id}/reviews`)).then(setData).catch((e) => setError(e.message));
   }, [product.id]);
   useEffect(() => {
     if (!buyer) { setMine(null); return; }
-    storeApi.get(`/me/reviews?product=${product.id}`).then((r) => setMine(r.items[0] || false)).catch(() => setMine(false));
+    (LARAVEL ? reviews.mine(product.id) : storeApi.get(`/me/reviews?product=${product.id}`).then((r) => r.items))
+      .then((items) => setMine(items[0] || false)).catch(() => setMine(false));
   }, [product.id, buyer]);
+  const loadMore = async () => {
+    setMore(true);
+    try { const next = await reviews.forProduct(product.id, data.page + 1); setData((d) => ({ ...next, items: [...d.items, ...next.items.filter((r) => !d.items.some((x) => x.id === r.id))] })); } catch (e) { setError(e.message); }
+    setMore(false);
+  };
   useEffect(() => { if (open && buyer && mine === false) setTimeout(() => document.getElementById('write-review')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200); }, [open, buyer, mine]);
 
   if (error) return <div className={page.panel}><p className={s.err}>{error}</p></div>;
@@ -114,7 +123,9 @@ export default function Reviews({ product, open }) {
             <p>{r.text}</p>
             <small>{r.name}{r.verified && <span className={s.verified}>Verified purchase</span>} · {day(r.date)}</small>
           </li>
-        ))}</ul>
+        ))}
+          {data.more && <li><button type="button" className="btn btn--secondary" onClick={loadMore} disabled={more}>{more ? 'Loading…' : 'Show more reviews'}</button></li>}
+        </ul>
       ) : <div />}
     </div>
   );

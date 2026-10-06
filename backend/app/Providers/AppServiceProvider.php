@@ -67,5 +67,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('quote', fn (Request $request) => Limit::perMinutes(10, 120)->by($request->ip()));
         RateLimiter::for('cancel', fn (Request $request) => Limit::perHour(10)->by($request->user()?->getAuthIdentifier() ?: $request->ip())
             ->response($tooMany('Too many requests. Please wait a little.')));
+
+        // Things buyers write for others to read: generous for people, tight for scripts.
+        RateLimiter::for('reviews', fn (Request $request) => Limit::perHour(10)->by('user:'.$request->user()?->getAuthIdentifier())
+            ->response($tooMany('You’ve sent a lot of reviews in a short time. Please try again later.')));
+        RateLimiter::for('messages', fn (Request $request) => [
+            Limit::perMinute(6)->by('burst:'.$request->user()?->getAuthIdentifier())->response($tooMany('You’re sending messages quickly. Please wait a moment.')),
+            Limit::perHour(30)->by('user:'.$request->user()?->getAuthIdentifier())->response($tooMany('You’ve sent a lot of messages. Please wait a little.')),
+        ]);
+        RateLimiter::for('stock-alerts', fn (Request $request) => Limit::perHour(40)->by('user:'.$request->user()?->getAuthIdentifier())
+            ->response($tooMany('Too many requests. Please wait a little.')));
     }
 }

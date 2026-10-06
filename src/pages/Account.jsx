@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from '../router/index.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 import PageHero from '../components/ui/PageHero.jsx';
@@ -16,6 +16,7 @@ import { usePageMeta } from '../lib/meta.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import { LARAVEL } from '../lib/backend.js';
 import { account } from '../lib/account.js';
+import { reviews as reviewApi, messages as messageApi } from '../lib/community.js';
 import AddressBook from '../components/account/AddressBook.jsx';
 import s from './Account.module.css';
 
@@ -181,6 +182,98 @@ function Orders() {
   );
 }
 
+/** Laravel: one conversation per order (started by the first message), plus any general ones. */
+function LaravelMessages() {
+  const { refreshInbox, orders } = useStore();
+  const [params] = useSearchParams();
+  const [convs, setConvs] = useState(null);
+  const [open, setOpen] = useState(() => (params.get('conversation') ? `c${params.get('conversation')}` : params.get('order') ? `o${params.get('order')}` : null));
+  const [thread, setThread] = useState(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => { messageApi.list().then((r) => setConvs(r.items)).catch((e) => setErr(e.message)); }, []);
+  // The buyer's orders (each can be asked about) and conversations, as one list.
+  const list = useMemo(() => {
+    if (!convs) return null;
+    const byOrder = new Map(convs.filter((c) => c.orderId).map((c) => [c.orderId, c]));
+    const fromOrders = orders.map((o) => ({ key: `o${o.id}`, orderId: o.id, number: o.number, status: o.status, note: o.note, conv: byOrder.get(o.id) || null }));
+    const known = new Set(orders.map((o) => o.id));
+    const others = convs.filter((c) => !c.orderId || !known.has(c.orderId)).map((c) => ({ key: c.orderId ? `o${c.orderId}` : `c${c.id}`, orderId: c.orderId, number: c.number, status: c.status, subject: c.subject, conv: c }));
+    return [...others.filter((t) => t.orderId), ...fromOrders, ...others.filter((t) => !t.orderId)];
+  }, [convs, orders]);
+  const current = list?.find((t) => t.key === open) || null;
+  const convId = current?.conv?.id ?? (open?.startsWith('c') ? Number(open.slice(1)) : null);
+  const ready = list !== null;
+  useEffect(() => {
+    if (!open || !ready) return;
+    setErr('');
+    if (!convId) { setThread({ thread: [] }); return; }
+    setThread(null);
+    messageApi.get(convId).then((c) => { setThread(c); setConvs((l) => l.map((x) => (x.id === c.id ? { ...x, unread: false } : x))); refreshInbox(); }).catch((e) => setErr(e.message));
+  }, [open, convId, ready, refreshInbox]);
+  const send = async (e) => {
+    e.preventDefault();
+    if (text.trim().length < 2) return;
+    setBusy(true); setErr('');
+    try {
+      if (convId) {
+        const m = await messageApi.reply(convId, text);
+        setThread((t) => ({ ...t, thread: [...t.thread, m] }));
+        setConvs((l) => l.map((x) => (x.id === convId ? { ...x, last: m.at } : x)));
+      } else {
+        const c = await messageApi.start(current.orderId, text);
+        setThread(c); setConvs((l) => [c, ...l]);
+      }
+      setText('');
+    } catch (x) { setErr(x.message); }
+    setBusy(false);
+  };
+  if (!list) return <p className={s.muted}>{err || 'Loading your messages…'}</p>;
+  if (!list.length) return <EmptyState compact art={<LineArt type="receipt" />} status="No messages" title="No orders to talk about yet" text="Once you order, you can message DMD about it here." />;
+  const title = (t) => (t.orderId ? `Order #${t.number}` : t.subject);
+  return (
+    <div className={s.msgs}>
+      <ul className={s.threadList}>
+        {list.map((t) => (
+          <li key={t.key}>
+            <button type="button" className={`${s.threadBtn} ${open === t.key ? s.on : ''}`} onClick={() => setOpen(t.key)} aria-current={open === t.key ? 'true' : undefined}>
+              <span><b>{title(t)}</b><small>{t.conv ? (t.conv.last ? `Last message ${shortDate(t.conv.last)}` : 'Conversation') : 'Ask about this order'}</small></span>
+              {t.conv?.unread && <i className={s.dot} aria-label="New reply" />}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className={s.thread}>
+        {!current ? <p className={s.muted}>Pick an order to see messages with DMD World, or to ask something about it.</p>
+          : !thread ? <p className={s.muted}>{err || 'Loading…'}</p> : (
+            <>
+              <div className={s.threadHead}><b>{title(current)}</b>{current.status && <StatusTag status={current.status === 'on_hold' ? 'on-hold' : current.status} />}</div>
+              <div className={s.bubbles}>
+                {current.note && <div className={`${s.bubble} ${s.you}`}><p>{current.note}</p><small>You · note at checkout</small></div>}
+                {thread.thread.length === 0 && !current.note && <p className={s.muted}>No messages yet. Ask DMD anything about this order.</p>}
+                {thread.thread.map((m) => (
+                  <div key={m.id} className={`${s.bubble} ${m.from === 'you' ? s.you : s.store}`}>
+                    <p>{m.text}</p>
+                    <small>{m.from === 'you' ? 'You' : 'DMD World'} · {new Date(m.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small>
+                  </div>
+                ))}
+              </div>
+              {(current.orderId || convId) && (
+                <form className={s.composer} onSubmit={send}>
+                  <label className="sr-only" htmlFor="msg">Message to DMD World</label>
+                  <textarea id="msg" className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Write to DMD World…" maxLength={2000} />
+                  {err && <p className={s.err} role="alert">{err}</p>}
+                  <div><small className={s.muted}>DMD replies here and by email.</small><button type="submit" className="btn btn--primary btn--sm" disabled={busy || text.trim().length < 2}>{busy ? 'Sending…' : 'Send'}</button></div>
+                </form>
+              )}
+            </>
+          )}
+      </div>
+    </div>
+  );
+}
+
 function Messages() {
   const { refreshInbox } = useStore();
   const [params] = useSearchParams();
@@ -252,7 +345,7 @@ const REVIEW_STATUS = { pending: ['Pending approval', s.wait], published: ['Publ
 function MyReviews() {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
-  useEffect(() => { storeApi.get('/me/reviews').then((r) => setItems(r.items)).catch((e) => setErr(e.message)); }, []);
+  useEffect(() => { (LARAVEL ? reviewApi.mine() : storeApi.get('/me/reviews').then((r) => r.items)).then(setItems).catch((e) => setErr(e.message)); }, []);
   if (!items) return <p className={s.muted}>{err || 'Loading your reviews…'}</p>;
   if (!items.length) return <EmptyState compact art={<LineArt type="receipt" />} status="No reviews yet" title="You haven’t reviewed anything yet" text="Review gear you bought from your order history or any product page." />;
   return (
@@ -424,7 +517,7 @@ export default function Account() {
         <section className={s.content}>
           <h2>{TABS.find(([k]) => k === tab)[1]}</h2>
           {tab === 'orders' && <Orders />}
-          {tab === 'messages' && <Messages />}
+          {tab === 'messages' && (LARAVEL ? <LaravelMessages /> : <Messages />)}
           {tab === 'reviews' && <MyReviews />}
           {tab === 'alerts' && <Alerts />}
           {tab === 'profile' && <Profile key={buyer.email} />}

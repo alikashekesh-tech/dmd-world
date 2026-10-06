@@ -3,10 +3,13 @@
 use App\Http\Controllers\Api\V1\Admin\AuthController;
 use App\Http\Controllers\Api\V1\Admin\BrandController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
+use App\Http\Controllers\Api\V1\Admin\ConversationController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
+use App\Http\Controllers\Api\V1\Admin\ReviewController;
+use App\Http\Controllers\Api\V1\Admin\StockAlertController;
 use App\Http\Controllers\Api\V1\Admin\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,4 +61,19 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('customers/{user}', [CustomerController::class, 'show'])->whereNumber('user')->name('customers.show');
     Route::put('customers/{user}', [CustomerController::class, 'update'])->whereNumber('user')->name('customers.update');
+
+    // Reviews: moderation. Only approved reviews reach the storefront and its ratings.
+    Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::get('reviews/{review}', [ReviewController::class, 'show'])->whereNumber('review')->name('reviews.show');
+    Route::put('reviews/{review}', [ReviewController::class, 'update'])->whereNumber('review')->name('reviews.update');
+    Route::delete('reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review')->name('reviews.destroy');
+
+    // Conversations with buyers; replies are emailed to the buyer.
+    Route::get('conversations', [ConversationController::class, 'index'])->name('conversations.index');
+    Route::post('conversations', [ConversationController::class, 'store'])->name('conversations.store');
+    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->whereNumber('conversation')->name('conversations.show');
+    Route::post('conversations/{conversation}/messages', [ConversationController::class, 'reply'])->whereNumber('conversation')->name('conversations.reply');
+    Route::post('conversations/{conversation}/unread', [ConversationController::class, 'unread'])->whereNumber('conversation')->name('conversations.unread');
+
+    Route::get('stock-alerts', [StockAlertController::class, 'index'])->name('stock-alerts.index');
 });

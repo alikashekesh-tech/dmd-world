@@ -37,6 +37,7 @@ final class Catalog
             $products = Product::published()
                 ->with(['images:id,product_id,url,position', 'categories:id'])
                 ->withUnitsSold()
+                ->withRating()
                 ->orderByDesc('published_at')->orderByDesc('id')
                 ->get();
 

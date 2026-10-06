@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Catalog;
+use App\Services\StockAlerts;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -50,9 +51,12 @@ class Product extends Model
     protected static function booted(): void
     {
         // Any change to a product refreshes the storefront catalog at once.
-        static::saved(fn () => Catalog::bust());
+        static::saved(function (Product $p) {
+            Catalog::bust();
+            StockAlerts::afterChange($p); // emails waiting buyers if this change brought it back
+        });
         static::deleted(fn () => Catalog::bust());
-        static::restored(fn () => Catalog::bust());
+        static::restored(fn () => Catalog::bust()); // restore() saves, so `saved` above has already run
     }
 
     public function brand(): BelongsTo
@@ -78,6 +82,25 @@ class Product extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(InventoryMovement::class)->latest('id');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function stockAlerts(): HasMany
+    {
+        return $this->hasMany(StockAlert::class);
+    }
+
+    /** Adds `rating_avg` and `rating_count` from approved reviews. Computed from the reviews, never stored. */
+    public function scopeWithRating(Builder $query): void
+    {
+        $query->addSelect([
+            'rating_avg' => Review::query()->selectRaw('AVG(rating)')->whereColumn('reviews.product_id', 'products.id')->where('status', 'approved'),
+            'rating_count' => Review::query()->selectRaw('COUNT(*)')->whereColumn('reviews.product_id', 'products.id')->where('status', 'approved'),
+        ]);
     }
 
     /** Adds `units_sold`: how many were bought in orders that count as sales. Computed from orders, never stored. */

@@ -28,10 +28,10 @@ class ProductController extends Controller
             'category' => ['nullable', 'integer'], 'category_path' => ['nullable', 'string', 'max:300'], 'brand' => ['nullable', 'string', 'max:80'],
             'q' => ['nullable', 'string', 'max:100'], 'min_price' => ['nullable', 'numeric', 'min:0'], 'max_price' => ['nullable', 'numeric', 'min:0'],
             'in_stock' => ['nullable', 'boolean'], 'on_sale' => ['nullable', 'boolean'], 'featured' => ['nullable', 'boolean'],
-            'ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'], 'sort' => ['nullable', 'in:newest,price_asc,price_desc,name,featured,best'],
+            'ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'], 'sort' => ['nullable', 'in:newest,price_asc,price_desc,name,featured,best,rated'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
-        $q = Product::published()->with(['images:id,product_id,url,position', 'categories:id']);
+        $q = Product::published()->with(['images:id,product_id,url,position', 'categories:id'])->withRating();
         $tree = null;
 
         if (! empty($v['category']) || ! empty($v['category_path'])) {
@@ -72,7 +72,7 @@ class ProductController extends Controller
 
     public function show(int $id): ProductDetailResource
     {
-        $product = Product::published()->with(['images', 'categories:id', 'specifications', 'brand'])->find($id);
+        $product = Product::published()->with(['images', 'categories:id', 'specifications', 'brand'])->withRating()->find($id);
         if (! $product) {
             throw new ApiException(404, 'NOT_FOUND', 'Product not found.');
         }

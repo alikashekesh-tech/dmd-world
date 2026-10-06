@@ -5,6 +5,7 @@ import { storeApi, guestOrders } from '../lib/storeApi.js';
 import { LARAVEL } from '../lib/backend.js';
 import { account } from '../lib/account.js';
 import { orders as orderApi } from '../lib/orders.js';
+import * as community from '../lib/community.js';
 
 const StoreCtx = createContext(null);
 const KEY = 'loadout:v1';
@@ -72,7 +73,7 @@ export function StoreProvider({ children }) {
   useEffect(() => keepCatalogFresh(), []);
 
   const loadInbox = useCallback(async () => {
-    try { setUnread((await storeApi.get('/me/messages')).items.filter((t) => t.unread).length); } catch { /* badge only */ }
+    try { setUnread(LARAVEL ? await community.messages.unread() : (await storeApi.get('/me/messages')).items.filter((t) => t.unread).length); } catch { /* badge only */ }
   }, []);
   const loadAccount = useCallback(async () => {
     // Bring this device's guest wishlist into the account once, then the account's list is the one shown.
@@ -84,7 +85,8 @@ export function StoreProvider({ children }) {
         if (local.length) { try { localStorage.setItem(KEY, JSON.stringify({ ...read(), wishlist: [] })); } catch { /* ignore */ } }
         synced.current = JSON.stringify(saved);
         dispatch({ type: 'wishlist', ids: saved });
-      })(), (async () => { const r = await orderApi.list(1); ordersPage.current = 1; setOrders(r.items); setOrdersMore(r.pages > 1); })()]);
+      })(), (async () => { const r = await orderApi.list(1); ordersPage.current = 1; setOrders(r.items); setOrdersMore(r.pages > 1); })(),
+      (async () => setAlerts(await community.alerts.list()))(), loadInbox()]);
       return;
     }
     const tasks = [
@@ -123,8 +125,8 @@ export function StoreProvider({ children }) {
   }, [sessionError, checkSession]);
   // Replies from DMD show up without a reload.
   useEffect(() => {
-    if (!buyer || LARAVEL) return undefined;
-    const t = setInterval(() => { if (document.visibilityState === 'visible') loadInbox(); }, 3 * 60e3);
+    if (!buyer) return undefined;
+    const t = setInterval(() => { if (document.visibilityState === 'visible') loadInbox(); }, (LARAVEL ? 60e3 : 3 * 60e3));
     return () => clearInterval(t);
   }, [buyer, loadInbox]);
 
@@ -179,6 +181,10 @@ export function StoreProvider({ children }) {
   /** Back-in-stock email for a sold-out product (signed-in buyers). */
   const toggleAlert = useCallback(async (id) => {
     const on = alerts.includes(String(id));
+    if (LARAVEL) {
+      setAlerts(await (on ? community.alerts.remove(id) : community.alerts.add(id)));
+      return !on;
+    }
     const r = on ? await storeApi.del(`/me/alerts/${id}`) : await storeApi.post('/me/alerts', { productId: Number(id) });
     setAlerts(r.items.map((a) => String(a.productId)));
     return !on;

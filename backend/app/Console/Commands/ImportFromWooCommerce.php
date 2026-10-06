@@ -2,9 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Order;
 use App\Services\Import\CustomerImporter;
 use App\Services\Import\OrderImporter;
+use App\Services\Import\OrderNoteImporter;
 use App\Services\Import\ProductImporter;
+use App\Services\Import\ReviewImporter;
 use App\Services\Import\TaxonomyImporter;
 use App\Services\Import\WooCommerceSource;
 use Illuminate\Console\Command;
@@ -23,12 +26,12 @@ use Throwable;
 class ImportFromWooCommerce extends Command
 {
     protected $signature = 'dmd:import
-        {--only=* : Limit to some parts: taxonomy, products, customers, orders}
+        {--only=* : Limit to some parts: taxonomy, products, customers, orders, reviews, notes}
         {--force : Allow running with APP_ENV=production (only before go-live)}';
 
     protected $description = 'Import the old WooCommerce store into MySQL (categories, brands, …), keeping legacy ids';
 
-    public const PARTS = ['taxonomy', 'products', 'customers', 'orders'];
+    public const PARTS = ['taxonomy', 'products', 'customers', 'orders', 'reviews', 'notes'];
 
     public function handle(): int
     {
@@ -81,6 +84,24 @@ class ImportFromWooCommerce extends Command
     private function orders(WooCommerceSource $source): array
     {
         return $this->report(new OrderImporter, fn ($i) => $i->import($source->all('/orders', ['status' => 'any'])));
+    }
+
+    private function reviews(WooCommerceSource $source): array
+    {
+        return $this->report(new ReviewImporter, fn ($i) => $i->import($source->all('/products/reviews', ['status' => 'all'])));
+    }
+
+    /** Order notes: one request per imported order (WooCommerce has no bulk endpoint for them). */
+    private function notes(WooCommerceSource $source): array
+    {
+        $ids = array_column($source->all('/orders', ['status' => 'any', '_fields' => 'id']), 'id');
+        $imported = Order::whereIn('id', $ids)->pluck('id');
+        $notes = [];
+        foreach ($imported as $id) {
+            $notes[$id] = $source->all("/orders/{$id}/notes", ['type' => 'any']);
+        }
+
+        return $this->report(new OrderNoteImporter, fn ($i) => $i->import($notes));
     }
 
     private function report(object $importer, callable $run): array

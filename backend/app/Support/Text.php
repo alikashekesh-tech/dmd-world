@@ -14,6 +14,25 @@ final class Text
         return mb_substr(trim((string) $s), 0, $max);
     }
 
+    /**
+     * Text a person typed (a review, a message), kept exactly as written apart from invisible control characters,
+     * runs of blank lines and surrounding space. It is stored and served as plain text, never as HTML: "<b>" stays
+     * the four characters a buyer typed, and every client renders it as text.
+     */
+    public static function multiline(?string $text, int $max): string
+    {
+        $s = str_replace(["\r\n", "\r"], "\n", (string) $text);
+        $s = preg_replace(['/[\x{0000}-\x{0008}\x{000B}-\x{001F}\x{007F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', "/[ \t]+\n/", "/\n{3,}/"], ['', "\n", "\n\n"], $s) ?? '';
+
+        return mb_substr(trim($s), 0, $max);
+    }
+
+    /** One line a person typed (a review title): like multiline, with line breaks turned into spaces. */
+    public static function line(?string $text, int $max): string
+    {
+        return mb_substr(trim((string) preg_replace('/\s+/u', ' ', self::multiline($text, $max * 2))), 0, $max);
+    }
+
     /** Old store category names are often in capitals ("HEADPHONE MARVO"): make them readable. */
     public static function tidyName(string $name): string
     {

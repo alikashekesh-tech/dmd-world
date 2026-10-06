@@ -40,8 +40,10 @@ class OrderImportTest extends TestCase
         Http::swap(new Factory(app('events')));
         Http::fake([
             'old-store.test/wp-json/wc/v3/products/categories*' => Http::response($this->fixture('categories'), 200, ['X-WP-TotalPages' => '1']),
+            'old-store.test/wp-json/wc/v3/products/reviews*' => Http::response([], 200, ['X-WP-TotalPages' => '1']),
             'old-store.test/wp-json/wc/v3/products*' => Http::response($this->fixture('products'), 200, ['X-WP-TotalPages' => '1']),
             'old-store.test/wp-json/wc/v3/customers*' => Http::response($this->fixture('customers'), 200, ['X-WP-TotalPages' => '1']),
+            'old-store.test/wp-json/wc/v3/orders/*/notes*' => Http::response([]),
             'old-store.test/wp-json/wc/v3/orders*' => Http::response($this->orders, 200, ['X-WP-TotalPages' => '1']),
         ]);
         $this->artisan('dmd:import')->assertSuccessful();

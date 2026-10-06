@@ -47,6 +47,22 @@ class User extends Authenticatable
         return $this->belongsToMany(Product::class, 'wishlist_items')->withPivot('created_at');
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /** Conversations with the store, newest activity first. */
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class)->orderByDesc('last_message_at')->orderByDesc('id');
+    }
+
+    public function stockAlerts(): HasMany
+    {
+        return $this->hasMany(StockAlert::class);
+    }
+
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
