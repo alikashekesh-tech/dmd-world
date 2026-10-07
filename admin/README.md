@@ -19,7 +19,7 @@ From the project root, with the API running (`npm run api:serve`):
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/admin/. The owner account is created once on the server:
+Open http://127.0.0.1:5173/admin. Screens use hash routes (`/admin/#/orders/12`); a path address such as `/admin/orders/12?status=pending` (typed, bookmarked or refreshed) opens the same screen: the dev server redirects it, and in production Caddy serves the admin and the app reads the path. The owner account is created once on the server:
 
 ```bash
 php artisan dmd:owner

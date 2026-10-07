@@ -28,7 +28,7 @@ npm run dev
 ```
 
 - **Storefront:** http://127.0.0.1:5173 (the one development address; see below)
-- **Admin:** http://127.0.0.1:5173/admin/. Create the owner account once with `php artisan dmd:owner` (inside `backend/`).
+- **Admin:** http://127.0.0.1:5173/admin (deep links such as `/admin/orders` or `/admin/products/123` open that screen). Create the owner account once with `php artisan dmd:owner` (inside `backend/`).
 - **Emails** (password resets, order confirmations, replies, back-in-stock) are written to `backend/storage/logs/laravel.log` until SMTP is configured.
 
 The Vite dev server forwards `/api/v1` and `/storage` to Laravel on :8000, so the browser only ever talks to its own origin, exactly as in production.

@@ -20,20 +20,39 @@ const proxy = {
 const HOST = '127.0.0.1';
 const PORT = 5173;
 const ORIGIN = `http://${HOST}:${PORT}`;
+const redirect = (res, status, location) => {
+  res.statusCode = status;
+  res.setHeader('Location', location);
+  res.end();
+};
 const canonicalHost = (req, res, next) => {
-  if (/^localhost(:\d+)?$/i.test(req.headers.host || '')) {
-    res.statusCode = 308;
-    res.setHeader('Location', ORIGIN + req.url);
-    res.end();
-    return;
-  }
+  if (/^localhost(:\d+)?$/i.test(req.headers.host || '')) return redirect(res, 308, ORIGIN + req.url);
+  next();
+};
+
+// The owner's admin is its own React app (admin/index.html, hash routes such as /admin/#/orders/12), served at /admin/
+// here as in production. Pages under it would otherwise fall through to the storefront (its "GAME OVER" 404):
+// /admin → /admin/ (as Caddy does), and a typed or refreshed /admin/orders/12?status=x → /admin/#/orders/12?status=x.
+// Only page requests are redirected; the admin's modules and files (/admin/src/…) are served as usual.
+const FILE = /\.(?:[cm]?[jt]sx?|css|map|json|html?|png|jpe?g|gif|svg|webp|avif|ico|woff2?|txt)$/i;
+const adminPages = (req, res, next) => {
+  const [path, qs] = (req.url || '').split('?');
+  const page = (req.method === 'GET' || req.method === 'HEAD') && /text\/html/.test(req.headers.accept || '');
+  const query = qs ? `?${qs}` : '';
+  if (page && path === '/admin') return redirect(res, 302, `/admin/${query}`);
+  const route = page && !FILE.test(path) && path.match(/^\/admin\/(?!src\/|@|node_modules\/)(.+?)\/?$/);
+  if (route) return redirect(res, 302, `/admin/#/${route[1]}${query}`);
   next();
 };
 
 export default defineConfig({
   plugins: [
     react(),
-    { name: 'dmd-canonical-host', configureServer: (s) => { s.middlewares.use(canonicalHost); }, configurePreviewServer: (s) => { s.middlewares.use(canonicalHost); } },
+    {
+      name: 'dmd-dev-routing',
+      configureServer: (s) => { s.middlewares.use(canonicalHost); s.middlewares.use(adminPages); },
+      configurePreviewServer: (s) => { s.middlewares.use(canonicalHost); },
+    },
   ],
   define: {
     __SERVER_FORWARD_CONSOLE__: 'false',
