@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from '../router/index.jsx';
+import { Link, useLocation, useNavigate, useSearchParams } from '../router/index.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 import PageHero from '../components/ui/PageHero.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
@@ -15,6 +15,7 @@ import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import { account } from '../lib/account.js';
+import { SIGN_IN, REGISTER, FORGOT, authUrl, safeNext } from '../lib/authRoutes.js';
 import { reviews as reviewApi, messages as messageApi } from '../lib/community.js';
 import AddressBook from '../components/account/AddressBook.jsx';
 import s from './Account.module.css';
@@ -35,21 +36,20 @@ function ItemThumb({ item }) {
 }
 
 /* ── signed out: sign in, create an account, or reset a forgotten password ── */
-function SignIn() {
+// The form comes from the address (SIGN_IN, REGISTER or FORGOT), never from state kept here, so every link to a form
+// opens it. Once signed in, Account sends the buyer on (to ?next= or the account).
+function SignIn({ mode = 'in' }) {
   const { signIn, register, accounts, sessionError, retrySession } = useStore();
-  const nav = useNavigate();
   const [params] = useSearchParams();
-  const next = params.get('next');
-  // Only plain paths on this site: no "//host", no backslashes (browsers read "/\host" as another site), no spaces.
-  const back = () => { if (next && /^\/(?![/\\])[^\\\s]*$/.test(next) && next.length < 300) nav(next); };
-  const [mode, setMode] = useState('in');
+  const to = (path) => authUrl(path, params.get('next'));
   const [f, setF] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirm: '' });
   const [err, setErr] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (e) => { setF((x) => ({ ...x, [e.target.name]: e.target.value })); setErr(''); };
   const setPw = (k) => (v) => { setF((x) => ({ ...x, [k]: v })); setErr(''); };
-  const go = (m) => { setMode(m); setErr(''); setDone(''); setF((x) => ({ ...x, password: '', confirm: '' })); };
+  // Switching forms keeps the name and email typed so far, never a password or an old message.
+  useEffect(() => { setErr(''); setDone(''); setBusy(false); setF((x) => ({ ...x, password: '', confirm: '' })); }, [mode]);
 
   const ready = mode === 'in' ? isEmail(f.email) && f.password.length > 0
     : mode === 'up' ? f.firstName.trim() && f.lastName.trim() && isEmail(f.email) && passwordReady(f.password) && f.password === f.confirm
@@ -60,8 +60,8 @@ function SignIn() {
     if (!ready || busy) return;
     setBusy(true); setErr('');
     try {
-      if (mode === 'in') { await signIn(f.email.trim(), f.password); back(); return; }
-      if (mode === 'up') { await register({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, confirm: f.confirm }); back(); return; }
+      if (mode === 'in') { await signIn(f.email.trim(), f.password); return; }
+      if (mode === 'up') { await register({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, confirm: f.confirm }); return; }
       else setDone(await account.forgot(f.email.trim()));
     } catch (x) { setErr(x.message); }
     setBusy(false);
@@ -87,7 +87,7 @@ function SignIn() {
             <div className={s.sent} role="status">
               <b>Check your email</b>
               <p>{done}</p>
-              <button type="button" className="btn btn--secondary btn--block" onClick={() => go('in')}>Back to sign in</button>
+              <Link to={to(SIGN_IN)} className="btn btn--secondary btn--block">Back to sign in</Link>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
@@ -101,7 +101,7 @@ function SignIn() {
               {mode === 'up' && <div className="field"><label htmlFor="phone">Phone <span className={s.opt}>optional</span></label><input id="phone" name="phone" type="tel" className="input" value={f.phone} onChange={set} autoComplete="tel" placeholder="+961 …" /></div>}
               {mode === 'in' && (
                 <PasswordField label="Password" value={f.password} onChange={setPw('password')} autoComplete="current-password">
-                  <button type="button" className={s.forgot} onClick={() => go('forgot')}>Forgot your password?</button>
+                  <Link to={to(FORGOT)} className={s.forgot}>Forgot your password?</Link>
                 </PasswordField>
               )}
               {mode === 'up' && (
@@ -120,8 +120,8 @@ function SignIn() {
             </form>
           )}
           <p className={s.switch}>
-            {mode === 'in' ? <>New to DMD World? <button type="button" onClick={() => go('up')}>Create an account</button></>
-              : <>Already have an account? <button type="button" onClick={() => go('in')}>Sign in</button></>}
+            {mode === 'in' ? <>New to DMD World? <Link to={to(REGISTER)}>Create an account</Link></>
+              : <>Already have an account? <Link to={to(SIGN_IN)}>Sign in</Link></>}
           </p>
           <small>Your password is checked by the store and never kept in this browser.</small>
         </div>
@@ -401,12 +401,23 @@ const HELP = [
 ];
 const TABS = [['orders', 'Order history'], ['messages', 'Messages'], ['reviews', 'My reviews'], ['alerts', 'Stock alerts'], ['profile', 'Profile & address'], ['security', 'Password'], ['help', 'Shipping & returns']];
 
-export default function Account() {
-  usePageMeta({ title: 'Your account', noindex: true });
+const AUTH_TITLES = { in: 'Sign in', up: 'Create account', forgot: 'Reset your password' };
+
+/** `auth` is set on the sign-in routes (App.jsx): 'in' (SIGN_IN), 'up' (REGISTER) or 'forgot' (FORGOT). */
+export default function Account({ auth }) {
+  usePageMeta({ title: AUTH_TITLES[auth] || 'Your account', noindex: true });
   const { buyer, checking, signOut, orders, wishlist, unread, alerts } = useStore();
   const [params, setParams] = useSearchParams();
-  if (checking) return <div className={`container ${s.auth}`}><p className={s.muted} role="status">Checking your account…</p></div>;
-  if (!buyer) return <SignIn />;
+  const { search } = useLocation();
+  const nav = useNavigate();
+  // Signed in on a sign-in form: on to ?next= or the account. Signed out on the account: the sign-in form, which
+  // brings the buyer back here afterwards (to the same tab, or to the ?next= an older link carried).
+  const redirect = checking ? null
+    : buyer ? (auth ? safeNext(params.get('next')) || '/account' : null)
+      : auth ? null : authUrl(SIGN_IN, params.get('next') || (search.length > 1 ? `/account${search}` : null));
+  useEffect(() => { if (redirect) nav(redirect, { replace: true }); }, [redirect, nav]);
+  if (checking || redirect) return <div className={`container ${s.auth}`}><p className={s.muted} role="status">Checking your account…</p></div>;
+  if (!buyer) return <SignIn mode={auth} />;
   const tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'orders';
   const go = (t) => setParams({ tab: t });
   const ordersCount = orders.length;

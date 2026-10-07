@@ -40,13 +40,15 @@ class PreflightTest extends TestCase
     public function test_unsafe_or_dishonest_settings_fail_and_are_named(): void
     {
         $this->withOwner();
-        $this->production(['app.debug' => true, 'session.secure' => false, 'mail.default' => 'log', 'sanctum.stateful' => ['localhost:5173']]);
+        $this->production(['app.debug' => true, 'session.secure' => false, 'mail.default' => 'log', 'sanctum.stateful' => ['127.0.0.1:5173'],
+            'cors.allowed_origins' => ['http://127.0.0.1:5173']]);
         $this->artisan('dmd:preflight')
             ->expectsOutputToContain('APP_DEBUG is on')
             ->expectsOutputToContain('SESSION_SECURE_COOKIE is not true')
             ->expectsOutputToContain('only be written to the log')
             ->expectsOutputToContain('nobody could sign in')
-            ->expectsOutputToContain('4 problem(s)')
+            ->expectsOutputToContain('CORS_ALLOWED_ORIGINS lists a development or http origin (http://127.0.0.1:5173)')
+            ->expectsOutputToContain('5 problem(s)')
             ->assertFailed();
     }
 

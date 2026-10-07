@@ -24,7 +24,7 @@ class Preflight extends Command
     public function handle(Migrator $migrator): int
     {
         $https = fn (?string $url) => str_starts_with((string) $url, 'https://');
-        // As Sanctum compares it: the host, with the port when the address has one ("localhost:5173").
+        // As Sanctum compares it: the host, with the port when the address has one ("127.0.0.1:5173").
         $host = fn (?string $url) => strtolower((string) parse_url((string) $url, PHP_URL_HOST)).(($port = parse_url((string) $url, PHP_URL_PORT)) ? ":{$port}" : '');
         $stateful = array_map('strtolower', (array) config('sanctum.stateful'));
         $frontendHost = $host(config('dmd.frontend_url'));
@@ -39,6 +39,8 @@ class Preflight extends Command
         $this->check(in_array(config('session.same_site'), ['lax', 'strict'], true), 'session cookies are SameSite', 'SESSION_SAME_SITE must be lax or strict');
         $this->check(in_array($frontendHost, $stateful, true), "the storefront ({$frontendHost}) can sign in", 'SANCTUM_STATEFUL_DOMAINS does not list the FRONTEND_URL host: nobody could sign in');
         $this->check(! in_array('*', (array) config('cors.allowed_origins'), true), 'no wildcard CORS origin', 'CORS_ALLOWED_ORIGINS contains *');
+        $devOrigins = array_filter((array) config('cors.allowed_origins'), fn ($o) => ! str_starts_with((string) $o, 'https://') || preg_match('#^(localhost|127\.0\.0\.1)(:|$)#', $host($o)));
+        $this->check($devOrigins === [], 'CORS lists only https production origins', 'CORS_ALLOWED_ORIGINS lists a development or http origin ('.implode(', ', $devOrigins).'): production leaves it empty');
         $this->check(! in_array(config('mail.default'), ['log', 'array'], true), 'emails are really sent ('.config('mail.default').')', 'MAIL_MAILER is “'.config('mail.default').'”: password resets and order emails would only be written to the log');
         $this->check(config('database.connections.mysql.username') !== 'root', 'the app uses its own MySQL account', 'DB_USERNAME is root: give the app its own account (php artisan db:provision)');
 

@@ -8,6 +8,7 @@ import { ArrowRight, CheckIcon, PhoneIcon } from '../components/common/icons.jsx
 import { guestOrders, ORDER_STATUS } from '../lib/storeApi.js';
 import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
+import { REGISTER } from '../lib/authRoutes.js';
 import { getProduct, money } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import NotFound from './NotFound.jsx';
@@ -153,7 +154,7 @@ export default function Order() {
           {buyer ? <Link to={`/account?tab=messages&order=${o.id}`} className="btn btn--secondary btn--lg">Message DMD</Link>
             : <a href={`tel:${CONTACT.tel}`} className="btn btn--secondary btn--lg"><PhoneIcon size={17} />Call DMD</a>}
         </div>
-        {!buyer && <p className={s.guestNote}>This page stays available on this device for 30 days. <Link to="/account" className="link">Create an account</Link> to keep every order in one place.</p>}
+        {!buyer && <p className={s.guestNote}>This page stays available on this device for 30 days. <Link to={REGISTER} className="link">Create an account</Link> to keep every order in one place.</p>}
       </div>
     </>
   );

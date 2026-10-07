@@ -11,8 +11,8 @@ use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
-    /** The SPA's origin: Sanctum only gives cookie sessions to requests from a stateful domain. */
-    protected const SPA = 'http://localhost:5173';
+    /** The SPA's origin (the one dev address): Sanctum only gives cookie sessions to requests from a stateful domain. */
+    protected const SPA = 'http://127.0.0.1:5173';
 
     public const OWNER_PASSWORD = 'Owner-Pass-2026!';
 

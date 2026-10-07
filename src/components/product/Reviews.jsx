@@ -3,6 +3,7 @@ import { Link } from '../../router/index.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { Rating } from '../common/bits.jsx';
 import { reviews } from '../../lib/community.js';
+import { SIGN_IN, authUrl } from '../../lib/authRoutes.js';
 import page from '../../pages/ProductPage.module.css';
 import s from './Reviews.module.css';
 
@@ -82,7 +83,7 @@ export default function Reviews({ product, open }) {
   if (error) return <div className={page.panel}><p className={s.err}>{error}</p></div>;
   if (!data) return <div className={page.panel}><p className={s.help} role="status">Loading reviews…</p></div>;
   const max = Math.max(1, ...data.breakdown.map((b) => b.count));
-  const next = encodeURIComponent(`/product/${product.slug}?review=1`);
+  const signInUrl = authUrl(SIGN_IN, `/product/${product.slug}?review=1`);
   return (
     <div className={`${page.panel} ${page.reviewPanel}`}>
       <div className={s.side}>
@@ -100,7 +101,7 @@ export default function Reviews({ product, open }) {
           <div className={s.prompt}>
             <b>Share your thoughts</b>
             <p>Sign in to review this product. Reviews from buyers are marked Verified purchase.</p>
-            <Link to={`/account?next=${next}`} className="btn btn--secondary btn--block">Sign in to write a review</Link>
+            <Link to={signInUrl} className="btn btn--secondary btn--block">Sign in to write a review</Link>
           </div>
         ) : mine === null ? null : mine ? (
           <div className={s.prompt}>

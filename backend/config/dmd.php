@@ -9,8 +9,8 @@ $list = fn (?string $value) => array_values(array_filter(array_map('trim', explo
 return [
 
     // Where the React storefront and the owner's admin are served. Links in emails (password resets) point here.
-    'frontend_url' => rtrim((string) env('FRONTEND_URL', 'http://localhost:5173'), '/'),
-    'admin_url' => rtrim((string) env('ADMIN_URL', env('FRONTEND_URL', 'http://localhost:5173').'/admin'), '/'),
+    'frontend_url' => rtrim((string) env('FRONTEND_URL', 'http://127.0.0.1:5173'), '/'),
+    'admin_url' => rtrim((string) env('ADMIN_URL', env('FRONTEND_URL', 'http://127.0.0.1:5173').'/admin'), '/'),
 
     // The store's own timezone: where "today" and each day of the owner's dashboard begin. Dates are stored in UTC.
     'timezone' => env('STORE_TIMEZONE', 'Asia/Beirut'),

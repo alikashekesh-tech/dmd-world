@@ -24,7 +24,7 @@ php artisan migrate
 
 ```bash
 npm run api:serve      # from the project root: Laravel on http://127.0.0.1:8000
-npm run dev            # the storefront and admin on http://localhost:5173
+npm run dev            # the storefront and admin on http://127.0.0.1:5173 (the only origin Sanctum trusts in development)
 ```
 
 The Vite dev server forwards `/api/v1/*` and `/storage/*` to Laravel, so the browser only ever talks to its own origin. Cookie sessions and CSRF work the same as in production, and no CORS is needed.

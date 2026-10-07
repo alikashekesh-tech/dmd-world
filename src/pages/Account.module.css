@@ -17,7 +17,7 @@
 .authCard small { display: block; margin-top: 18px; text-align: center; font: 500 11px var(--font-mono); letter-spacing: .06em; color: var(--muted); }
 .err { margin: 0; color: var(--deal); font-size: 13.5px; }
 .switch { margin: 18px 0 0 !important; text-align: center; color: var(--muted); font-size: 14px; }
-.switch button { font-weight: 650; color: var(--accent); }
+.switch a { font-weight: 650; color: var(--accent); }
 
 /* signed in: player card in the hero */
 .signOut { margin-top: 22px; }

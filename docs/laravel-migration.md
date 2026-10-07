@@ -127,7 +127,7 @@ Browser ─ storefront (/) and admin (/admin): React + Vite builds, served as st
 ```
 
 **Development**
-- **Proxy:** Vite on 5173 forwards `/api/v1`, `/storage`, `/robots.txt` and `/sitemap.xml` to Laravel on 8000 (`npm run api:serve`).
+- **Proxy:** Vite on http://127.0.0.1:5173 (its only address: `strictPort`, and localhost is redirected to it) forwards `/api/v1`, `/storage`, `/robots.txt` and `/sitemap.xml` to Laravel on 8000 (`npm run api:serve`).
 
 **Production**
 - **Front:** Caddy serves `dist/`, `admin/dist/` and the uploads, and forwards the API to php-fpm (`deploy/Caddyfile`, [deployment.md](deployment.md)).
@@ -238,6 +238,6 @@ Each phase follows the same steps: schema, then model, then validation, then end
 
   `db:provision` asks for your MySQL root password, which is not stored. It then creates both databases and a dedicated `dmd_world` account; that account's password is already generated in `backend/.env`.
 - **Run:**
-  - **API:** `npm run api:serve` starts Laravel on 127.0.0.1:8000, reachable through Vite at `http://localhost:5173/api/v1/...`.
+  - **API:** `npm run api:serve` starts Laravel on 127.0.0.1:8000, reachable through Vite at `http://127.0.0.1:5173/api/v1/...`.
   - **Tests:** `npm test`.
   - **Everything:** `npm run check` now also runs the Laravel tests.

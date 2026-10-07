@@ -62,4 +62,4 @@
   .cartTxt { display: none; }
   .cart { width: 44px; height: 44px; padding: 0; justify-content: center; margin-left: 2px; }
 }
-@media (max-width: 640px) { .announce { margin: 0 12px; } .contact .hideSm { display: none; } .contact, .utilLinks { gap: 16px; } .util { font-size: 10.5px; letter-spacing: .08em; } .utilLinks a:first-child { display: none; } }
+@media (max-width: 640px) { .announce { margin: 0 12px; } .contact .hideSm { display: none; } .contact, .utilLinks { gap: 16px; } .util { font-size: 10.5px; letter-spacing: .08em; } .utilLinks > a:first-child { display: none; } }

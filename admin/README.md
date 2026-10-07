@@ -19,7 +19,7 @@ From the project root, with the API running (`npm run api:serve`):
 npm run dev
 ```
 
-Open http://localhost:5173/admin/. The owner account is created once on the server:
+Open http://127.0.0.1:5173/admin/. The owner account is created once on the server:
 
 ```bash
 php artisan dmd:owner

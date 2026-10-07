@@ -37,6 +37,27 @@ class BuyerRegistrationTest extends TestCase
         $this->assertNotNull($user->last_login_at);
     }
 
+    /**
+     * Regression: with 5173 taken, Vite used to move to 5174/5175, and sign-up from there failed with SESSION_REQUIRED
+     * ("Please use the DMD World website to sign in"): only the one dev address gets a cookie session.
+     */
+    #[DataProvider('otherOrigins')]
+    public function test_only_the_canonical_dev_origin_gets_a_session(string $origin): void
+    {
+        $this->withServerVariables(['REMOTE_ADDR' => '10.7.7.7'])->withHeaders(['Origin' => $origin, 'Referer' => "{$origin}/"])
+            ->postJson('/api/v1/auth/register', $this->form())
+            ->assertStatus(400)->assertJsonPath('error.code', 'SESSION_REQUIRED');
+        $this->assertDatabaseMissing('users', ['email' => 'rima@example.com']);
+
+        $this->client()->post('/api/v1/auth/register', $this->form())->assertCreated(); // from http://127.0.0.1:5173
+    }
+
+    public static function otherOrigins(): array
+    {
+        return ['a fallback port' => ['http://127.0.0.1:5174'], 'another fallback port' => ['http://127.0.0.1:5175'],
+            'localhost instead of 127.0.0.1' => ['http://localhost:5173'], 'another site' => ['https://evil.example']];
+    }
+
     public function test_the_email_is_trimmed_and_lower_cased(): void
     {
         $this->client()->post('/api/v1/auth/register', $this->form(['email' => '  Rima.Haddad@Example.COM ']))->assertCreated();

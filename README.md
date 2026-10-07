@@ -27,11 +27,15 @@ npm run api:serve
 npm run dev
 ```
 
-- **Storefront:** http://localhost:5173
-- **Admin:** http://localhost:5173/admin/. Create the owner account once with `php artisan dmd:owner` (inside `backend/`).
+- **Storefront:** http://127.0.0.1:5173 (the one development address; see below)
+- **Admin:** http://127.0.0.1:5173/admin/. Create the owner account once with `php artisan dmd:owner` (inside `backend/`).
 - **Emails** (password resets, order confirmations, replies, back-in-stock) are written to `backend/storage/logs/laravel.log` until SMTP is configured.
 
 The Vite dev server forwards `/api/v1` and `/storage` to Laravel on :8000, so the browser only ever talks to its own origin, exactly as in production.
+
+**One development address: http://127.0.0.1:5173.** Laravel gives cookie sessions only to this origin (`SANCTUM_STATEFUL_DOMAINS` in `backend/.env`), so:
+- **Port taken:** if 5173 is busy, `npm run dev` stops with "Port 5173 is already in use" instead of moving to 5174. Stop the old dev server and run it again. (On a fallback port, sign-in and sign-up fail with "Please use the DMD World website to sign in.")
+- **`localhost:5173`:** redirected to `127.0.0.1:5173`. To the browser and to Sanctum it is a different site, with its own cookies.
 
 ## Check everything
 

@@ -7,6 +7,7 @@ import Logo from './Logo.jsx';
 import SearchBox from './SearchBox.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { useDialog } from '../../lib/useDialog.js';
+import { SIGN_IN } from '../../lib/authRoutes.js';
 import s from './MobileNav.module.css';
 
 function Acc({ title, children, defaultOpen }) {
@@ -47,7 +48,7 @@ export default function MobileNav({ open, onClose }) {
           <Link to="/contact" className={s.row} onClick={onClose}>Contact Us</Link>
         </div>
         <div className={s.foot}>
-          <Link to="/account" onClick={onClose} className="btn btn--dark btn--sm"><UserIcon size={17} />{user ? 'My account' : 'Sign in'}</Link>
+          <Link to={user ? '/account' : SIGN_IN} onClick={onClose} className="btn btn--dark btn--sm"><UserIcon size={17} />{user ? 'My account' : 'Sign in'}</Link>
           <Link to="/wishlist" onClick={onClose} className="btn btn--dark btn--sm"><HeartIcon size={17} />Wishlist{wishlist.length ? ` (${wishlist.length})` : ''}</Link>
         </div>
       </aside>

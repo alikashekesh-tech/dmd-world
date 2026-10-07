@@ -1,4 +1,4 @@
-// Captures every page of the running dev server (http://localhost:5173) for the showcase video.
+// Captures every page of the running dev server (http://127.0.0.1:5173) for the showcase video.
 // Output: public/shots/<id>.jpg, public/seq/<id>/0000.jpg..., public/shots/manifest.json (sizes + target rectangles).
 // Usage: node scripts/capture.mjs [only-these-ids...]
 import { spawn } from 'node:child_process';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { DESK, MOBILE } from '../src/geometry.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = process.env.SITE || 'http://localhost:5173';
+const BASE = process.env.SITE || 'http://127.0.0.1:5173';
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const SHOTS = join(ROOT, 'public', 'shots');
 const SEQ = join(ROOT, 'public', 'seq');

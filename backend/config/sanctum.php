@@ -18,10 +18,11 @@ return [
     |
     */
 
-    // DMD: the React storefront and admin (Vite dev server by default; the store's domain in production).
+    // DMD: the React storefront and admin. Development: the one Vite address, 127.0.0.1:5173 (vite.config.js refuses
+    // other ports and sends localhost there). Production: the store's domain only.
     'stateful' => array_values(array_filter(array_map('trim', explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
         '%s%s',
-        'localhost:5173,127.0.0.1:5173',
+        '127.0.0.1:5173',
         Sanctum::currentApplicationUrlWithPort(),
     )))))),
 

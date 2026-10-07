@@ -20,6 +20,11 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <!-- The SPA origin the tests act as (tests/TestCase.php), independent of anyone's local .env -->
+        <env name="FRONTEND_URL" value="http://127.0.0.1:5173"/>
+        <env name="ADMIN_URL" value="http://127.0.0.1:5173/admin"/>
+        <env name="SANCTUM_STATEFUL_DOMAINS" value="127.0.0.1:5173"/>
+        <env name="CORS_ALLOWED_ORIGINS" value=""/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <!-- Cheap hashing keeps the suite fast; the algorithm (Argon2id) is the real one. -->
         <env name="ARGON_MEMORY" value="1024"/>

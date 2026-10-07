@@ -977,3 +977,27 @@ All are under `auth:admin` + `auth.session`.
 - **Real emails:** SMTP settings.
 - **The server:** a domain and server, then `dmd:preflight` until it says "Ready for production."
 - **Backups:** a restore test on the real server.
+
+## Follow-up: one development address and route-based sign-in (7 Oct 2026)
+
+**Registration failing with "Please use the DMD World website to sign in."**
+- **Cause:** an old Vite process held port 5173, so `npm run dev` silently moved to 5174, then 5175. Sanctum only starts cookie sessions for origins in `SANCTUM_STATEFUL_DOMAINS` (`localhost:5173,127.0.0.1:5173`). Requests from the fallback ports got no session, and `RequireSession` refused sign-up and sign-in (400 `SESSION_REQUIRED`).
+- **Fix:**
+  - **One address:** `vite.config.js` uses `127.0.0.1:5173` with `strictPort`, for both dev and preview. A busy port is now an error, not a silent move, and `localhost:5173` is redirected (308) to `127.0.0.1:5173`.
+  - **Laravel trusts that address only:** `SANCTUM_STATEFUL_DOMAINS=127.0.0.1:5173`, and `CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173` (exact, credentialed, no wildcard). The same goes for the config defaults and `.env.example`.
+  - **Tests:** `phpunit.xml` pins the test origin, so the tests no longer depend on a developer's `.env`.
+  - **Production guard:** `dmd:preflight` now refuses http or loopback CORS origins.
+- **Clean-up:** the three stale DMD Vite processes (on 5173, 5174 and 5175) were stopped.
+
+**Mobile drawer "Sign in" leaving the buyer on Create account**
+- **Cause:** sign-in, sign-up and reset were one route (`/account`), with the form held in component state. The drawer linked to `/account`, the address the buyer was already on, so nothing remounted and the form stayed on "Create account".
+- **Fix:** each form has its own route: `/account/sign-in`, `/account/register` and `/account/forgot-password` (`src/lib/authRoutes.js`). The form follows the route.
+  - **Signed in on one of these routes:** the buyer is sent on to `?next=` or `/account`.
+  - **Signed out on `/account`:** the buyer is sent to the sign-in route, carrying the tab they asked for.
+- **Links updated:** every "Sign in" (drawer, header, checkout, product back-in-stock, reviews, reset page) and every "Create account" or "Register" (header, sign-in form, guest order page).
+
+**Tests:**
+- **Laravel:** 216 of 216 pass. New: sign-up from 5174, 5175, `localhost:5173` or another site gets no session, while `127.0.0.1:5173` does. Preflight now also checks for development CORS origins.
+- **Frontend:** the project has no navigation test runner, so the drawer was checked in the browser at mobile width.
+  - **Drawer "Sign in":** from home, shop, product, cart, checkout, create account and sign in, it always opened `/account/sign-in`.
+  - **"Create an account":** it always opened `/account/register`.

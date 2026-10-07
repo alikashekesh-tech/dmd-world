@@ -7,6 +7,7 @@ import { ArrowRight } from '../components/common/icons.jsx';
 import { PasswordField, PasswordRules, MatchHint, passwordReady } from '../components/account/Password.jsx';
 import { account } from '../lib/account.js';
 import { usePageMeta } from '../lib/meta.js';
+import { SIGN_IN } from '../lib/authRoutes.js';
 import s from './Account.module.css';
 
 /* Opened from the reset email: choose a new password (same rules as sign-up), then you're signed in. */
@@ -56,7 +57,7 @@ export default function ResetPassword() {
             <div className={s.sent} role="alert">
               <b>This link has expired</b>
               <p>Reset links work once, for 60 minutes. Ask for a new one and use the newest email.</p>
-              <Link to="/account" className="btn btn--secondary btn--block">Back to sign in</Link>
+              <Link to={SIGN_IN} className="btn btn--secondary btn--block">Back to sign in</Link>
             </div>
           )}
           {valid && (

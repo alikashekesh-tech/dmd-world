@@ -10,6 +10,7 @@ import { account } from '../lib/account.js';
 import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
 import { useQuote } from '../lib/useQuote.js';
+import { SIGN_IN, authUrl } from '../lib/authRoutes.js';
 import { money } from '../data/index.js';
 import s from './Checkout.module.css';
 
@@ -163,7 +164,7 @@ export default function Checkout() {
               <Field label="Last name" name="lastName" value={f.lastName} onChange={set} error={errors.lastName} auto="family-name" />
               <Field label="Email" name="email" type="email" value={f.email} onChange={set} error={errors.email} auto="email" inputMode="email" />
               <Field label="Phone" name="phone" type="tel" value={f.phone} onChange={set} error={errors.phone} auto="tel" placeholder="+961 …" inputMode="tel" />
-              {!buyer && <p className={`${s.hint} ${s.wide}`}>Have an account? <Link to="/account?next=%2Fcheckout" className={s.a}>Sign in</Link> to use saved details and see this order in your history.</p>}
+              {!buyer && <p className={`${s.hint} ${s.wide}`}>Have an account? <Link to={authUrl(SIGN_IN, '/checkout')} className={s.a}>Sign in</Link> to use saved details and see this order in your history.</p>}
             </div>
           </section>
           <section className={s.card} aria-labelledby="co-method">

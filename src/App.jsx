@@ -32,6 +32,10 @@ const routes = [
   { path: '/checkout', element: <Checkout /> },
   { path: '/order/:id', element: <Order /> },
   { path: '/account', element: <Account /> },
+  // One address per form, so a link always opens the form it names (src/lib/authRoutes.js).
+  { path: '/account/sign-in', element: <Account auth="in" /> },
+  { path: '/account/register', element: <Account auth="up" /> },
+  { path: '/account/forgot-password', element: <Account auth="forgot" /> },
   { path: '/account/reset', element: <ResetPassword /> },
   { path: '/wishlist', element: <Wishlist /> },
   { path: '/product-category/*', element: <ProductCategory /> },

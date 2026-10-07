@@ -17,6 +17,7 @@ import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
 import { laravelApi } from '../lib/laravelApi.js';
+import { SIGN_IN, authUrl } from '../lib/authRoutes.js';
 import NotFound from './NotFound.jsx';
 import s from './ProductPage.module.css';
 
@@ -41,7 +42,7 @@ function NotifyMe({ p }) {
   const { buyer, hasAlert, toggleAlert, setToast } = useStore();
   const [busy, setBusy] = useState(false);
   const on = hasAlert(p.id);
-  if (!buyer) return <Link to={`/account?next=${encodeURIComponent(`/product/${p.slug}`)}`} className="btn btn--secondary btn--lg btn--block"><BellIcon size={17} />Sign in to get a back-in-stock email</Link>;
+  if (!buyer) return <Link to={authUrl(SIGN_IN, `/product/${p.slug}`)} className="btn btn--secondary btn--lg btn--block"><BellIcon size={17} />Sign in to get a back-in-stock email</Link>;
   const flip = async () => {
     setBusy(true);
     try { const now = await toggleAlert(p.id); setToast(now ? `We’ll email you when ${p.name} is back` : 'Back-in-stock email cancelled'); }
