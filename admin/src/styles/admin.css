@@ -117,7 +117,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .surface-head h2, .surface-head h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
 .surface-body { padding: 16px; }
 .ledger > * + * { border-top: 1px solid var(--line); }
-.stack { display: grid; gap: 14px; }
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .row { display: flex; align-items: center; gap: 10px; }
 .wrap { flex-wrap: wrap; }
 .grow { flex: 1; min-width: 0; }
@@ -191,8 +191,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .status-select select option { background: var(--panel); color: var(--text); }
 
 /* ── tabs (segmented, with counts) ───────────────────────────────────── */
-.tabs { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
+/* Wraps onto a second line when there isn't room, so no status is ever hidden off the edge. */
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
 .tab { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 9px; font-weight: 600; font-size: 13px; color: var(--text-2); white-space: nowrap; transition: background .15s, color .15s; }
 .tab:hover { color: var(--text); }
 .tab.on { background: var(--panel-3); color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset; }
@@ -224,6 +224,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .cell-main small.waiting { display: inline-block; margin-top: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(255, 194, 61, .14); color: var(--amber); }
 .row-actions { display: flex; justify-content: flex-end; gap: 4px; opacity: 0.55; transition: opacity .15s; }
 tr:hover .row-actions, .row-actions:focus-within { opacity: 1; }
+@media (hover: none) { .row-actions { opacity: 1; } }
 .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line); font: 500 12px var(--mono); color: var(--muted); }
 .bulkbar { position: sticky; bottom: 16px; z-index: 20; display: flex; align-items: center; gap: 10px; margin: 12px auto 0; width: fit-content; max-width: 100%; padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--panel-3); border: 1px solid var(--line-2); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.8); animation: rise .25s var(--ease) both; flex-wrap: wrap; }
 
@@ -361,8 +362,7 @@ a.mini-row:hover { background: rgba(159, 178, 214, 0.04); }
 .cc-brief h1 { margin-top: 10px; font-size: clamp(26px, 2.8vw, 36px); font-weight: 800; letter-spacing: -0.045em; }
 .cc-brief p { margin-top: 8px; max-width: 74ch; font-size: 15px; color: var(--text-2); }
 .cc-brief p b { color: var(--text); font-weight: 650; }
-.cc-quick { grid-column: 1 / -1; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-top: -4px; }
-.cc-quick::-webkit-scrollbar { display: none; }
+.cc-quick { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: -4px; }
 .qa { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px 0 8px; border-radius: 11px; border: 1px dashed var(--line-2); color: var(--text-2); font-weight: 600; font-size: 13px; white-space: nowrap; transition: border-color .15s, background .15s, color .15s; }
 .qa .qi { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: rgba(91, 149, 255, 0.12); color: var(--blue); transition: transform .2s var(--ease); }
 .qa:hover { border-style: solid; border-color: rgba(91, 149, 255, 0.5); background: rgba(91, 149, 255, 0.06); color: #fff; }
@@ -597,6 +597,10 @@ li:first-child > .lb .rk { color: var(--amber); }
 .menu { animation-name: fade; }
 
 /* ── responsive ──────────────────────────────────────────────────────── */
+/* Single-column stacks and lists: a grid's automatic column grows to its widest line, so a row with one long
+   unwrapped title (shown with an ellipsis) would push the page wider than the screen. These columns may shrink. */
+.order-list, .drawer-body, .modal-body, .notes, .bars, .mix-wrap, .inbox-head, .composer, .target, .rv, .kpi, .score a, .trio a, .side-foot, .field { grid-template-columns: minmax(0, 1fr); }
+
 @media (max-width: 1280px) { .split, .split-wide { grid-template-columns: minmax(0, 1fr) 320px; } }
 @media (max-width: 1100px) {
   :root { --side: 72px; }
@@ -607,6 +611,7 @@ li:first-child > .lb .rk { color: var(--amber); }
   .side-foot { justify-items: center; }
   .split, .split-wide { grid-template-columns: 1fr; }
   .sticky-col { position: static; }
+  .table th, .table td { padding-left: 10px; padding-right: 10px; }
   .cc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .span-8, .span-12 { grid-column: 1 / -1; }
   .span-4 { grid-column: span 1; }
@@ -618,6 +623,23 @@ li:first-child > .lb .rk { color: var(--amber); }
   .rv:nth-child(3) { border-top: 1px solid var(--line); }
   .rv:not(:nth-child(3n+1)) { border-left: 0; }
   .rv:nth-child(2n) { border-left: 1px solid var(--line); }
+}
+/* Tables become stacked cards on phones and tablets in portrait, where their columns can't fit beside the sidebar. */
+@media (max-width: 900px) {
+  /* tables become stacked cards */
+  .table.cards thead { display: none; }
+  .table.cards, .table.cards tbody, .table.cards tr, .table.cards td { display: block; width: 100%; }
+  .table.cards tr { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .table.cards td { padding: 3px 0; border: 0; }
+  .table.cards td[data-label]::before { content: attr(data-label); display: inline-block; min-width: 92px; font: 600 9.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+  .table.cards td.right { text-align: left; }
+  .table.cards .row-actions { opacity: 1; justify-content: flex-start; margin-top: 6px; }
+  /* compact cards (order lists): name + total on top, status + time below */
+  .table.cards.compact tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
+  .table.cards.compact td { width: auto; }
+  .table.cards.compact td[data-label]::before { display: none; }
+  .table.cards.compact td.right { text-align: right; }
+  .table.cards.compact .hide-compact { display: none; }
 }
 @media (max-width: 760px) {
   :root { --top: 56px; }
@@ -641,20 +663,6 @@ li:first-child > .lb .rk { color: var(--amber); }
   .bottom-nav .count { position: absolute; top: 2px; left: calc(50% + 6px); min-width: 15px; height: 15px; padding: 0 4px; border-radius: 5px; display: grid; place-items: center; font: 700 9px/1 var(--mono); background: var(--coral); color: #fff; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .ph h1 { font-size: 22px; }
-  /* tables become stacked cards */
-  .table.cards thead { display: none; }
-  .table.cards, .table.cards tbody, .table.cards tr, .table.cards td { display: block; width: 100%; }
-  .table.cards tr { padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  .table.cards td { padding: 3px 0; border: 0; }
-  .table.cards td[data-label]::before { content: attr(data-label); display: inline-block; min-width: 92px; font: 600 9.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
-  .table.cards td.right { text-align: left; }
-  .table.cards .row-actions { opacity: 1; justify-content: flex-start; margin-top: 6px; }
-  /* compact cards (order lists): name + total on top, status + time below */
-  .table.cards.compact tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
-  .table.cards.compact td { width: auto; }
-  .table.cards.compact td[data-label]::before { display: none; }
-  .table.cards.compact td.right { text-align: right; }
-  .table.cards.compact .hide-compact { display: none; }
   .drawer, .drawer.wide { width: 100vw; }
   .bulkbar { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .savebar { bottom: calc(70px + env(safe-area-inset-bottom)); flex-wrap: wrap; }
@@ -662,6 +670,10 @@ li:first-child > .lb .rk { color: var(--amber); }
   .cc { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .span-4, .span-8, .span-12 { grid-column: 1 / -1; }
   .cc-brief p { font-size: 14px; }
+  .cc-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qa { min-width: 0; }
+  .qa .clamp1 { min-width: 0; }
+  .qa:last-child:nth-child(odd) { grid-column: 1 / -1; } /* a lone last button gets the whole row instead of a cut label */
   .kpis { grid-template-columns: 1fr 1fr; }
   .kpi:nth-child(3) { border-left: 0; }
   .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }

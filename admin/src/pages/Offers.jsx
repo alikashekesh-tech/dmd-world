@@ -68,7 +68,7 @@ function OfferList({ list }) {
   };
   if (!list.length) return <div className="surface"><Empty icon="percent" title="No offers yet" action={<Button variant="primary" icon="plus" onClick={() => setQuery({ new: 'offer' })}>Create offer</Button>}>An offer takes a percentage or an amount off a group of products (categories, brands’ product lines or hand-picked items) for as long as you want.</Empty></div>;
   return (
-    <div className="surface">
+    <div className="surface table-wrap">
       <table className="table cards">
         <thead><tr><th>Offer</th><th>Discount</th><th>Products</th><th>When</th><th>Status</th><th className="shrink" /></tr></thead>
         <tbody>
@@ -175,7 +175,7 @@ function Coupons({ list }) {
   return (
     <>
       <div className="toolbar"><SearchBox value={q} onChange={setQ} placeholder="Find a code" /></div>
-      <div className="surface">
+      <div className="surface table-wrap">
         <table className="table cards">
           <thead><tr><th>Code</th><th>Discount</th><th>Used</th><th>Expires</th><th>Status</th><th className="shrink" /></tr></thead>
           <tbody>
@@ -286,7 +286,7 @@ function Sales({ list }) {
   return (
     <>
       <div className="toolbar"><SearchBox value={q} onChange={setQ} placeholder="Find a product" /></div>
-      <div className="surface">
+      <div className="surface table-wrap">
         <table className="table cards">
           <thead><tr><th>Product</th><th className="right">Price</th><th>Off</th><th>Ends</th><th>Source</th><th className="shrink" /></tr></thead>
           <tbody>

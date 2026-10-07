@@ -32,7 +32,7 @@ export default function Dashboard({ query }) {
     <div className="cc">
       <Briefing d={d} range={range} onRefresh={refresh} refreshing={refreshing} />
       <nav className="cc-quick" aria-label="Quick actions">
-        {QUICK.filter((q) => q.key).map((q) => <a key={q.to} className="qa" href={`#${q.to}`}><span className="qi"><Icon name={q.icon} size={15} /></span>{q.label}</a>)}
+        {QUICK.filter((q) => q.key).map((q) => <a key={q.to} className="qa" href={`#${q.to}`}><span className="qi"><Icon name={q.icon} size={15} /></span><span className="clamp1">{q.label}</span></a>)}
       </nav>
       <RevenuePanel d={d} range={range} />
       <NeedsYou a={d.attention} />
