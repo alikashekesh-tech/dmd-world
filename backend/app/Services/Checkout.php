@@ -185,6 +185,7 @@ final class Checkout
             $order->items()->forceCreate([
                 'product_id' => $p->id, 'product_name' => $p->name, 'sku' => $p->sku, 'image_url' => $p->images->first()?->url,
                 'unit_price' => Money::decimal($line['unit']), 'regular_price' => Money::decimal($line['regular']), 'quantity' => $line['quantity'],
+                'stock_held' => $p->track_stock ? $line['quantity'] : 0, // what cancelling or refunding may give back
                 'line_subtotal' => Money::decimal($line['subtotal']), 'line_discount' => Money::decimal($lineDiscount), 'line_total' => Money::decimal($line['subtotal'] - $lineDiscount),
             ]);
             if ($p->track_stock) {

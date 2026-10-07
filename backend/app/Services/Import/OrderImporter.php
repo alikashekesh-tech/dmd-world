@@ -32,6 +32,7 @@ final class OrderImporter
     {
         $users = User::pluck('id')->flip();
         $products = Product::withTrashed()->pluck('id')->flip();
+        $tracked = Product::withTrashed()->where('track_stock', true)->pluck('id')->flip();
 
         foreach ($wooOrders as $w) {
             $id = (int) ($w['id'] ?? 0);
@@ -100,6 +101,9 @@ final class OrderImporter
                     'unit_price' => Money::decimal(intdiv($lineSubtotal, $qty)),
                     'regular_price' => Money::decimal(intdiv($lineSubtotal, $qty)),
                     'quantity' => $qty,
+                    // WooCommerce had taken these units from stock (and the imported stock count shows it) once the order
+                    // was processing, on hold or completed: cancelling or refunding it here gives them back.
+                    'stock_held' => $tracked->has($productId) && in_array($status, ['processing', 'on_hold', 'completed'], true) ? $qty : 0,
                     'line_subtotal' => Money::decimal($lineSubtotal),
                     'line_discount' => Money::decimal(max(0, $lineSubtotal - $lineTotal)),
                     'line_total' => Money::decimal($lineTotal),

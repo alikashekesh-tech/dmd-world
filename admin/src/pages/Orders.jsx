@@ -16,8 +16,15 @@ export function useOrderStatus() {
   return async (o, status, after) => {
     if (status === o.status) return null;
     if (status === 'cancelled' && !(await confirm({ title: `Cancel order #${o.number}?`, text: 'Its items go back into stock. You can reopen it later if stock allows.', confirmLabel: 'Cancel order', danger: true }))) return null;
+    let restock;
+    if (status === 'refunded') {
+      const answer = await confirm({ title: `Refund order #${o.number}?`, text: 'The order is marked refunded. This can’t be undone.', confirmLabel: 'Refund order', danger: true,
+        option: { label: 'Put the items back in stock (they came back and can be sold again)', checked: true } });
+      if (!answer) return null;
+      restock = answer.option;
+    }
     try {
-      const { data: r } = await api.put(`/orders/${o.id}/status`, { status });
+      const { data: r } = await api.put(`/orders/${o.id}/status`, restock === undefined ? { status } : { status, restock });
       changed('orders');
       after?.(r);
       const back = r.next_statuses?.includes(o.status);

@@ -16,7 +16,7 @@ class OrderItem extends Model
     {
         return [
             'unit_price' => 'decimal:2', 'regular_price' => 'decimal:2', 'line_subtotal' => 'decimal:2',
-            'line_discount' => 'decimal:2', 'line_total' => 'decimal:2', 'quantity' => 'integer', 'product_id' => 'integer',
+            'line_discount' => 'decimal:2', 'line_total' => 'decimal:2', 'quantity' => 'integer', 'stock_held' => 'integer', 'product_id' => 'integer',
         ];
     }
 

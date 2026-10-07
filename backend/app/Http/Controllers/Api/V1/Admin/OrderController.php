@@ -67,8 +67,9 @@ class OrderController extends Controller
 
     public function status(Request $request, Order $order): OrderResource
     {
-        $v = $request->validate(['status' => ['required', Rule::in(Order::STATUSES)], 'note' => ['nullable', 'string', 'max:500']]);
-        $order = $this->orders->changeStatus($order, $v['status'], 'admin', $request->user('admin'), $v['note'] ?? null);
+        // restock: for a refund, false when the goods aren't coming back (the default puts them back in stock).
+        $v = $request->validate(['status' => ['required', Rule::in(Order::STATUSES)], 'note' => ['nullable', 'string', 'max:500'], 'restock' => ['sometimes', 'boolean']]);
+        $order = $this->orders->changeStatus($order, $v['status'], 'admin', $request->user('admin'), $v['note'] ?? null, restock: $request->boolean('restock', true));
 
         return new OrderResource($order->load(['items', 'history.admin:id,name']));
     }

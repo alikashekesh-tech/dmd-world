@@ -12,7 +12,7 @@ class InventoryMovement extends Model
 {
     public const UPDATED_AT = null;
 
-    public const REASONS = ['adjustment', 'restock', 'order', 'cancellation', 'import'];
+    public const REASONS = ['adjustment', 'restock', 'order', 'cancellation', 'refund', 'import'];
 
     protected function casts(): array
     {

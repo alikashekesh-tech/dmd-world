@@ -221,8 +221,10 @@ export function UiProvider({ children }) {
   );
 }
 
-function ConfirmDialog({ title, text, confirmLabel = 'Confirm', danger, typeToConfirm, close }) {
+/** `option` ({ label, checked }): one extra choice; the dialog then answers { option } instead of true (still truthy). */
+function ConfirmDialog({ title, text, confirmLabel = 'Confirm', danger, typeToConfirm, option, close }) {
   const [typed, setTyped] = useState('');
+  const [chosen, setChosen] = useState(!!option?.checked);
   const ok = !typeToConfirm || typed.trim().toLowerCase() === typeToConfirm.toLowerCase();
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); const on = (e) => { if (e.key === 'Escape') close(false); }; window.addEventListener('keydown', on); return () => window.removeEventListener('keydown', on); }, [close]);
@@ -233,6 +235,7 @@ function ConfirmDialog({ title, text, confirmLabel = 'Confirm', danger, typeToCo
         <div className="modal-body">
           <h2>{title}</h2>
           {text && <p>{text}</p>}
+          {option && <Toggle label={option.label} checked={chosen} onChange={setChosen} />}
           {typeToConfirm && (
             <Field label={`Type “${typeToConfirm}” to confirm`}>
               <input ref={ref} className="input" value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && ok) close(true); }} />
@@ -242,7 +245,7 @@ function ConfirmDialog({ title, text, confirmLabel = 'Confirm', danger, typeToCo
         <div className="modal-foot">
           {/* Destructive dialogs start on Cancel, so a stray Enter never deletes anything. */}
           <Button ref={!typeToConfirm && danger ? ref : undefined} variant="quiet" onClick={() => close(false)}>Cancel</Button>
-          <Button ref={!typeToConfirm && !danger ? ref : undefined} variant={danger ? 'solid-danger' : 'primary'} disabled={!ok} onClick={() => close(true)}>{confirmLabel}</Button>
+          <Button ref={!typeToConfirm && !danger ? ref : undefined} variant={danger ? 'solid-danger' : 'primary'} disabled={!ok} onClick={() => close(option ? { option: chosen } : true)}>{confirmLabel}</Button>
         </div>
       </div>
     </>
