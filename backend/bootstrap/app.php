@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\ApiExceptionRenderer;
+use App\Http\Middleware\AuthenticateGuardSession;
 use App\Http\Middleware\ForceJsonResponse;
 use App\Http\Middleware\RequireSession;
 use App\Http\Middleware\SecurityHeaders;
@@ -29,7 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
         $middleware->prependToGroup('api', ForceJsonResponse::class);
         $middleware->append(SecurityHeaders::class);
-        $middleware->alias(['session' => RequireSession::class]);
+        // auth.session ends only the guard it checks (owner and buyer share one browser session).
+        $middleware->alias(['session' => RequireSession::class, 'auth.session' => AuthenticateGuardSession::class]);
         // Guests are answered with 401, never redirected to a login page (there is none: the UIs are React).
         $middleware->redirectGuestsTo(fn () => null);
     })
