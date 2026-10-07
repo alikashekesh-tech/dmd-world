@@ -25,6 +25,5 @@ export const GridIcon = I(<><rect x="4" y="4" width="7" height="7" rx="1.5" /><r
 export const BoxIcon = I(<><path d="M3 7.5 12 3l9 4.500v9L12 21l-9-4.500v-9Z" /><path d="M3 7.5 12 12l9-4.500M12 12v9" /></>);
 export const PhoneIcon = I(<path d="M5 4h4l2 5-2.500 1.500a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />);
 export const MailIcon = I(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>);
-export const CompareIcon = I(<><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" /></>);
 export const BellIcon = I(<><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>);
 export const RepeatIcon = I(<><path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3" /><path d="M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3" /></>);

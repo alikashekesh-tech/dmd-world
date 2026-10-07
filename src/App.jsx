@@ -19,7 +19,6 @@ const Account = lazy(() => import('./pages/Account.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const Wishlist = lazy(() => import('./pages/Wishlist.jsx'));
 const ProductCategory = lazy(() => import('./pages/ProductCategory.jsx'));
-const Compare = lazy(() => import('./pages/Compare.jsx'));
 const Contact = lazy(() => import('./pages/Contact.jsx'));
 
 const routes = [
@@ -39,7 +38,6 @@ const routes = [
   { path: '/account/reset', element: <ResetPassword /> },
   { path: '/wishlist', element: <Wishlist /> },
   { path: '/product-category/*', element: <ProductCategory /> },
-  { path: '/compare', element: <Compare /> },
   { path: '/contact', element: <Contact /> },
 ];
 

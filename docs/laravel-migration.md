@@ -84,7 +84,7 @@ The details of each phase are in [backend-phase-log.md](backend-phase-log.md); d
 | **Business rules** | Coupon rules written twice (`couponDiscount` in `buyer.mjs` and `applyCoupons` in the emulator) · order-status labels on both server and client | One Laravel service per rule. Labels stay as UI copy. |
 
 **Browser storage** (data kept on the visitor's device)
-- **Device conveniences, kept:** the cart, compare list and guest wishlist (`loadout:v1`), recently viewed (`dmd:recent`), the platform picker choice, the checkout draft (sessionStorage) and the error-reload flag.
+- **Device conveniences, kept:** the cart and guest wishlist (`loadout:v1`), recently viewed (`dmd:recent`), the platform picker choice, the checkout draft (sessionStorage) and the error-reload flag.
 - **Catalog cache:** `dmd:catalog:v1` stays only as a cache of API data.
 - **Guest order keys:** `dmd:guest-orders` will become guest order tokens issued by Laravel.
 - **Nothing secret or authoritative is stored in the browser.**

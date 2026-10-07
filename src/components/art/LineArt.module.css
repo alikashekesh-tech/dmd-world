@@ -30,10 +30,6 @@
 .sparkle path:nth-child(2) { animation-delay: 0.5s; }
 .sparkle path:nth-child(3) { animation-delay: 1s; }
 .shine { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
-.left { animation: nudgeL 2.4s ease-in-out infinite; }
-.right { animation: nudgeR 2.4s ease-in-out infinite; }
-.vsBadge { transform-box: fill-box; transform-origin: center; animation: thump 2.4s ease-in-out infinite; }
-.vsText { font: 800 15px var(--font-display); fill: #fff; letter-spacing: -0.02em; }
 .swing { transform-box: view-box; transform-origin: 76px 80px; animation: swing 3.2s ease-in-out infinite; }
 .pct { font: 800 40px var(--font-display); fill: #fff; }
 .beat { transform-box: fill-box; transform-origin: center; animation: beat 1.6s ease-in-out infinite; }
@@ -59,8 +55,5 @@
 @keyframes peek { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(-4px); } }
 @keyframes print { 0% { transform: translateY(72px); } 55%, 85% { transform: translateY(0); } 100% { transform: translateY(72px); } }
 @keyframes twinkle { 0%, 55%, 100% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.1); opacity: 1; } 85% { transform: scale(0.9); opacity: 1; } }
-@keyframes nudgeL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
-@keyframes nudgeR { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
-@keyframes thump { 0%, 40%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } 60% { transform: scale(1); } }
 @keyframes swing { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
 @keyframes beat { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.1); } 24% { transform: scale(1); } 36% { transform: scale(1.06); } 48% { transform: scale(1); } }

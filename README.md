@@ -47,7 +47,7 @@ Runs the linter, both production builds (`dist/` and `admin/dist/`) and the Lara
 
 ## Data
 
-MySQL holds everything: catalog, stock, customers, orders, reviews, messages, offers, coupons, settings and the home page. The browser keeps only device conveniences (cart, compare list, a guest's wishlist, a cached copy of the catalog and a guest's private order links). The data came from the old WooCommerce store with `php artisan dmd:import`; [docs/deployment.md](docs/deployment.md) describes the final import at go-live.
+MySQL holds everything: catalog, stock, customers, orders, reviews, messages, offers, coupons, settings and the home page. The browser keeps only device conveniences (cart, a guest's wishlist, a cached copy of the catalog and a guest's private order links). The data came from the old WooCommerce store with `php artisan dmd:import`; [docs/deployment.md](docs/deployment.md) describes the final import at go-live.
 
 ## Payments
 

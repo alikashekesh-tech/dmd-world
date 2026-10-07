@@ -10,7 +10,7 @@ const StoreCtx = createContext(null);
 const KEY = 'loadout:v1';
 const MAX_QTY = 10;
 
-/* Only device conveniences live in the browser: the cart, compare list and a guest's wishlist.
+/* Only device conveniences live in the browser: the cart and a guest's wishlist.
    Account data (profile, orders, the account's wishlist, reviews, messages, stock alerts) lives on the server. */
 const read = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === 'object' ? v : {}; } catch { return {}; } };
 const ids = (v) => (Array.isArray(v) ? [...new Set(v.map(String))].filter((x) => /^\d{1,12}$/.test(x)) : []);
@@ -30,14 +30,12 @@ function reducer(state, a) {
     case 'restore': return { ...state, cart: cartOf(a.cart) };
     case 'wish': return { ...state, wishlist: state.wishlist.includes(a.id) ? state.wishlist.filter((x) => x !== a.id) : [...state.wishlist, a.id] };
     case 'wishlist': return { ...state, wishlist: a.ids };
-    case 'compare': return { ...state, compare: state.compare.includes(a.id) ? state.compare.filter((x) => x !== a.id) : [...state.compare, a.id].slice(-4) };
     // Once the live catalog is known, items the store no longer sells leave the cart and lists.
     case 'prune': {
       const known = (id) => !!getProduct(id);
       const cart = state.cart.filter((l) => known(l.id));
       const wishlist = state.wishlist.filter(known);
-      const compare = state.compare.filter(known);
-      return cart.length === state.cart.length && wishlist.length === state.wishlist.length && compare.length === state.compare.length ? state : { cart, wishlist, compare };
+      return cart.length === state.cart.length && wishlist.length === state.wishlist.length ? state : { cart, wishlist };
     }
     default: return state;
   }
@@ -50,7 +48,7 @@ export function StoreProvider({ children }) {
   const version = useCatalog();
   // Items stay even if this catalog copy doesn't know them yet (a product added since the snapshot); they show
   // once the live catalog arrives, and are dropped only if the live catalog doesn't have them either.
-  const [state, dispatch] = useReducer(reducer, null, () => { const s = read(); return { cart: cartOf(s.cart), wishlist: ids(s.wishlist), compare: ids(s.compare).slice(-4) }; });
+  const [state, dispatch] = useReducer(reducer, null, () => { const s = read(); return { cart: cartOf(s.cart), wishlist: ids(s.wishlist) }; });
   const [buyer, setBuyer] = useState(undefined); // undefined while the session is being checked
   const [sessionError, setSessionError] = useState(false);
   const [accounts, setAccounts] = useState(true);
@@ -64,7 +62,7 @@ export function StoreProvider({ children }) {
 
   // The guest wishlist stays on this device; a signed-in buyer's wishlist is saved to their account instead.
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify({ cart: state.cart, compare: state.compare, wishlist: buyer ? read().wishlist || [] : state.wishlist })); } catch { /* storage unavailable */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ cart: state.cart, wishlist: buyer ? read().wishlist || [] : state.wishlist })); } catch { /* storage unavailable */ }
   }, [state, buyer]);
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), toast.undo ? 6000 : 2600); return () => clearTimeout(t); }, [toast]);
   useEffect(() => { if (catalog.liveAt()) dispatch({ type: 'prune' }); }, [version]);
@@ -173,7 +171,6 @@ export function StoreProvider({ children }) {
     removeLine: (key) => dispatch({ type: 'remove', key }),
     clearCart: () => dispatch({ type: 'clear' }),
     restoreCart: (cart) => dispatch({ type: 'restore', cart }),
-    toggleCompare: (id) => dispatch({ type: 'compare', id }), inCompare: (id) => state.compare.includes(id),
     toggleWish, isWished: (id) => state.wishlist.includes(id),
     // accounts
     buyer, accounts, checking: buyer === undefined, setBuyer, sessionError, retrySession: checkSession,

@@ -164,27 +164,6 @@ const ART = {
       <path d="M78 26 C78 44 80 56 86 64" className={s.shine} />
     </>
   ),
-  vs: () => (
-    <>
-      <g className={s.left}>
-        <rect x="16" y="22" width="66" height="104" rx="10" className={w.i} />
-        <path d="M30 78 C30 52 40 42 49 42 C58 42 68 52 68 78" className={w.in} />
-        <rect x="25" y="72" width="10" height="20" rx="5" className={w.i} />
-        <rect x="63" y="72" width="10" height="20" rx="5" className={w.i} />
-        <path d="M28 108 h42" className={w.in} />
-      </g>
-      <g className={s.right}>
-        <rect x="118" y="22" width="66" height="104" rx="10" className={w.i} />
-        <rect x="128" y="56" width="46" height="26" rx="4" className={w.i} />
-        <path d="M134 64 h34 M134 72 h34" className={w.in} />
-        <path d="M130 108 h42" className={w.in} />
-      </g>
-      <g className={s.vsBadge}>
-        <circle cx="100" cy="74" r="20" className={w.coral} />
-        <text x="100" y="79.5" textAnchor="middle" className={s.vsText}>VS</text>
-      </g>
-    </>
-  ),
   tag: () => (
     <>
       <path d="M34 8 C44 40 60 64 78 80" className={w.in} />

@@ -18,12 +18,11 @@ const only = process.argv.slice(2);
 /* ── demo state ─────────────────────────────────────────────────────────── */
 const cart = [{ key: '34198|', id: '34198', qty: 2 }, { key: '21633|', id: '21633', qty: 1 }, { key: '37078|', id: '37078', qty: 1 }];
 const wishlist = ['29571', '21839', '36697', '19734', '29463', '39844', '31923', '35349'];
-const compare = ['21633', '36697', '21621'];
 const order = { id: 'LD-482913', date: '2026-10-03', status: 'Processing', total: 136, items: [{ id: '34198', qty: 2 }, { id: '21633', qty: 1 }], email: 'player1@example.com' };
 const STATES = {
   fresh: null,
-  shopper: { cart, wishlist, compare, user: null, orders: [] },
-  player: { cart, wishlist, compare, user: { name: 'Player One', email: 'player1@example.com' }, orders: [order] },
+  shopper: { cart, wishlist, user: null, orders: [] },
+  player: { cart, wishlist, user: { name: 'Player One', email: 'player1@example.com' }, orders: [order] },
 };
 
 /* ── selectors for the things the video circles (CSS-module classes match on their local name) ── */
@@ -62,7 +61,6 @@ const LIST = [
   { id: 'account-login', path: '/account', state: 'shopper', vp: D, full: true, targets: { panel: '[class*="_authPanel_"]', press: '[class*="_authStage_"]', form: '[class*="_authCard_"]' } },
   { id: 'account', path: '/account', state: 'player', vp: D, full: true, targets: { ...PAGE_HERO, player: '[class*="_player_"]', orders: '[class*="_orders_"]', nav: 'nav[aria-label="Account"]' } },
   { id: 'wishlist', path: '/wishlist', state: 'shopper', vp: D, full: true, targets: { ...PAGE_HERO, grid: '#main [class*="_grid_"]', card: '#main article' } },
-  { id: 'compare', path: '/compare', state: 'shopper', vp: D, full: true, targets: { ...PAGE_HERO, table: '#main table', firstCol: '#main thead th:nth-child(2)' } },
   { id: 'contact', path: '/contact', state: 'shopper', vp: D, full: true, targets: { ...PAGE_HERO, cards: '#main [class*="_grid_"]', call: '#main [class*="_primary_"]', ready: '#main [class*="_ready_"]' } },
   { id: 'notfound', path: '/this-page-does-not-exist', state: 'shopper', vp: D, full: true, freeze: 1500, targets: { word: '#nf-title', cont: '[class*="_continue_"]', ctas: '#main [class*="_ctas_"]' } },
   { id: 'notfound-seq', path: '/this-page-does-not-exist', state: 'shopper', vp: D, seq: 1500 },
