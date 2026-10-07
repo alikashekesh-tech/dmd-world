@@ -25,10 +25,11 @@
 .link:global(.active) { color: var(--text); }
 .link svg { transition: transform .2s; }
 .on svg { transform: rotate(180deg); }
-.offers { color: var(--deal); }
+/* New Offers wears the brand blue, like the rest of the offers branding (Price drops on the home page). */
+.offers { color: var(--accent); }
 .offers::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: currentColor; animation: pulse 1.6s steps(2, jump-none) infinite; }
-.offers::after { background: var(--deal); }
-.offers:hover, .offers:global(.active) { color: #c93b29; }
+.offers::after { background: var(--accent); }
+.offers:hover, .offers:global(.active) { color: var(--accent-hover); }
 
 .search { flex: 1; min-width: 200px; max-width: 440px; margin-left: auto; }
 .search :global(input) { font-size: 14.5px; }
