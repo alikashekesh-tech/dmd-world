@@ -14,7 +14,7 @@ The files are in `deploy/`: `Caddyfile`, the scheduler timer (`dmd-world-schedul
 
 ## 1. Server
 
-- **PHP 8.4** with php-fpm and the extensions `pdo_mysql`, `mbstring`, `intl`, `bcmath`, `fileinfo`, `gd` (or `imagick`), `sodium`, `openssl`, `zip`, `curl`, `xml`. Composer.
+- **PHP 8.4** with php-fpm and the extensions `pdo_mysql`, `mbstring`, `intl`, `bcmath`, `fileinfo`, `gd` (or `imagick`), `sodium`, `openssl`, `zip`, `curl`, `xml`. Composer. In `php.ini`: `expose_php = Off`.
 - **MySQL 8.0+** (CHECK constraints are enforced from 8.0.16).
 - **Caddy 2** (automatic HTTPS).
 - **Node 20+** only to build the two React apps (it can run on the build machine instead).
@@ -41,7 +41,7 @@ Start from `backend/.env.example`. Never commit it; `chmod 640`, owned by the de
 | `APP_URL` | `https://shop.example.com` |
 | `FRONTEND_URL` / `ADMIN_URL` | `https://shop.example.com` / `https://shop.example.com/admin` (links in emails) |
 | `SANCTUM_STATEFUL_DOMAINS` | `shop.example.com` |
-| `SESSION_SECURE_COOKIE` | `true` (cookies only over HTTPS) |
+| `SESSION_SECURE_COOKIE` | `true` (cookies only over HTTPS; when unset it follows `APP_URL`: https means secure) |
 | `SESSION_DOMAIN` | `null` (the exact host) |
 | `TRUSTED_PROXIES` | `127.0.0.1,::1` (Caddy on the same machine; its address otherwise) |
 | `DB_*` | the app's own MySQL account with rights on `dmd_world` only (`php artisan db:provision` creates it) |
@@ -58,9 +58,19 @@ cd /srv/dmd-world/backend
 php artisan migrate --force
 php artisan dmd:owner                 # the one owner account (asks for name, email and a strong password)
 php artisan config:cache && php artisan route:cache && php artisan event:cache
+php artisan dmd:preflight             # must end with "Ready for production."
 ```
 
-Run `php artisan config:cache` again after every `.env` change. `php artisan storage:link` is not needed: Caddy serves `storage/app/public` directly.
+Run `php artisan config:cache` again after every `.env` change, then `php artisan dmd:preflight`.
+
+**`dmd:preflight`** checks the effective configuration and fails on anything unsafe or dishonest:
+- **Settings:** debug pages, a missing key, http addresses, cookies that aren't HTTPS-only, HttpOnly and SameSite.
+- **Sign-in:** a storefront host Sanctum doesn't list, so nobody could sign in.
+- **Access:** a wildcard CORS origin, or the MySQL root account.
+- **Emails:** a mailer that only logs them.
+- **The install:** pending migrations, no owner account, or storage that can't be written.
+
+It also warns about debug logging, development addresses still allowed to sign in, leftover import credentials and an uncached configuration. `php artisan storage:link` is not needed: Caddy serves `storage/app/public` directly.
 
 ## 5. Caddy, scheduler and backups
 
@@ -77,6 +87,9 @@ sudo systemctl enable --now dmd-world-scheduler.timer dmd-world-backup.timer
   ```bash
   gunzip -c dmd_world-<stamp>.sql.gz | mysql dmd_world_restore
   ```
+
+  - **The backup account:** `SELECT, SHOW VIEW, TRIGGER, EVENT ON dmd_world.*`. The script dumps with `--set-gtid-purged=OFF`; without it, MySQL 8 asks for the global `RELOAD` or `FLUSH_TABLES` privilege and the dump fails.
+  - **The drill already run on the dev data:** the same flags dumped 38 tables (3.5 MB of SQL, 0.4 MB gzipped). They were restored into another database with identical row counts and `CHECKSUM TABLE` for every table.
 
 ## 6. Go-live: moving from the old WooCommerce store
 
@@ -100,6 +113,7 @@ php artisan dmd:import-media            # copies them into storage and points ev
 git pull && npm ci && npm run build:all
 cd backend && composer install --no-dev --optimize-autoloader
 php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan event:cache
+php artisan dmd:preflight
 sudo systemctl reload php8.4-fpm
 ```
 
@@ -110,4 +124,6 @@ Migrations are additive and run inside the deploy; take a backup first (`sudo sy
 - `https://shop.example.com/api/v1/health` answers `{"status":"ok",…}` (it reports 503 if MySQL is down).
 - The storefront loads products, a test buyer can sign in, and `/admin/` shows the sign-in page.
 - `curl -I https://shop.example.com/api/v1/catalog` shows `Strict-Transport-Security` and `X-Content-Type-Options: nosniff`; session cookies are `Secure; HttpOnly; SameSite=Lax`.
+- `curl -I https://shop.example.com/` shows the `Content-Security-Policy` from the Caddyfile and `Cache-Control: no-cache`. The browser console on the storefront and the admin shows no CSP errors.
+- `https://shop.example.com/robots.txt` names the sitemap, and `https://shop.example.com/sitemap.xml` lists the shop's pages.
 - `backend/.env`, `backend/storage/logs` and `/.git` are not reachable over HTTP (Caddy only serves `dist/`, `admin/dist/`, `storage/app/public` and `backend/public/index.php`).

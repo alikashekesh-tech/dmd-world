@@ -1,16 +1,30 @@
 # Caddy in front of DMD World: automatic HTTPS, compression and one public address for everything.
 #   /             the storefront (dist/, built with `npm run build`)
 #   /admin/       the owner's admin (admin/dist/, built with `npm run build:admin`)
-#   /api/*, /up   the Laravel API (backend/public/index.php through php-fpm)
+#   /api/*, /up   the Laravel API (backend/public/index.php through php-fpm), also /robots.txt and /sitemap.xml
 #   /storage/*    images uploaded in the admin (backend/storage/app/public)
 # Replace shop.example.com with the storefront's domain and /srv/dmd-world with where the project lives.
 # See docs/deployment.md for the .env values this expects (APP_URL, FRONTEND_URL, TRUSTED_PROXIES…).
+
+# The two React apps. Only this site's own scripts can run; fonts come from Google Fonts; product pictures may be on
+# any https address (the owner can link one). index.html is revalidated on every visit, so a release is seen at once;
+# the content-hashed assets are cached for a year.
+(react_app) {
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@page not path /assets/*
+	header @page Cache-Control "no-cache"
+	try_files {path} /index.html
+	file_server
+}
 
 shop.example.com {
 	encode zstd gzip
 
 	header {
 		-Server
+		-X-Powered-By
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
@@ -29,6 +43,7 @@ shop.example.com {
 	handle_path /storage/* {
 		root * /srv/dmd-world/backend/storage/app/public
 		header Cache-Control "public, max-age=604800"
+		header Content-Security-Policy "default-src 'none'; sandbox"
 		file_server
 	}
 
@@ -36,19 +51,13 @@ shop.example.com {
 	redir /admin /admin/
 	handle_path /admin/* {
 		root * /srv/dmd-world/admin/dist
-		@hashed path /assets/*
-		header @hashed Cache-Control "public, max-age=31536000, immutable"
-		try_files {path} /index.html
-		file_server
+		import react_app
 	}
 
 	# The storefront: every page is the same app (client-side routes), assets are content-hashed.
 	handle {
 		root * /srv/dmd-world/dist
-		@hashed path /assets/*
-		header @hashed Cache-Control "public, max-age=31536000, immutable"
-		try_files {path} /index.html
-		file_server
+		import react_app
 	}
 
 	log {

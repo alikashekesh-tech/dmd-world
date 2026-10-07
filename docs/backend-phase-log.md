@@ -884,3 +884,96 @@ All are under `auth:admin` + `auth.session`.
 **Blockers:** none for the code.
 
 **Next:** Phase 12, the security, performance and regression pass and the production configuration.
+
+## Phase 12: security, performance and regression pass; production configuration (7 Oct 2026)
+
+**Security audit**
+- **Dependencies:** `composer audit` reports no advisories. `npm audit` reports 0 vulnerabilities, both with and without dev packages.
+- **Authorization matrix:** read from the live route table, 133 routes in all.
+  - **Owner API:** all 81 routes. Every one except sign-in and sign-out needs `auth:admin` and `auth.session`.
+  - **Storefront and account:** 48 routes.
+  - **Root:** 4 routes (`/`, `/up`, `/robots.txt`, `/sitemap.xml`).
+  - **Who gets refused:** every owner route answers 401 to a guest and to a signed-in buyer, and every buyer-only route answers 401 to a guest and to the owner. A new test enforces both over the whole route table, so a route added later without its guard fails the suite.
+- **Rate limits:**
+  - **Sign-in:** limited per account and per address for both guards (`LoginThrottle`).
+  - **Named limiters:** sign-up, reset emails (per address and per email), reset attempts, orders, quotes, cancels, reviews, messages and stock alerts each have their own.
+  - **Everything else:** a general limit of 240 per minute.
+- **Code review:**
+  - **Raw SQL:** constants or bound parameters only. `forceFill` only ever takes validated fields.
+  - **Models:** every model has `$fillable` or `$guarded = ['*']`.
+  - **XSS sinks:** none in either UI (`dangerouslySetInnerHTML`, `innerHTML`, `eval` and `new Function` are unused).
+  - **Browser storage:** only conveniences — the cart, compare list, guest wishlist, recently viewed, platform choice, the public catalog copy and the guest's own order links. The checkout draft lives in `sessionStorage` and is cleared when the order is placed. No session or role is kept in the browser.
+- **Found and fixed:**
+  - **Private disk over HTTP:** the `local` disk had `serve => true`, which registered `GET` and `PUT /storage/{path}` routes into `storage/app/private`. Those routes only accept signed URLs, but nothing uses them, and that folder holds private files, so serving is now off and the routes are gone.
+  - **Session cookies over http:** they were HTTPS-only only if `SESSION_SECURE_COOKIE` was set. When unset, they now follow `APP_URL`: an https site means secure cookies.
+  - **Production checks:** `php artisan dmd:preflight` (new) refuses an unsafe or dishonest production config:
+    - debug on, no key, http addresses;
+    - cookies that aren't HTTPS-only, HttpOnly and SameSite;
+    - a storefront host Sanctum doesn't list;
+    - a wildcard CORS origin, or MySQL root;
+    - a mailer that only logs emails ("no fake email success");
+    - pending migrations, no owner, or storage that can't be written.
+
+    It also warns about debug logs, dev addresses allowed to sign in, leftover import keys and an uncached config. On this development machine it correctly reports 6 problems (local env, debug, http addresses, cookies not HTTPS-only, log mailer).
+  - **Caddyfile:**
+    - **Both React apps:** a Content-Security-Policy (`script-src 'self'`, Google Fonts only, `connect-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri` and `form-action 'self'`).
+    - **`index.html`:** `Cache-Control: no-cache`, so a release is picked up at once.
+    - **Uploads:** `default-src 'none'; sandbox`.
+    - **php-fpm:** `X-Powered-By` is removed (and `expose_php = Off` is in the guide).
+  - **Backups:** with only the documented grants, `dmd-backup.sh` failed on MySQL 8+. `mysqldump --single-transaction` asks for the global `RELOAD`/`FLUSH_TABLES` privilege, which the restore drill showed. The script now passes `--set-gtid-purged=OFF`, and the grant list is corrected.
+
+**Over real HTTP** (PHPUnit skips CSRF, so these were run as a browser would)
+- **The production layout:** Caddy isn't installed here, so a small local stand-in served what the Caddyfile serves. That is `dist/` and `admin/dist/` as static files, the uploads as files, and the API, `robots.txt` and `sitemap.xml` from Laravel. It sent the Caddyfile's own headers, its CSP read from the file itself.
+- **Security probe:** 21 of 21.
+  - **CSRF:** a cookie-session POST without the CSRF header gets 419, and so does a forged token. With the real token the request is processed.
+  - **Cookies:** the session cookie is `HttpOnly; SameSite=Lax`. The CSRF cookie is readable by the page by design and is `SameSite=Lax`.
+  - **Another site:** a request from another site gets no cookie session (`SESSION_REQUIRED`) and no CORS permission.
+  - **Sign-up:** it ignores `id`, `role`, `is_admin` and date fields.
+  - **Tampered orders:** a price, total, status or payment state sent in an order is ignored. The order is priced from MySQL and starts `pending` and unpaid.
+  - **Another buyer:** buyer B gets 404 on buyer A's order, cancel, address (edit and delete) and conversation (read and reply).
+  - **Secrets:** `/.env`, `/backend/.env`, `/.git/config`, encoded `../` paths, `/composer.json` and the private owner-login file reveal nothing. They answer the app's `index.html` or 404.
+- **End-to-end journeys:** 50 of 50 through that layout. Buyer: register → address → wishlist → coupon quote → checkout → history → message → review → stock alert. Guest: checkout with a token link. Owner: sign-in, orders, dashboard, messages, review approval, order confirmation, an offer priced the same in the catalog, the quote and the admin, and every admin list. Then clean-up and sign-out.
+- **In the browser,** under the production CSP:
+  - **Storefront, 7 pages:** home, shop, category, brands, contact, account, product. Add-to-cart, cart and checkout also work.
+  - **Admin, all 20 routes:** dashboard, products (list, new, edit), categories, brands, inventory, offers, orders (list and detail), customers (registered and guest), messages (list and thread), reviews, home page, notifications, trash, settings.
+  - **Result:** no console errors, no CSP violations and no error screens. A test inline script injected on purpose was blocked and reported, so the policy was really enforced.
+
+**Performance**
+- **Query budget test** (new): 26 of the busiest pages run the same number of queries with 2 or 8 of everything (products with images, orders, reviews, messages, stock alerts, customers, trash). Counts: catalog 12, product list 6, product page 7, its reviews 6, buyer orders 6, wishlist 6, conversations 8. Admin: products 12, orders 7, customers 6, reviews 9, inventory 11, conversations 10, notifications 12, badges 21, search 7.
+- **Indexes:** every hot filter is covered.
+  - **Orders:** by status and date, by buyer and date, and by date.
+  - **Reviews:** by product, status and date.
+  - **Conversations:** by buyer and last message.
+  - **Messages:** by conversation and time.
+  - **Stock alerts:** by product and notified.
+  - **Stock movements:** by product and date.
+  - **Products:** by status, archive and published date.
+  - **Lookups:** the wishlist and category links have their own keys.
+  - **Search:** product search is a `LIKE '%…%'` scan, fine at this catalog's size (187), but a full-text index would be the next step past a few thousand products.
+- **Production caches:** `config:cache`, `route:cache` and `event:cache` all build, and the app answers from them (health and sitemap 200). The caches were cleared again for development.
+
+**Data**
+- **Backup and restore drill:** run with the script's own `mysqldump` flags against the dev database. 38 tables (3.5 MB of SQL, 0.43 MB gzipped) dumped in 0.4 s and restored into the test database in 1.4 s. Every table's row count and `CHECKSUM TABLE` matched: 3,198 rows, no differences (products 187, orders 396, order lines 573, users 78, reviews 49, coupons 2, categories 105, brands 10).
+- **The import check:** `dmd:verify-import` from Phase 11 stands (every old-store record in MySQL).
+
+**Tests added:** 8
+- **Authorization matrix:** 3, as above.
+- **Preflight:** 4.
+  - A safe configuration passes.
+  - Debug, insecure cookies, the log mailer and an unlisted storefront host fail and are named.
+  - No owner fails.
+  - Secure cookies follow an https `APP_URL`, checked in a fresh PHP process.
+- **Query budget:** 1.
+
+**Results:** Laravel 212 of 212 (2107 assertions). Pint and lint pass. The storefront and admin builds pass. `composer audit` and `npm audit` are clean.
+
+**Test data left in the dev database** (all cancelled or removed; none of it is in the import)
+- **Buyers:** e2e buyer `e2e.1791328218@example.com`, plus probe buyers `probe.*@example.com`.
+- **Orders:** 1000005–1000008, all cancelled.
+- **Messages:** a probe message on order 1000007.
+
+**Blockers:** none for the code. **Left for the owner at go-live:**
+- **The final import:** read-only WooCommerce keys, then `dmd:import --force` → `dmd:verify-import` → `dmd:import-media`.
+- **Real emails:** SMTP settings.
+- **The server:** a domain and server, then `dmd:preflight` until it says "Ready for production."
+- **Backups:** a restore test on the real server.

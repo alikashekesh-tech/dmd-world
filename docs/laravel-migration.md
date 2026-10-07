@@ -4,7 +4,7 @@
 
 **Rule for the whole migration:** the existing app keeps working until Laravel has a tested replacement. The old implementation is removed only after that.
 
-**Status (7 Oct 2026):** the cutover is done. The storefront and the admin talk only to Laravel, and MySQL holds all the business data. The Node server, the WooCommerce client and emulator, the WordPress plugin, the JSON state files and the bundled catalog are gone (Phase 11). What remains of the old store is the one-time, read-only import for go-live ([deployment.md](deployment.md) §6).
+**Status (7 Oct 2026):** all 12 phases are done. The cutover is done. The storefront and the admin talk only to Laravel, and MySQL holds all the business data. The Node server, the WooCommerce client and emulator, the WordPress plugin, the JSON state files and the bundled catalog are gone (Phase 11). What remains of the old store is the one-time, read-only import for go-live ([deployment.md](deployment.md) §6).
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -20,7 +20,9 @@
 | 9 | Offers, coupons, settings and the home page | Done |
 | 10 | The owner's dashboard from MySQL | Done |
 | 11 | Cutover: Laravel only | Done |
-| 12 | See §7 | In progress. The details of each phase are in [backend-phase-log.md](backend-phase-log.md) |
+| 12 | Security, performance and regression pass; production configuration | Done |
+
+The details of each phase are in [backend-phase-log.md](backend-phase-log.md); deployment is in [deployment.md](deployment.md).
 
 ---
 
@@ -215,7 +217,7 @@ Each phase follows the same steps: schema, then model, then validation, then end
 | 9 ✔ | `offers`, `coupons`, redemptions, `banners`, `settings`, featured products and categories on the storefront home | one pricing service used by catalog, cart and checkout |
 | 10 ✔ | Admin analytics (revenue, orders by status, top products, categories and brands, low stock, customers) as queries | zeros and empty states when there's no data, never invented numbers |
 | 11 ✔ | Import verified record by record (`dmd:verify-import`), images importable (`dmd:import-media`); the admin and storefront on Laravel only; Node server, emulator, WordPress plugin, `dmdCatalog.js`, static menu ids, JSON stores and Node tests deleted; `robots.txt`/`sitemap.xml` from Laravel; deploy files and docs | the app runs on Laravel only; the final run against the live store is a go-live step (deployment.md §6) |
-| 12 | Security and regression pass, production config (Caddy and php-fpm, queue and scheduler, backups, `APP_DEBUG=false`, secure cookies) | full test suite and manual flows pass |
+| 12 ✔ | Security and regression pass, production config (Caddy and php-fpm, scheduler, backups, `APP_DEBUG=false`, secure cookies): route-wide authorization test, CSRF/IDOR/tampering probes over HTTP, CSP, query budgets, restore drill, `dmd:preflight` | full test suite, 50/50 end-to-end and 21/21 security probes through the production layout, 27 screens clean in the browser |
 
 ## 8. Phase 1: what exists and how to run it
 

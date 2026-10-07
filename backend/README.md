@@ -56,6 +56,7 @@ Tests run against MySQL (the same engine as production) in the `*_testing` datab
 | `php artisan dmd:import` | one-time copy of the old WooCommerce store (read-only; `--only=` for parts; refuses production without `--force`) |
 | `php artisan dmd:verify-import` | checks every record of the old store against MySQL |
 | `php artisan dmd:import-media` | copies images still served by the old WordPress site into storage (`--dry-run` to count) |
+| `php artisan dmd:preflight` | checks that the installation is configured safely for production (debug off, HTTPS-only cookies, real mailer, owner account, migrations…) |
 | `php artisan dmd:stock-alerts` | retries back-in-stock emails a mail failure left behind (scheduled every 10 minutes) |
 
 Production setup, the go-live import and backups: [`../docs/deployment.md`](../docs/deployment.md).

@@ -169,7 +169,8 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Unset: HTTPS-only whenever the site itself is served over https (production). `php artisan dmd:preflight` checks it.
+    'secure' => env('SESSION_SECURE_COOKIE', str_starts_with((string) env('APP_URL'), 'https://')),
 
     /*
     |--------------------------------------------------------------------------

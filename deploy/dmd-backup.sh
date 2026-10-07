@@ -7,7 +7,9 @@
 #     [client]
 #     user=dmd_backup
 #     password=…
-# The dmd_backup account needs only: SELECT, SHOW VIEW, TRIGGER, LOCK TABLES, EVENT on dmd_world.*
+# The dmd_backup account needs only: SELECT, SHOW VIEW, TRIGGER, EVENT on dmd_world.*
+# (--set-gtid-purged=OFF spares it the global RELOAD/FLUSH_TABLES privilege MySQL 8 otherwise asks for; a restore
+# into a new database doesn't need replication positions. Restore drill: docs/deployment.md §5.)
 set -euo pipefail
 
 DB="${DMD_DB:-dmd_world}"
@@ -21,7 +23,7 @@ mkdir -p "$OUT"
 
 # A consistent snapshot without locking the shop (InnoDB), with routines and triggers.
 mysqldump --defaults-extra-file=/etc/dmd-world/backup.cnf --single-transaction --quick --routines --triggers \
-  --no-tablespaces "$DB" | gzip -9 > "$OUT/$DB-$STAMP.sql.gz.part"
+  --set-gtid-purged=OFF --no-tablespaces "$DB" | gzip -9 > "$OUT/$DB-$STAMP.sql.gz.part"
 mv "$OUT/$DB-$STAMP.sql.gz.part" "$OUT/$DB-$STAMP.sql.gz"
 
 tar -czf "$OUT/uploads-$STAMP.tar.gz" -C "$APP/backend/storage/app" public
