@@ -94,9 +94,10 @@ export function Avatar({ name, size = '' }) {
   return <span className={`avatar ${size}`} style={{ '--h': h }} aria-hidden="true">{initials(name)}</span>;
 }
 
-export function Tabs({ items, value, onChange, label }) {
+/** `className="two-up"`: on phones, four tabs sit as two even rows (2×2) instead of wrapping three-and-one. */
+export function Tabs({ items, value, onChange, label, className }) {
   return (
-    <div className="tabs" role="tablist" aria-label={label}>
+    <div className={className ? `tabs ${className}` : 'tabs'} role="tablist" aria-label={label}>
       {items.map((t) => (
         <button key={t.value} type="button" role="tab" aria-selected={value === t.value} className={`tab ${value === t.value ? 'on' : ''}`} onClick={() => onChange(t.value)}>
           {t.led && <span className={`led ${t.led}`} />}{t.label}{t.count != null && <span className="n">{t.count}</span>}

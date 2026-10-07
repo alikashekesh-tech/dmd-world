@@ -39,7 +39,7 @@ export default function Trash({ query }) {
   return (
     <>
       <PageHeader hud={<><span className="led" />Site</>} title="Trash" text="Products, categories, brands and coupons you archived. They stay out of the shop until you restore them. Orders are never deleted: they are the store’s history." />
-      <div className="toolbar"><Tabs label="Kind" value={tab} onChange={(v) => setQuery({ tab: v })} items={Object.entries(KIND).map(([k, v]) => ({ value: k, label: v.label, count: data ? counts[k] : undefined }))} /></div>
+      <div className="toolbar"><Tabs className="two-up" label="Kind" value={tab} onChange={(v) => setQuery({ tab: v })} items={Object.entries(KIND).map(([k, v]) => ({ value: k, label: v.label, count: data ? counts[k] : undefined }))} /></div>
       {error && <Notice tone="coral" icon="alert">{error.message}</Notice>}
       <div className="surface">
         {!data ? <SkeletonRows /> : !list.length ? <Empty icon="trash" title={`No ${K.label.toLowerCase()} in the trash`}>Things you archive land here first, so nothing disappears by accident.</Empty> : (

@@ -56,7 +56,7 @@ export function ProductsPage({ query }) {
       <PageHeader hud={<><span className="led blue" />Catalog</>} title="Products" text="Everything in the store. Changes here show in the shop straight away."
         actions={<Button variant="primary" icon="plus" onClick={() => navigate('/products/new')}>Add product</Button>} />
       <div className="toolbar">
-        <Tabs label="Status" value={status} onChange={(v) => setQuery({ status: v === 'all' ? null : v, page: null })} items={STATUS_TABS.map(([v, l]) => ({ value: v, label: l, count: counts[v] }))} />
+        <Tabs className="two-up" label="Status" value={status} onChange={(v) => setQuery({ status: v === 'all' ? null : v, page: null })} items={STATUS_TABS.map(([v, l]) => ({ value: v, label: l, count: counts[v] }))} />
       </div>
       <div className="toolbar">
         <SearchBox value={search} onChange={setSearch} placeholder="Search by name, SKU or ID" />

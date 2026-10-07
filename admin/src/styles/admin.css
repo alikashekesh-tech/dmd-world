@@ -673,6 +673,8 @@ li:first-child > .lb .rk { color: var(--amber); }
   .cc-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qa { min-width: 0; }
   .qa .clamp1 { min-width: 0; }
+  .tabs.two-up { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 100%; }
+  .tabs.two-up .tab { justify-content: center; min-width: 0; }
   .qa:last-child:nth-child(odd) { grid-column: 1 / -1; } /* a lone last button gets the whole row instead of a cut label */
   .kpis { grid-template-columns: 1fr 1fr; }
   .kpi:nth-child(3) { border-left: 0; }
