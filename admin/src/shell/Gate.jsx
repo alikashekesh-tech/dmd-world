@@ -17,7 +17,7 @@ export function Login({ onIn }) {
     <div className="login">
       <form className="login-card" onSubmit={submit}>
         <span className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="brand-logo"><img src="/images/dmd-logo.png" alt="DMD World" /></span>
+          <span className="brand-logo"><img src="/images/dmd-world-logo.png" alt="DMD World" width="297" height="107" /></span>
           <span className="press">PRESS START</span>
         </span>
         <div>

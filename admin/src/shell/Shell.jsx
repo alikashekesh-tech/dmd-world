@@ -59,7 +59,7 @@ export default function Shell({ session, path, children, onSignOut }) {
       {sideOpen && <div className="scrim" style={{ zIndex: 64 }} onClick={() => setSide(false)} />}
       <aside className={`side ${sideOpen ? 'open' : ''}`} aria-label="Admin navigation">
         <a href="#/" className="brand">
-          <span className="brand-logo"><img src="/images/dmd-logo.png" alt="DMD World" /></span>
+          <span className="brand-logo"><img src="/images/dmd-world-logo.png" alt="DMD World" width="297" height="107" /></span>
           <span className="brand-name"><b>DMD World</b><span>Command</span></span>
         </a>
         <nav className="nav">

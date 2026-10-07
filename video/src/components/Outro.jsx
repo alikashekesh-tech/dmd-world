@@ -13,7 +13,7 @@ export default function Outro({ total }) {
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: fade, textAlign: 'center' }}>
       <div style={{ opacity: a(4), transform: `translateY(${(1 - a(4)) * 20}px)`, padding: '10px 16px', borderRadius: 14, background: '#fff' }}>
-        <Img src={staticFile('dmd-logo.png')} style={{ height: 50, width: 'auto' }} />
+        <Img src={staticFile('dmd-world-logo.png')} style={{ height: 50, width: 'auto' }} />
       </div>
       <div style={{ marginTop: 56, filter: 'drop-shadow(0 0 24px rgba(255,194,61,0.35))' }}>
         <Pixel text="GG" color={C.amber} width={300} reveal={reveal} />
