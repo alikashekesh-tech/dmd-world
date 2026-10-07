@@ -1,8 +1,10 @@
-.sec { --coral: #f0533f; padding-block: clamp(72px, 9vw, 120px); background: var(--bg); }
+/* The section's accent is the DMD brand blue (--accent, as on buttons, links and highlights), also passed to the
+   cards' discount badges (--badge in MiniCard). */
+.sec { --drop: var(--accent); --badge: var(--drop); padding-block: clamp(72px, 9vw, 120px); background: var(--bg); }
 .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 48px; }
-.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--coral); }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--drop); }
 .title { margin-top: 16px; font-size: clamp(34px, 4.4vw, 60px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; }
-.title span { position: relative; display: inline-block; color: var(--coral); }
+.title span { position: relative; display: inline-block; color: var(--drop); }
 .sec[data-seen] .title span { animation: sink 0.9s 0.35s both cubic-bezier(.5, 0, .3, 1.4); }
 .sub { margin-top: 14px; max-width: 46ch; color: var(--text-2); font-size: 15.5px; }
 
@@ -10,10 +12,10 @@
 .grid { fill: #c3ccdb; }
 .lineA, .lineB { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
 .lineA { stroke: #0b1220; }
-.lineB { stroke: var(--coral); }
-.end { fill: var(--coral); stroke: var(--bg); stroke-width: 2; opacity: 0; }
-.ping { fill: none; stroke: var(--coral); stroke-width: 1.5; opacity: 0; transform-box: fill-box; transform-origin: center; }
-.drop { font: 700 13px var(--font-mono); fill: var(--coral); opacity: 0; }
+.lineB { stroke: var(--drop); }
+.end { fill: var(--drop); stroke: var(--bg); stroke-width: 2; opacity: 0; }
+.ping { fill: none; stroke: var(--drop); stroke-width: 1.5; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.drop { font: 700 13px var(--font-mono); fill: var(--drop); opacity: 0; }
 .sec[data-seen] .lineA { animation: draw 0.8s 0.2s both ease-out; }
 .sec[data-seen] .lineB { animation: draw 0.6s 1s both cubic-bezier(.6, 0, .3, 1); }
 .sec[data-seen] .end { animation: show 0.3s 1.55s both; }
@@ -24,7 +26,7 @@
 .grid4 > * { opacity: 0; }
 .sec[data-seen] .grid4 > * { animation: rise 0.7s calc(var(--i) * 70ms) both cubic-bezier(.2, .7, .2, 1); }
 .grid4 b { font-variant-numeric: tabular-nums; transition: color 0.3s; }
-.grid4 b.landed { color: var(--coral); }
+.grid4 b.landed { color: var(--drop); }
 
 .more { display: flex; justify-content: center; margin-top: 40px; }
 .moreLink { display: inline-flex; align-items: center; gap: 10px; height: 50px; padding: 0 22px; border-radius: 12px; border: 1px solid #c5cfdf; font-weight: 650; font-size: 15px; transition: border-color 0.2s, background 0.2s; }
