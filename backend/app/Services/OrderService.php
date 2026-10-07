@@ -35,6 +35,11 @@ final class OrderService
             if (! in_array($to, Order::TRANSITIONS[$from] ?? [], true)) {
                 throw new ApiException(409, 'STATUS_NOT_ALLOWED', "An order that is {$this->label($from)} can’t be marked {$this->label($to)}.");
             }
+            // A buyer may only cancel an order DMD hasn't confirmed. Checked again here, under the lock: the owner may have
+            // confirmed it between the buyer's page loading and this request.
+            if ($actor === 'buyer' && ! $locked->cancellableByBuyer()) {
+                throw new ApiException(409, 'NOT_CANCELLABLE', 'DMD has already confirmed this order. Message or call DMD to change it.');
+            }
 
             $changes = ['status' => $to];
             if ($to === 'cancelled') {
@@ -42,7 +47,7 @@ final class OrderService
                 $changes += ['cancelled_at' => now(), 'cancel_reason' => $note ? mb_substr($note, 0, 300) : null];
             }
             if ($from === 'cancelled') {
-                $this->reserveAgain($locked);
+                $this->takeStock($locked);
                 $changes += ['cancelled_at' => null, 'cancel_reason' => null];
             }
             if ($to === 'completed') {
@@ -94,7 +99,7 @@ final class OrderService
      */
     private function returnStock(Order $order, string $reason, string $note, bool $toShelf = true): void
     {
-        foreach ($order->items as $item) {
+        foreach ($order->items->sortBy('product_id') as $item) { // product rows locked in one order: no deadlock
             if ($item->stock_held < 1) {
                 continue;
             }
@@ -106,14 +111,19 @@ final class OrderService
         }
     }
 
-    /** Takes the stock again for a reopened order (refused, and nothing changed, if it's no longer there). */
-    private function reserveAgain(Order $order): void
+    /**
+     * Takes the stock a reopened order needs: only what each line doesn't already hold, so it is never taken twice
+     * (refused, with nothing changed, if it's no longer there).
+     */
+    private function takeStock(Order $order): void
     {
-        foreach ($order->items as $item) {
-            if ($item->product && $item->product->track_stock) {
-                $this->inventory->adjust($item->product, -$item->quantity, 'order', null, "Order #{$order->number} reopened", $order->id);
-                $item->forceFill(['stock_held' => $item->quantity])->save();
+        foreach ($order->items->sortBy('product_id') as $item) {
+            $missing = $item->quantity - $item->stock_held;
+            if ($missing < 1 || ! $item->product || ! $item->product->track_stock) {
+                continue;
             }
+            $this->inventory->adjust($item->product, -$missing, 'order', null, "Order #{$order->number} reopened", $order->id);
+            $item->forceFill(['stock_held' => $item->quantity])->save();
         }
     }
 }
