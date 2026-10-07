@@ -13,7 +13,7 @@ class QuoteRequest extends ApiRequest
         return [
             'items' => ['required', 'array', 'min:1', 'max:'.Checkout::MAX_LINES],
             'items.*.product_id' => ['required', 'integer', 'min:1'],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.Checkout::MAX_QTY],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.Checkout::MAX_LINE_QTY],
             'coupon' => ['nullable', 'string', 'max:60'],
             'email' => ['nullable', 'string', 'max:254'], // only used for "once per customer" codes
         ];
@@ -24,7 +24,7 @@ class QuoteRequest extends ApiRequest
         return [
             'items.required' => 'Your cart is empty.',
             'items.min' => 'Your cart is empty.',
-            'items.*.quantity.max' => 'Each item can be ordered up to '.Checkout::MAX_QTY.' at a time.',
+            'items.*.quantity.max' => 'That quantity is more than the store can ever hold.',
         ] + parent::messages();
     }
 }

@@ -7,8 +7,9 @@ import { useDialog } from '../../lib/useDialog.js';
 import LineArt from '../art/LineArt.jsx';
 import s from './CartDrawer.module.css';
 
-export function QtyStepper({ value, onChange, size = 'md', max = 10, label }) {
-  const top = Math.max(1, Math.min(10, max));
+/** `max`: the most that can be chosen (the product's stock left); no stock limit when it isn't tracked. */
+export function QtyStepper({ value, onChange, size = 'md', max = Infinity, label }) {
+  const top = Math.max(1, max);
   return (
     <div className={`${s.qty} ${s[size]}`} role="group" aria-label={label ? `Quantity of ${label}` : 'Quantity'}>
       <button type="button" aria-label="Decrease quantity" onClick={() => onChange(value - 1)} disabled={value <= 1}><MinusIcon size={15} /></button>
@@ -19,7 +20,7 @@ export function QtyStepper({ value, onChange, size = 'md', max = 10, label }) {
 }
 
 export default function CartDrawer() {
-  const { drawer, setDrawer, lines, subtotal, count, setQty, removeLine } = useStore();
+  const { drawer, setDrawer, lines, subtotal, count, setQty, removeLine, lineMax } = useStore();
   const close = () => setDrawer(false);
   const panel = useDialog(drawer, close);
   return (
@@ -38,7 +39,7 @@ export default function CartDrawer() {
                 <Link to={`/product/${l.product.slug}`} onClick={close}>{l.product.name}</Link>
                 {l.color && COLORS[l.color] && <span className={s.variant}><i style={{ background: COLORS[l.color].hex }} />{COLORS[l.color].label}</span>}
                 {l.product.stock === 'out' && <span className={s.out}>Sold out: remove it to check out</span>}
-                <div className={s.lineFoot}><QtyStepper value={l.qty} onChange={(q) => setQty(l.key, q)} size="sm" label={l.product.name} max={l.product.stock === 'low' && l.product.stockCount ? l.product.stockCount : 10} /><b>{money(l.qty * l.product.price)}</b></div>
+                <div className={s.lineFoot}><QtyStepper value={l.qty} onChange={(q) => setQty(l.key, q)} size="sm" label={l.product.name} max={lineMax(l.key)} /><b>{money(l.qty * l.product.price)}</b></div>
               </div>
               <button type="button" className={s.rm} onClick={() => removeLine(l.key)} aria-label={`Remove ${l.product.name}`}><TrashIcon size={17} /></button>
             </div>

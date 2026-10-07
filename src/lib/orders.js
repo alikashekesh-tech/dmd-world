@@ -3,7 +3,7 @@
    shapes the cart, checkout, order and account pages already use. */
 import { laravelApi } from './laravelApi.js';
 
-const CODES = { SOLD_OUT: 'sold_out', LOW_STOCK: 'low_stock', TOO_MANY: 'low_stock', UNAVAILABLE: 'unavailable' };
+const CODES = { SOLD_OUT: 'sold_out', LOW_STOCK: 'low_stock', TOO_LARGE: 'too_large', UNAVAILABLE: 'unavailable' };
 // Laravel's field names → the checkout form's field ids (so the first wrong field gets the focus).
 const FIELDS = { 'contact.first_name': 'firstName', 'contact.last_name': 'lastName', 'contact.email': 'email', 'contact.phone': 'phone', 'address.street': 'address_1', 'address.city': 'city', address: 'address_1', address_id: 'address_1', coupon: 'coupon' };
 

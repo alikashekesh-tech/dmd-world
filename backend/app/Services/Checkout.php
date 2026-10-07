@@ -25,7 +25,14 @@ final class Checkout
 {
     public const MAX_LINES = 30;
 
-    public const MAX_QTY = 10;
+    /**
+     * How many of one product a line may ask for: input sanity only, the same ceiling the admin has for stock
+     * (ProductRequest). The real limit is the product's stock in MySQL; there is no per-order purchase limit.
+     */
+    public const MAX_LINE_QTY = 1_000_000;
+
+    /** The largest amount (in cents) the order columns hold (DECIMAL(10,2)); a bigger order is refused, not truncated. */
+    public const MAX_AMOUNT = 9_999_999_999;
 
     public function __construct(private Inventory $inventory, private Coupons $coupons) {}
 
@@ -50,16 +57,14 @@ final class Checkout
         $subtotal = 0;
         foreach ($wanted as $id => $qty) {
             $p = $products->get($id);
-            $line = ['product_id' => $id, 'quantity' => $qty, 'product' => $p, 'name' => $p?->name, 'unit' => 0, 'regular' => 0, 'subtotal' => 0, 'problem' => null, 'code' => null, 'max' => self::MAX_QTY];
+            $line = ['product_id' => $id, 'quantity' => $qty, 'product' => $p, 'name' => $p?->name, 'unit' => 0, 'regular' => 0, 'subtotal' => 0, 'problem' => null, 'code' => null, 'max' => null];
             if (! $p || ! $p->isPublished()) {
                 [$line['code'], $line['problem'], $line['max']] = ['UNAVAILABLE', ($p->name ?? 'An item in your cart').' is no longer available. Please remove it.', 0];
             } else {
                 $available = Inventory::available($p);
-                $line['max'] = $available === null ? self::MAX_QTY : min(self::MAX_QTY, $available);
+                $line['max'] = $available; // the stock in MySQL; null: not tracked, no limit from stock
                 if ($available === 0) {
                     [$line['code'], $line['problem']] = ['SOLD_OUT', "{$p->name} just sold out. Please remove it."];
-                } elseif ($qty > self::MAX_QTY) {
-                    [$line['code'], $line['problem']] = ['TOO_MANY', 'Each item can be ordered up to '.self::MAX_QTY.' at a time.'];
                 } elseif ($available !== null && $available < $qty) {
                     [$line['code'], $line['problem']] = ['LOW_STOCK', "Only {$available} of {$p->name} left. Please lower the quantity."];
                 }
@@ -67,6 +72,9 @@ final class Checkout
                 $line['unit'] = $price['price'];
                 $line['regular'] = $price['regular'];
                 $line['subtotal'] = $price['price'] * $qty;
+                if (! $line['problem'] && $subtotal + $line['subtotal'] > self::MAX_AMOUNT) {
+                    [$line['code'], $line['problem']] = ['TOO_LARGE', 'This order is too large to place online. Please contact DMD World.'];
+                }
                 if (! $line['problem']) {
                     $subtotal += $line['subtotal'];
                 }

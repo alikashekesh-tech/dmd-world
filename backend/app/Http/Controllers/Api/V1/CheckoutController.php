@@ -26,7 +26,6 @@ class CheckoutController extends Controller
                 'description' => $id === 'cod' ? 'Pay when your order arrives.' : (StoreSettings::get('bank_transfer_note') ?: 'DMD sends the bank details when confirming your order.')])->values(),
             'delivery_methods' => collect(StoreSettings::deliveryMethods())->map(fn ($title, $id) => ['id' => $id, 'title' => $delivery[$id][0], 'description' => $delivery[$id][1]])->values(),
             'coupons_enabled' => (bool) StoreSettings::get('coupons_enabled'),
-            'max_quantity' => Checkout::MAX_QTY,
         ]]);
     }
 

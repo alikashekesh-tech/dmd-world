@@ -97,7 +97,8 @@ class CheckoutTest extends TestCase
 
         $this->client()->post('/api/v1/orders', $this->order([['product_id' => $ok->id, 'quantity' => 1], ['product_id' => $low->id, 'quantity' => 2]]))
             ->assertStatus(409)->assertJsonPath('error.code', 'LOW_STOCK');
-        $this->client()->post('/api/v1/orders', $this->order([['product_id' => $ok->id, 'quantity' => 11]]))->assertStatus(422);
+        $this->client()->post('/api/v1/orders', $this->order([['product_id' => $ok->id, 'quantity' => 6]]))->assertStatus(409)->assertJsonPath('error.code', 'LOW_STOCK');
+        $this->client()->post('/api/v1/orders', $this->order([['product_id' => $ok->id, 'quantity' => 0]]))->assertStatus(422);
         $this->client()->post('/api/v1/orders', $this->order([['product_id' => 99999999, 'quantity' => 1]]))->assertStatus(409)->assertJsonPath('error.code', 'UNAVAILABLE');
 
         $this->assertSame(0, Order::count());

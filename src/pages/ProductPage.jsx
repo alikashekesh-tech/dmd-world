@@ -9,7 +9,7 @@ import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellIcon } from '../components/common/icons.jsx';
-import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew } from '../data/index.js';
+import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import { catUrl, CONTACT } from '../data/dmdMenu.js';
@@ -72,7 +72,7 @@ export default function ProductPage() {
   const version = useCatalog();
   const p = getProduct(slug);
   const nav = useNavigate();
-  const { addToCart, toggleWish, isWished, catalogVersion } = useStore();
+  const { addToCart, toggleWish, isWished, catalogVersion, roomFor } = useStore();
   const [color, setColor] = useState(p?.colors[0]);
   const [view, setView] = useState(0);
   const [qty, setQty] = useState(1);
@@ -137,8 +137,12 @@ export default function ProductPage() {
   const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', out ? 'Out of stock' : p.stock === 'low' ? `Only ${p.stockCount} left` : 'In stock'], ...(p.sku ? [['SKU', p.sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
   const wished = isWished(p.id);
   const bundle = p.bundle?.map(getProduct).filter(Boolean);
-  const maxQty = p.stock === 'low' && p.stockCount ? p.stockCount : 10;
-  const buyNow = () => { addToCart(p.id, qty, color, { open: false }); nav('/checkout'); };
+  // The stock left after what's already in the cart: 18 in stock with 15 in the cart leaves 3 to choose from.
+  const room = roomFor(p.id);
+  const full = !out && room < 1;
+  const maxQty = Math.max(1, room);
+  const addLabel = full ? `All ${purchaseLimit(p)} in your cart` : 'Add to cart';
+  const buyNow = () => { if (!full) addToCart(p.id, Math.min(qty, maxQty), color, { open: false }); nav('/checkout'); };
   const shots = p.img ? p.gallery || [p.img] : ART_VIEWS;
   const tabs = TABS.filter(([k]) => k !== 'specs' || specRows.length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
   const onTabKey = (e, i) => {
@@ -207,7 +211,7 @@ export default function ProductPage() {
             <>
               <div className={s.actions}>
                 <QtyStepper value={Math.min(qty, maxQty)} onChange={setQty} max={maxQty} label={p.name} />
-                <button type="button" className="btn btn--primary btn--lg" onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>Add to cart</button>
+                <button type="button" className="btn btn--primary btn--lg" disabled={full} onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>{addLabel}</button>
                 <button type="button" className={`${s.heart} ${wished ? s.hearted : ''}`} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><HeartIcon size={20} fill={wished ? 'currentColor' : 'none'} /></button>
               </div>
               <button type="button" className="btn btn--secondary btn--lg btn--block" onClick={buyNow}>Buy now</button>
@@ -291,7 +295,7 @@ export default function ProductPage() {
       <div className={s.sticky}>
         <div><b>{p.name}</b><Price price={p.price} was={p.was} size="sm" /></div>
         {out ? <a href="#top" className="btn btn--secondary" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Sold out</a>
-          : <button type="button" className="btn btn--primary" onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>Add to cart</button>}
+          : <button type="button" className="btn btn--primary" disabled={full} onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>{addLabel}</button>}
       </div>
     </div>
   );

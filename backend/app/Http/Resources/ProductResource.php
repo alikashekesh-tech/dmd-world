@@ -38,6 +38,9 @@ class ProductResource extends JsonResource
             'offer' => $price['offer'] ? ['id' => $price['offer']['id'], 'label' => $price['offer']['label'] ?: $price['offer']['name']] : null,
             'availability' => $availability,
             'stock_left' => $availability === Inventory::LOW_STOCK ? $this->stock_quantity : null,
+            // How many can be bought right now: the stock in MySQL when it's tracked (0 when sold out), null when not.
+            // Checkout enforces the same number; this lets the quantity controls stop there.
+            'max_quantity' => Inventory::available($this->resource),
             'image' => $images->first()?->url,
             'images' => $images->take(6)->pluck('url')->values(),
             'is_featured' => (bool) $this->is_featured,

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { getProduct, catalog } from '../data/index.js';
+import { getProduct, catalog, purchaseLimit } from '../data/index.js';
 import { useCatalog, keepCatalogFresh } from '../data/live.js';
 import { guestOrders } from '../lib/storeApi.js';
 import { account } from '../lib/account.js';
@@ -8,23 +8,30 @@ import * as community from '../lib/community.js';
 
 const StoreCtx = createContext(null);
 const KEY = 'loadout:v1';
-const MAX_QTY = 10;
+// Input sanity only (the API's own bound). The real limit is each product's stock: see purchaseLimit.
+const MAX_LINE_QTY = 1_000_000;
+const limitOf = (id) => purchaseLimit(getProduct(id));
+/** Units of a product in the cart, across its colour lines (stock is per product), optionally leaving one line out. */
+const heldOf = (cart, id, exceptKey) => cart.reduce((n, l) => (l.id === id && l.key !== exceptKey ? n + l.qty : n), 0);
 
 /* Only device conveniences live in the browser: the cart and a guest's wishlist.
    Account data (profile, orders, the account's wishlist, reviews, messages, stock alerts) lives on the server. */
 const read = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === 'object' ? v : {}; } catch { return {}; } };
 const ids = (v) => (Array.isArray(v) ? [...new Set(v.map(String))].filter((x) => /^\d{1,12}$/.test(x)) : []);
-const cartOf = (v) => (Array.isArray(v) ? v.filter((l) => l && /^\d{1,12}$/.test(String(l.id))).map((l) => ({ key: `${l.id}|${l.color || ''}`, id: String(l.id), color: l.color || undefined, qty: Math.max(1, Math.min(MAX_QTY, Number(l.qty) || 1)) })) : []);
+const cartOf = (v) => (Array.isArray(v) ? v.filter((l) => l && /^\d{1,12}$/.test(String(l.id))).map((l) => ({ key: `${l.id}|${l.color || ''}`, id: String(l.id), color: l.color || undefined, qty: Math.max(1, Math.min(MAX_LINE_QTY, Number(l.qty) || 1)) })) : []);
 
 function reducer(state, a) {
   switch (a.type) {
     case 'add': {
-      const key = `${a.id}|${a.color || ''}`;
+      const id = String(a.id);
+      const key = `${id}|${a.color || ''}`;
+      const qty = Math.min(a.qty, limitOf(id) - heldOf(state.cart, id), MAX_LINE_QTY); // never more than the stock left
+      if (qty < 1) return state;
       const found = state.cart.find((l) => l.key === key);
-      const cart = found ? state.cart.map((l) => (l.key === key ? { ...l, qty: Math.min(MAX_QTY, l.qty + a.qty) } : l)) : [...state.cart, { key, id: String(a.id), color: a.color, qty: Math.min(MAX_QTY, a.qty) }];
+      const cart = found ? state.cart.map((l) => (l.key === key ? { ...l, qty: l.qty + qty } : l)) : [...state.cart, { key, id, color: a.color, qty }];
       return { ...state, cart };
     }
-    case 'qty': return { ...state, cart: state.cart.map((l) => (l.key === a.key ? { ...l, qty: Math.max(1, Math.min(MAX_QTY, a.qty)) } : l)) };
+    case 'qty': return { ...state, cart: state.cart.map((l) => (l.key === a.key ? { ...l, qty: Math.max(1, Math.min(a.qty, limitOf(l.id) - heldOf(state.cart, l.id, l.key), MAX_LINE_QTY)) } : l)) };
     case 'remove': return { ...state, cart: state.cart.filter((l) => l.key !== a.key) };
     case 'clear': return { ...state, cart: [] };
     case 'restore': return { ...state, cart: cartOf(a.cart) };
@@ -126,9 +133,21 @@ export function StoreProvider({ children }) {
   }, []);
   const updateOrder = useCallback((o) => setOrders((list) => list.map((x) => (x.id === o.id ? o : x))), []);
 
+  // What the cart holds now, for the add-to-cart messages below (the reducer enforces the same limit).
+  const cartNow = useRef(state.cart);
+  useEffect(() => { cartNow.current = state.cart; }, [state.cart]);
   const addToCart = useCallback((id, qty = 1, color, { open = true } = {}) => {
+    const p = getProduct(String(id));
+    const limit = purchaseLimit(p);
+    const room = limit - heldOf(cartNow.current, String(id));
+    if (room < 1) {
+      setToast(limit === 0 ? `${p?.name || 'This item'} is out of stock` : `All ${limit} available are already in your cart`);
+      return false;
+    }
     dispatch({ type: 'add', id: String(id), qty, color });
+    if (qty > room) setToast(`Only ${limit} available: your cart now has all ${limit}`);
     if (open) setDrawer(true);
+    return true;
   }, []);
   const toggleWish = useCallback((id) => {
     const p = getProduct(id);
@@ -171,6 +190,9 @@ export function StoreProvider({ children }) {
     removeLine: (key) => dispatch({ type: 'remove', key }),
     clearCart: () => dispatch({ type: 'clear' }),
     restoreCart: (cart) => dispatch({ type: 'restore', cart }),
+    // How many more of a product can go in the cart, and the most one cart line may be set to (both from stock).
+    roomFor: (id) => Math.max(0, limitOf(String(id)) - heldOf(state.cart, String(id))),
+    lineMax: (key) => { const l = state.cart.find((x) => x.key === key); return l ? Math.max(1, limitOf(l.id) - heldOf(state.cart, l.id, key)) : 1; },
     toggleWish, isWished: (id) => state.wishlist.includes(id),
     // accounts
     buyer, accounts, checking: buyer === undefined, setBuyer, sessionError, retrySession: checkSession,

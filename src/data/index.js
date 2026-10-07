@@ -61,6 +61,8 @@ export function applyCatalog(data) {
 
 export const isNew = (p) => p.tag === 'new' || (Date.now() - new Date(p.date).getTime()) < 1000 * 60 * 60 * 24 * 75;
 export const inStock = (p) => p.stock !== 'out';
+/** How many of a product one cart may hold in all: its stock when tracked, no stock limit when not (checkout enforces the same). */
+export const purchaseLimit = (p) => (!p ? Infinity : p.stock === 'out' ? 0 : p.maxQty ?? Infinity);
 
 // ── search ─────────────────────────────────────────────────────────────────────
 const fold = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
