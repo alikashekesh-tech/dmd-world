@@ -10,20 +10,32 @@ import { useDialog } from '../../lib/useDialog.js';
 import { SIGN_IN } from '../../lib/authRoutes.js';
 import s from './MobileNav.module.css';
 
-function Acc({ title, children, defaultOpen }) {
-  const [open, setOpen] = useState(!!defaultOpen);
+/** A section of the drawer; the drawer decides which one is open. */
+function Acc({ title, open, onToggle, children }) {
   return (
     <div className={s.acc}>
-      <button type="button" className={s.accHead} aria-expanded={open} onClick={() => setOpen(!open)}>{title}<ChevronDown size={18} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} /></button>
+      <button type="button" className={s.accHead} aria-expanded={open} onClick={onToggle}>{title}<ChevronDown size={18} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} /></button>
       {open && <div className={s.accBody}>{children}</div>}
     </div>
   );
 }
 
+// MENU_SECTIONS is [categories, brands]: each becomes one section of the drawer.
+const SECTION_TITLES = ['Categories', 'Brands'];
+
 export default function MobileNav({ open, onClose }) {
   const { wishlist, user } = useStore();
   const panel = useDialog(open, onClose);
   useCatalog(); // the tree comes with the catalog
+  // Categories and Brands are closed every time the drawer opens (reset as it opens, before it's drawn, so nothing
+  // collapses while it slides away), and opening one closes the other. Tapping the open one closes it.
+  const [section, setSection] = useState(null);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setSection(null);
+  }
+  const toggle = (i) => setSection((cur) => (cur === i ? null : i));
   return (
     <div className={`${s.root} ${open ? s.open : ''}`} aria-hidden={!open}>
       <div className={s.scrim} onClick={onClose} />
@@ -34,7 +46,8 @@ export default function MobileNav({ open, onClose }) {
           <Link to="/categories" className={s.primary} onClick={onClose}>All Categories <ArrowRight size={16} /></Link>
           {[['Home', '/'], ['Shop', '/shop'], ['New Offers', '/product-category/new-offers']].map(([l, to]) => <Link key={to} to={to} className={s.row} onClick={onClose}>{l}</Link>)}
           {MENU_SECTIONS.map((sec, i) => (
-            <Acc key={sec.label} title={i ? 'Brands' : 'Categories'} defaultOpen={!i}>
+            <Acc key={sec.label} title={SECTION_TITLES[i]} open={section === i} onToggle={() => toggle(i)}>
+              {i === 1 && <div className={s.group}><h5><Link to="/brands" onClick={onClose}>All brands</Link></h5></div>}
               {sec.slugs.filter((sl) => groupBySlug[sl]).map((sl) => { const g = groupBySlug[sl]; return (
                 <div key={sl} className={s.group}>
                   <h5><Link to={catUrl(sl)} onClick={onClose}>{g.name}</Link></h5>
@@ -44,7 +57,6 @@ export default function MobileNav({ open, onClose }) {
               ); })}
             </Acc>
           ))}
-          <Link to="/brands" className={s.row} onClick={onClose}>Brands</Link>
           <Link to="/contact" className={s.row} onClick={onClose}>Contact Us</Link>
         </div>
         <div className={s.foot}>
