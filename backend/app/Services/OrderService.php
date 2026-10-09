@@ -8,6 +8,7 @@ use App\Models\Admin;
 use App\Models\Order;
 use App\Models\OrderStatusEvent;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -99,13 +100,22 @@ final class OrderService
      */
     private function returnStock(Order $order, string $reason, string $note, bool $toShelf = true): void
     {
-        foreach ($order->items->sortBy('product_id') as $item) { // product rows locked in one order: no deadlock
+        foreach ($this->inLockOrder($order) as $item) { // rows locked in one order: no deadlock
             if ($item->stock_held < 1) {
                 continue;
             }
-            $product = $toShelf && $item->product_id ? Product::withTrashed()->find($item->product_id) : null; // archived too
-            if ($product) {
-                $this->inventory->adjust($product, $item->stock_held, $reason, null, $note, $order->id);
+            if ($toShelf && $item->variant_id) {
+                $variant = ProductVariant::withTrashed()->find($item->variant_id); // removed variants too
+                if ($variant) {
+                    $this->inventory->adjustVariant($variant, $item->stock_held, $reason, null, $note, $order->id);
+                }
+            } elseif ($toShelf && $item->product_id) {
+                $product = Product::withTrashed()->find($item->product_id); // archived too
+                // A line from before the product had variants can't know which variant the units belong to: the order
+                // stops holding them, and the owner counts them into a variant.
+                if ($product && ! $product->isVariable()) {
+                    $this->inventory->adjust($product, $item->stock_held, $reason, null, $note, $order->id);
+                }
             }
             $item->forceFill(['stock_held' => 0])->save();
         }
@@ -117,13 +127,35 @@ final class OrderService
      */
     private function takeStock(Order $order): void
     {
-        foreach ($order->items->sortBy('product_id') as $item) {
+        foreach ($this->inLockOrder($order) as $item) {
             $missing = $item->quantity - $item->stock_held;
-            if ($missing < 1 || ! $item->product || ! $item->product->track_stock) {
+            if ($missing < 1) {
                 continue;
             }
-            $this->inventory->adjust($item->product, -$missing, 'order', null, "Order #{$order->number} reopened", $order->id);
+            $note = "Order #{$order->number} reopened";
+            if ($item->variant_id) {
+                $variant = ProductVariant::withTrashed()->find($item->variant_id);
+                if (! $variant || ! $variant->track_stock) {
+                    continue;
+                }
+                $this->inventory->adjustVariant($variant, -$missing, 'order', null, $note, $order->id);
+            } else {
+                $product = $item->product;
+                if ($product && $product->isVariable()) { // the line was placed before the product had variants
+                    throw new ApiException(409, 'PRODUCT_HAS_VARIANTS', "{$item->product_name} is now sold in variants, so this order can’t take its stock again. Place a new order for the variant instead.");
+                }
+                if (! $product || ! $product->track_stock) {
+                    continue;
+                }
+                $this->inventory->adjust($product, -$missing, 'order', null, $note, $order->id);
+            }
             $item->forceFill(['stock_held' => $item->quantity])->save();
         }
+    }
+
+    /** An order's lines by product, then variant: the order every stock change locks rows in. */
+    private function inLockOrder(Order $order)
+    {
+        return $order->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderStatusEvent;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\OrderPlaced;
 use App\Support\Money;
@@ -17,9 +18,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * Cart quotes and order placement. The browser only says which products and how many; every price, discount,
- * stock check and total is worked out here from MySQL. Placing an order is one transaction that locks the product
- * rows, so two buyers can't both get the last unit, and nothing is half-written if anything fails.
+ * Cart quotes and order placement. The browser only says which products (and which variant of a variable product)
+ * and how many; every price, discount, stock check and total is worked out here from MySQL. Placing an order is one
+ * transaction that locks the product rows and then the variant rows, so two buyers can't both get the last unit, and
+ * nothing is half-written if anything fails.
  */
 final class Checkout
 {
@@ -37,38 +39,58 @@ final class Checkout
     public function __construct(private Inventory $inventory, private Coupons $coupons) {}
 
     /**
-     * Prices cart lines from the products as they are now. With $lock the product rows are locked until the
-     * surrounding transaction ends (placing an order).
+     * Prices cart lines from the products and variants as they are now. With $lock the product rows, then the variant
+     * rows, are locked until the surrounding transaction ends (placing an order).
      *
-     * @param  list<array{product_id: int, quantity: int}>  $items
+     * @param  list<array{product_id: int, variant_id?: ?int, quantity: int}>  $items
      * @return array{lines: list<array>, subtotal: int, ok: bool}
      */
     public function price(array $items, bool $lock = false): array
     {
-        $wanted = [];
+        $wanted = []; // one line per product and variant: "12" or "12:40"
         foreach ($items as $item) {
-            $wanted[(int) $item['product_id']] = ($wanted[(int) $item['product_id']] ?? 0) + (int) $item['quantity'];
+            $pid = (int) $item['product_id'];
+            $vid = ! empty($item['variant_id']) ? (int) $item['variant_id'] : null;
+            $key = $vid ? "{$pid}:{$vid}" : (string) $pid;
+            $wanted[$key] ??= ['product_id' => $pid, 'variant_id' => $vid, 'quantity' => 0];
+            $wanted[$key]['quantity'] += (int) $item['quantity'];
         }
-        ksort($wanted); // a fixed lock order: two checkouts can't deadlock on each other's products
-        $query = Product::query()->whereKey(array_keys($wanted))->with(['images:id,product_id,url,position', 'categories:id']);
+        // A fixed lock order (products by id, then variants by id): two checkouts can't deadlock on each other's rows.
+        uasort($wanted, fn ($a, $b) => [$a['product_id'], $a['variant_id'] ?? 0] <=> [$b['product_id'], $b['variant_id'] ?? 0]);
+        $query = Product::query()->whereKey(array_unique(array_column($wanted, 'product_id')))->orderBy('id')
+            ->with(['images:id,product_id,url,position', 'categories:id']);
         $products = ($lock ? $query->lockForUpdate() : $query)->get()->keyBy('id');
+        $variantIds = array_values(array_filter(array_column($wanted, 'variant_id')));
+        $variantQuery = ProductVariant::withTrashed()->whereKey($variantIds)->orderBy('id');
+        $variants = $variantIds ? ($lock ? $variantQuery->lockForUpdate() : $variantQuery)->get()->keyBy('id') : collect();
 
         $lines = [];
         $subtotal = 0;
-        foreach ($wanted as $id => $qty) {
+        foreach ($wanted as $key => ['product_id' => $id, 'variant_id' => $vid, 'quantity' => $qty]) {
             $p = $products->get($id);
-            $line = ['product_id' => $id, 'quantity' => $qty, 'product' => $p, 'name' => $p?->name, 'unit' => 0, 'regular' => 0, 'subtotal' => 0, 'problem' => null, 'code' => null, 'max' => null];
+            $v = $vid ? $variants->get($vid) : null;
+            $v = $v && $p && $v->product_id === $p->id ? $v : null; // a variant id of another product counts as none
+            $name = $p && $v ? "{$p->name} ({$v->label($p->variation_attributes)})" : $p?->name;
+            $line = ['key' => $key, 'product_id' => $id, 'variant_id' => $vid, 'quantity' => $qty, 'product' => $p, 'variant' => $v, 'name' => $name,
+                'options' => $p && $v ? $v->optionList($p->variation_attributes) : null, 'sku' => $v?->sku ?? $p?->sku,
+                'unit' => 0, 'regular' => 0, 'subtotal' => 0, 'problem' => null, 'code' => null, 'max' => null];
             if (! $p || ! $p->isPublished()) {
                 [$line['code'], $line['problem'], $line['max']] = ['UNAVAILABLE', ($p->name ?? 'An item in your cart').' is no longer available. Please remove it.', 0];
+            } elseif ($p->isVariable() && ! $vid) {
+                [$line['code'], $line['problem'], $line['max']] = ['OPTIONS_REQUIRED', "Choose the options for {$p->name} on its page, then add it again.", 0];
+            } elseif ($vid && (! $v || ! $v->isSellable() || ! $p->isVariable())) {
+                $what = $v ? "{$p->name} ({$v->label($p->variation_attributes)})" : "That option of {$p->name}";
+                [$line['code'], $line['problem'], $line['max']] = ['UNAVAILABLE', "{$what} is no longer available. Please remove it.", 0];
             } else {
-                $available = Inventory::available($p);
-                $line['max'] = $available; // the stock in MySQL; null: not tracked, no limit from stock
+                // The stock in MySQL (the variant's for a variable product); null: not tracked, no limit from stock.
+                $available = $v ? Inventory::variantAvailable($v) : Inventory::available($p);
+                $line['max'] = $available;
                 if ($available === 0) {
-                    [$line['code'], $line['problem']] = ['SOLD_OUT', "{$p->name} just sold out. Please remove it."];
+                    [$line['code'], $line['problem']] = ['SOLD_OUT', "{$name} just sold out. Please remove it."];
                 } elseif ($available !== null && $available < $qty) {
-                    [$line['code'], $line['problem']] = ['LOW_STOCK', "Only {$available} of {$p->name} left. Please lower the quantity."];
+                    [$line['code'], $line['problem']] = ['LOW_STOCK', "Only {$available} of {$name} left. Please lower the quantity."];
                 }
-                $price = Pricing::forProduct($p);
+                $price = $v ? Pricing::forVariant($p, $v) : Pricing::forProduct($p);
                 $line['unit'] = $price['price'];
                 $line['regular'] = $price['regular'];
                 $line['subtotal'] = $price['price'] * $qty;
@@ -142,7 +164,7 @@ final class Checkout
         $priced = $this->price($data['items'], lock: true);
         if (! $priced['ok']) {
             $bad = collect($priced['lines'])->firstWhere('problem', '!==', null);
-            throw new ApiException(409, $bad['code'], $bad['problem'], ['items' => collect($priced['lines'])->whereNotNull('problem')->map(fn ($l) => "{$l['product_id']}:{$l['code']}")->values()->all()]);
+            throw new ApiException(409, $bad['code'], $bad['problem'], ['items' => collect($priced['lines'])->whereNotNull('problem')->map(fn ($l) => "{$l['key']}:{$l['code']}")->values()->all()]);
         }
 
         $contact = $data['contact'];
@@ -181,15 +203,19 @@ final class Checkout
 
         foreach ($priced['lines'] as $line) {
             $p = $line['product'];
-            $lineDiscount = $coupon['lines'][$p->id] ?? 0;
+            $v = $line['variant'];
+            $tracked = $v ? $v->track_stock : $p->track_stock;
+            $lineDiscount = $coupon['lines'][$line['key']] ?? 0;
             $order->items()->forceCreate([
-                'product_id' => $p->id, 'product_name' => $p->name, 'sku' => $p->sku, 'image_url' => $p->images->first()?->url,
+                'product_id' => $p->id, 'variant_id' => $v?->id, 'product_name' => $p->name, 'sku' => $line['sku'], 'variant_options' => $line['options'],
+                'image_url' => $p->images->first()?->url,
                 'unit_price' => Money::decimal($line['unit']), 'regular_price' => Money::decimal($line['regular']), 'quantity' => $line['quantity'],
-                'stock_held' => $p->track_stock ? $line['quantity'] : 0, // what cancelling or refunding may give back
+                'stock_held' => $tracked ? $line['quantity'] : 0, // what cancelling or refunding may give back
                 'line_subtotal' => Money::decimal($line['subtotal']), 'line_discount' => Money::decimal($lineDiscount), 'line_total' => Money::decimal($line['subtotal'] - $lineDiscount),
             ]);
-            if ($p->track_stock) {
-                $this->inventory->adjust($p, -$line['quantity'], 'order', null, null, $order->id);
+            if ($tracked) {
+                $v ? $this->inventory->adjustVariant($v, -$line['quantity'], 'order', null, null, $order->id)
+                    : $this->inventory->adjust($p, -$line['quantity'], 'order', null, null, $order->id);
             }
         }
 

@@ -24,7 +24,7 @@ class InventoryController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $v = $request->validate(['level' => ['nullable', 'in:out,low,in,untracked'], 'q' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
-        $q = Product::query()->with(['images:id,product_id,url,alt,position', 'brand:id,name'])
+        $q = Product::query()->with(['images:id,product_id,url,alt,position', 'brand:id,name', 'variants'])
             ->withCount(['stockAlerts as waiting' => fn ($a) => $a->whereNull('notified_at')]);
         if (! empty($v['level'])) {
             ProductQuery::stockLevel($q, $v['level']);
@@ -60,6 +60,9 @@ class InventoryController extends Controller
         if (isset($v['stock_quantity'], $v['adjust'])) {
             throw new ApiException(422, 'ONE_CHANGE', 'Either set the stock or adjust it, not both.');
         }
+        if ($product->isVariable() && array_intersect_key($v, array_flip(['stock_quantity', 'adjust', 'track_stock', 'stock_status']))) {
+            throw new ApiException(409, 'HAS_VARIANTS', "{$product->name} is sold in variants: change each variant’s stock on the product page.");
+        }
         $admin = $request->user('admin');
 
         DB::transaction(function () use ($v, $product, $admin) {
@@ -80,11 +83,12 @@ class InventoryController extends Controller
 
     public function movements(Request $request, Product $product): JsonResponse
     {
-        $page = InventoryMovement::where('product_id', $product->id)->with('admin:id,name')->latest('id')->paginate(min(100, (int) $request->query('per_page', 30)));
+        $page = InventoryMovement::where('product_id', $product->id)->with(['admin:id,name', 'variant'])->latest('id')->paginate(min(100, (int) $request->query('per_page', 30)));
 
         return response()->json([
             'data' => $page->getCollection()->map(fn (InventoryMovement $m) => [
                 'id' => $m->id, 'change' => $m->quantity_change, 'after' => $m->quantity_after, 'reason' => $m->reason,
+                'variant_id' => $m->variant_id, 'variant' => $m->variant?->label($product->variation_attributes), // after: that variant's stock
                 'order_id' => $m->order_id, 'by' => $m->admin?->name, 'note' => $m->note, 'at' => $m->created_at?->toIso8601String(),
             ]),
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],

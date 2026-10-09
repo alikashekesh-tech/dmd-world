@@ -37,7 +37,7 @@ class OrderResource extends JsonResource
             ] : null,
             'customer_note' => $this->customer_note,
             'items' => $this->items->map(fn ($i) => [
-                'product_id' => $i->product_id, 'name' => $i->product_name, 'sku' => $i->sku, 'image_url' => $i->image_url,
+                'product_id' => $i->product_id, 'variant_id' => $i->variant_id, 'options' => $i->variant_options, 'name' => $i->product_name, 'sku' => $i->sku, 'image_url' => $i->image_url,
                 'unit_price' => $money($i->unit_price), 'regular_price' => $money($i->regular_price), 'quantity' => $i->quantity,
                 'line_subtotal' => $money($i->line_subtotal), 'line_discount' => $money($i->line_discount), 'line_total' => $money($i->line_total),
             ])->values(),

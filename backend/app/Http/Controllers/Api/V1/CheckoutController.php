@@ -34,7 +34,8 @@ class CheckoutController extends Controller
     {
         $priced = $this->checkout->quote($request->validated('items'), $request->validated('coupon'), $request->user(), $request->validated('email'));
         $lines = collect($priced['lines'])->map(fn ($l) => [
-            'product_id' => $l['product_id'], 'quantity' => $l['quantity'], 'name' => $l['name'],
+            'product_id' => $l['product_id'], 'variant_id' => $l['variant_id'], 'options' => $l['options'], 'sku' => $l['sku'],
+            'quantity' => $l['quantity'], 'name' => $l['name'],
             'unit_price' => Money::json($l['unit']), 'regular_price' => Money::json($l['regular']), 'line_total' => Money::json($l['subtotal']),
             'problem' => $l['problem'], 'code' => $l['code'], 'max_quantity' => $l['max'],
         ]);

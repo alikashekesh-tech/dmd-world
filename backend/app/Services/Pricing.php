@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Support\Money;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -12,6 +13,8 @@ use Illuminate\Support\Carbon;
  * call this, so they can't disagree. The price is the lowest of: the regular price, the product's own sale (inside
  * its dates) and any running store-wide offer covering it. Nothing here ever writes a price back to the product.
  * ProductQuery::priceExpression() is the same rule in SQL, for sorting and filtering.
+ * A variant is priced the same way from its own regular and sale price (a variant's sale has no dates); a variable
+ * product's price is its "from" price: the cheapest variant that can be bought.
  */
 final class Pricing
 {
@@ -19,14 +22,41 @@ final class Pricing
     public static function forProduct(Product $product, ?CarbonInterface $at = null): array
     {
         $at ??= now();
-        $regular = Money::cents($product->regular_price);
+        if ($product->isVariable()) {
+            // The cheapest variant that can be bought; if none can, the cheapest one that is switched on.
+            $sellable = ($product->relationLoaded('variants') ? $product->variants : $product->variants()->get())->filter->isSellable();
+            $buyable = $sellable->filter(fn (ProductVariant $v) => Inventory::variantAvailable($v) !== 0);
+            $best = null;
+            foreach ($buyable->isNotEmpty() ? $buyable : $sellable as $v) {
+                $price = self::forVariant($product, $v, $at);
+                if ($best === null || $price['price'] < $best['price']) {
+                    $best = $price;
+                }
+            }
+            if ($best !== null) {
+                return $best;
+            }
+        }
+
+        return self::compute($product, Money::cents($product->regular_price), self::saleActive($product, $at) ? Money::cents($product->sale_price) : null, $product->sale_ends_at, $at);
+    }
+
+    /** @return array{price: int, regular: int, on_sale: bool, sale_ends_at: ?CarbonInterface, offer: ?array} amounts in cents */
+    public static function forVariant(Product $product, ProductVariant $variant, ?CarbonInterface $at = null): array
+    {
+        return self::compute($product, Money::cents($variant->regular_price), $variant->sale_price !== null ? Money::cents($variant->sale_price) : null, null, $at ?? now());
+    }
+
+    /** The rule itself: the regular price, the sale price (if any) and the product's running offers, lowest wins. */
+    private static function compute(Product $product, int $regular, ?int $sale, ?CarbonInterface $saleEndsAt, CarbonInterface $at): array
+    {
         $price = $regular;
         $endsAt = null;
         $offer = null;
 
-        if (self::saleActive($product, $at)) {
-            $price = min($price, Money::cents($product->sale_price));
-            $endsAt = $product->sale_ends_at;
+        if ($sale !== null && $sale < $price) {
+            $price = $sale;
+            $endsAt = $saleEndsAt;
         }
         foreach (app(Offers::class)->runningFor($product->id, $at) as $o) {
             $cents = self::offerPrice($regular, $o['discount_type'], $o['discount_value']);

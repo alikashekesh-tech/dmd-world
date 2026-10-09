@@ -24,7 +24,7 @@ final class Coupons
     /**
      * Checks a code against priced cart lines (from Checkout::price) and works out the discount.
      *
-     * @return array{coupon: Coupon, discount: int, lines: array<int, int>, label: string} cents; lines: product id → discount
+     * @return array{coupon: Coupon, discount: int, lines: array<string, int>, label: string} cents; lines: cart line key → discount
      *
      * @throws ApiException with a message written for the buyer
      */
@@ -112,7 +112,7 @@ final class Coupons
         }));
     }
 
-    /** @return array<int, int> product id → discount in cents, never more than the line itself */
+    /** @return array<string, int> cart line key (product, or product:variant) → discount in cents, never more than the line itself */
     private function discounts(Coupon $coupon, array $lines): array
     {
         $amount = Money::cents($coupon->amount);
@@ -120,11 +120,11 @@ final class Coupons
         if ($coupon->discount_type === 'percent') {
             $basisPoints = (int) round((float) $coupon->amount * 100);
             foreach ($lines as $l) {
-                $out[$l['product_id']] = min($l['subtotal'], intdiv($l['subtotal'] * $basisPoints + 5000, 10000));
+                $out[$l['key']] = min($l['subtotal'], intdiv($l['subtotal'] * $basisPoints + 5000, 10000));
             }
         } elseif ($coupon->discount_type === 'fixed_product') {
             foreach ($lines as $l) {
-                $out[$l['product_id']] = min($l['subtotal'], $amount * $l['quantity']);
+                $out[$l['key']] = min($l['subtotal'], $amount * $l['quantity']);
             }
         } else { // fixed_cart: spread over the covered lines by their share, the last line taking the remainder
             $base = array_sum(array_column($lines, 'subtotal'));
@@ -132,7 +132,7 @@ final class Coupons
             $given = 0;
             foreach ($lines as $i => $l) {
                 $share = $i === count($lines) - 1 ? $total - $given : intdiv($total * $l['subtotal'], max(1, $base));
-                $out[$l['product_id']] = $share;
+                $out[$l['key']] = $share;
                 $given += $share;
             }
         }

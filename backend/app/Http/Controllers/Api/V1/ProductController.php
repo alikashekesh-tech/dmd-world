@@ -31,7 +31,7 @@ class ProductController extends Controller
             'ids' => ['nullable', 'string', 'max:2000', 'regex:/^\d+(,\d+)*$/'], 'sort' => ['nullable', 'in:newest,price_asc,price_desc,name,featured,best,rated'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
-        $q = Product::published()->with(['images:id,product_id,url,position', 'categories:id'])->withRating();
+        $q = Product::published()->with(['images:id,product_id,url,position', 'categories:id', 'variants'])->withRating();
         $tree = null;
 
         if (! empty($v['category']) || ! empty($v['category_path'])) {
@@ -72,7 +72,7 @@ class ProductController extends Controller
 
     public function show(int $id): ProductDetailResource
     {
-        $product = Product::published()->with(['images', 'categories:id', 'specifications', 'brand'])->withRating()->find($id);
+        $product = Product::published()->with(['images', 'categories:id', 'specifications', 'brand', 'variants'])->withRating()->find($id);
         if (! $product) {
             throw new ApiException(404, 'NOT_FOUND', 'Product not found.');
         }

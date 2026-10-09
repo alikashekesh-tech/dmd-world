@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * A product: one row that feeds the storefront, search, category and brand pages, the cart, checkout and the admin.
  * Prices come from Pricing, availability from Inventory; stock_quantity only changes through InventoryService.
+ * A variable product is sold in variants (ProductVariant); its own price and stock columns then hold a summary of
+ * them (kept by Inventory::syncSummary), so every listing, filter and alert reads it like any other product.
  */
 #[Fillable([
     'brand_id', 'name', 'slug', 'sku', 'short_description', 'description', 'regular_price', 'sale_price',
@@ -27,6 +29,8 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     public const STATUSES = ['draft', 'published'];
+
+    public const TYPES = ['simple', 'variable'];
 
     protected function casts(): array
     {
@@ -45,6 +49,7 @@ class Product extends Model
             'height_cm' => 'decimal:2',
             'published_at' => 'datetime',
             'brand_id' => 'integer',
+            'variation_attributes' => 'array',
         ];
     }
 
@@ -77,6 +82,17 @@ class Product extends Model
     public function specifications(): HasMany
     {
         return $this->hasMany(ProductSpecification::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** The variants on sale or switched off, in the owner's order (removed ones are left out). */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('position')->orderBy('id');
+    }
+
+    public function isVariable(): bool
+    {
+        return $this->type === 'variable';
     }
 
     public function movements(): HasMany

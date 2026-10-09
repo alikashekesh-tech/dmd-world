@@ -23,7 +23,7 @@ class WishlistController extends Controller
     public function index(Request $request): JsonResponse
     {
         $products = $request->user()->wishlist()->published()
-            ->with(['images:id,product_id,url,position', 'categories:id'])
+            ->with(['images:id,product_id,url,position', 'categories:id', 'variants'])
             ->orderByPivot('created_at', 'desc')->get();
 
         return response()->json([

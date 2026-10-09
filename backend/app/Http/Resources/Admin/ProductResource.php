@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Models\ProductVariant;
 use App\Services\CategoryTree;
 use App\Services\Inventory;
 use App\Services\Pricing;
@@ -56,6 +57,20 @@ class ProductResource extends JsonResource
             'width_cm' => $this->width_cm !== null ? (float) $this->width_cm : null,
             'height_cm' => $this->height_cm !== null ? (float) $this->height_cm : null,
             'published_at' => $this->published_at?->toIso8601String(),
+            // A variable product's price and stock above are its variants' summary; these are what is sold.
+            'type' => $this->type ?? 'simple',
+            'attributes' => $this->isVariable() ? ($this->variation_attributes ?? []) : [],
+            'variants' => $this->isVariable() ? ($this->relationLoaded('variants') ? $this->variants : $this->variants()->get())->map(function (ProductVariant $v) {
+                $p = Pricing::forVariant($this->resource, $v);
+
+                return [
+                    'id' => $v->id, 'sku' => $v->sku, 'options' => (object) ($v->options ?? []), 'label' => $v->label($this->variation_attributes),
+                    'regular_price' => Money::json(Money::cents($v->regular_price)), 'sale_price' => $v->sale_price !== null ? Money::json(Money::cents($v->sale_price)) : null,
+                    'price' => Money::json($p['price']), 'on_sale' => $p['on_sale'],
+                    'track_stock' => $v->track_stock, 'stock_quantity' => $v->stock_quantity, 'stock_status' => $v->stock_status, 'is_active' => $v->is_active,
+                    'availability' => Inventory::variantAvailability($v, $this->resource),
+                ];
+            })->values() : [],
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

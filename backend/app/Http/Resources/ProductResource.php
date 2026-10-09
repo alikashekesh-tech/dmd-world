@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\ProductVariant;
 use App\Services\Inventory;
 use App\Services\Pricing;
 use App\Support\Money;
@@ -11,7 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * A product as the storefront lists it (catalog, search, category and brand pages, cart lines). Prices come from
  * Pricing and availability from Inventory, so every view shows the same thing. Exact stock is only shared when
- * it's running low ("Only 2 left"), not the whole inventory.
+ * it's running low ("Only 2 left"), not the whole inventory. A variable product also lists its attributes and the
+ * variants that are switched on, each priced and stocked by the server: the storefront never works a price out.
  */
 class ProductResource extends JsonResource
 {
@@ -21,6 +23,7 @@ class ProductResource extends JsonResource
         $availability = Inventory::availability($this->resource);
         $images = $this->relationLoaded('images') ? $this->images : collect();
         $categories = $this->relationLoaded('categories') ? $this->categories : collect();
+        $variants = $this->isVariable() ? ($this->relationLoaded('variants') ? $this->variants : $this->variants()->get())->filter->isSellable()->values() : collect();
 
         return [
             'id' => $this->id,
@@ -49,6 +52,21 @@ class ProductResource extends JsonResource
                 ? ['average' => round((float) $this->getAttributes()['rating_avg'], 2), 'count' => (int) ($this->getAttributes()['rating_count'] ?? 0)]
                 : null,
             'published_at' => $this->published_at?->toDateString(),
+            'type' => $this->type ?? 'simple',
+            // [{name: "Colour", values: ["Black", "White"]}]: what a buyer chooses on the product page.
+            'attributes' => $this->isVariable() ? ($this->variation_attributes ?? []) : [],
+            'variants' => $variants->map(function (ProductVariant $v) {
+                $p = Pricing::forVariant($this->resource, $v);
+                $level = Inventory::variantAvailability($v, $this->resource);
+
+                return [
+                    'id' => $v->id, 'sku' => $v->sku, 'options' => (object) ($v->options ?? []),
+                    'price' => Money::json($p['price']), 'regular_price' => Money::json($p['regular']), 'on_sale' => $p['on_sale'],
+                    'discount_percent' => $p['on_sale'] ? (int) round(100 - $p['price'] * 100 / max(1, $p['regular'])) : 0,
+                    'availability' => $level, 'stock_left' => $level === Inventory::LOW_STOCK ? $v->stock_quantity : null,
+                    'max_quantity' => Inventory::variantAvailable($v),
+                ];
+            })->values(),
         ];
     }
 }
