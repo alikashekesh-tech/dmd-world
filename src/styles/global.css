@@ -17,6 +17,9 @@
   --accent-soft: rgba(47, 107, 255, 0.1);
   --accent-ink: #ffffff;
   --deal: #f0533f;
+  /* Sale and discount branding: every discount badge, the Price drops heading and label. Readable as small text on
+     the page (4.75:1) and under white badge text (5.1:1). */
+  --sale: #d61f26;
   --ok: #1fa45a;
   --warn: #c98a12;
 

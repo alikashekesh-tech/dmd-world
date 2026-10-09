@@ -1,10 +1,10 @@
-/* The section's accent is the DMD brand blue (--accent, as on buttons, links and highlights), also passed to the
-   cards' discount badges (--badge in MiniCard). */
-.sec { --drop: var(--accent); --badge: var(--drop); padding-block: clamp(72px, 9vw, 120px); background: var(--bg); }
+/* The heading's "dropped.", the section label and the cards' discount badges (--badge in MiniCard) are the sale red
+   (--sale); the price-drop graph and landed prices stay the brand blue (--drop). */
+.sec { --drop: var(--accent); --badge: var(--sale); padding-block: clamp(72px, 9vw, 120px); background: var(--bg); }
 .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 48px; }
-.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--drop); }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sale); }
 .title { margin-top: 16px; font-size: clamp(34px, 4.4vw, 60px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; }
-.title span { position: relative; display: inline-block; color: var(--drop); }
+.title span { position: relative; display: inline-block; color: var(--sale); }
 .sec[data-seen] .title span { animation: sink 0.9s 0.35s both cubic-bezier(.5, 0, .3, 1.4); }
 .sub { margin-top: 14px; max-width: 46ch; color: var(--text-2); font-size: 15.5px; }
 
