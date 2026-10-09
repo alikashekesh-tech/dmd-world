@@ -1,0 +1,62 @@
+/* Columns per view: whole cards on wide screens (5 / 4 / 3), a peek of the next card on phones. */
+.rail { --cols: 4; --gap: 16px; min-width: 0; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 36px; margin-bottom: 16px; }
+.title { min-width: 0; }
+.tools { display: flex; align-items: center; gap: 18px; flex: none; }
+.ctrls { display: flex; gap: 6px; }
+.btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.2s, background 0.2s, color 0.2s, opacity 0.2s;
+}
+.btn:hover:not([aria-disabled='true']) { border-color: var(--text); }
+.btn[aria-disabled='true'] { opacity: 0.4; border-color: var(--line); cursor: default; }
+
+.track {
+  position: relative; /* contains absolutely placed descendants (e.g. .sr-only text) so they scroll and clip with it */
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  gap: var(--gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* room for focus rings and hover shadows, which overflow-x would otherwise clip */
+  padding-block: 4px 14px;
+  margin-block: -4px -14px;
+}
+.track::-webkit-scrollbar { display: none; }
+.track:focus { outline: none; }
+.track:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 16px; }
+.track > * { scroll-snap-align: start; }
+
+.progress { position: relative; height: 2px; margin-top: 18px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.progress i {
+  --size: 1;
+  --pos: 0;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--size) * 100%);
+  border-radius: 2px;
+  background: var(--text);
+  transform: translateX(calc(var(--pos) / var(--size) * 100%));
+}
+
+.rail[data-fits] .ctrls, .rail[data-fits] .progress { display: none; }
+
+@media (min-width: 1200px) { .rail { --cols: 5; } }
+@media (max-width: 1023px) { .rail { --cols: 3; } }
+@media (max-width: 639px) {
+  .rail { --cols: 2.2; --gap: 12px; }
+  .ctrls { display: none; }
+  /* the rail runs to the screen edges so cards scroll out of view instead of being cut at the gutter */
+  .track { margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scroll-padding-inline: var(--gutter); }
+  .progress { margin-top: 14px; }
+}

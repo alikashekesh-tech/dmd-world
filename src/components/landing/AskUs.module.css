@@ -1,7 +1,7 @@
-.sec { padding-block: clamp(72px, 9vw, 120px); background: var(--bg); border-top: 1px solid var(--line-soft); overflow: hidden; }
+.sec { padding-block: var(--section-y); background: var(--bg); border-top: 1px solid var(--line-soft); overflow: hidden; }
 .in { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); align-items: center; gap: clamp(36px, 6vw, 96px); }
-.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
-.title { margin-top: 16px; max-width: 15ch; font-size: clamp(32px, 4.2vw, 56px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; text-wrap: balance; }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.title { margin-top: 14px; max-width: 15ch; font-size: var(--display-2); font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; text-wrap: balance; }
 .sub { margin-top: 18px; max-width: 48ch; color: var(--text-2); font-size: 16px; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .call, .mail { display: inline-flex; align-items: center; gap: 10px; height: 54px; padding: 0 22px; border-radius: 12px; font-weight: 650; font-size: 15px; transition: background 0.2s, border-color 0.2s, color 0.2s; }

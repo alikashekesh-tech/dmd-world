@@ -56,7 +56,6 @@ function PlayStation() {
         <rect x="138" y="58" width="26" height="240" rx="4" {...D} className={`${s.d} ${s.dark}`} />
         <path d="M145 270 h12 M145 278 h6" {...DN} />
       </g>
-      <path d="M138.5 64 V292 M163.5 64 V292" className={s.glowLine} filter="url(#pa-blur)" style={{ strokeWidth: 7 }} />
       <path d="M138.5 64 V292 M163.5 64 V292" className={s.glowLine} />
       <Controller x="226" y="196" />
     </>
@@ -106,7 +105,7 @@ function Xbox() {
         <path d="M212 96 V196" {...DN} />
         <path d="M134 280 h10" {...DN} />
       </g>
-      <ellipse cx="189" cy="60" rx="38" ry="7" className={s.vent} filter="url(#pa-blur)" />
+      <ellipse cx="189" cy="60" rx="38" ry="7" className={s.vent} />
       <g className={s.ventDots}>{Array.from({ length: 9 }, (_, i) => <circle key={i} cx={159 + i * 7.5} cy={60 + (i % 2 ? 1.6 : -1.6)} r="1.4" />)}</g>
       <circle cx="140" cy="90" r="4.5" className={s.power} />
       <Controller x="222" y="200" layout="xbox" />
@@ -153,7 +152,6 @@ export default function PlatformArt({ id }) {
   const Art = ART[id];
   return (
     <svg viewBox="0 0 420 340" className={s.art} aria-hidden="true">
-      <defs><filter id="pa-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter></defs>
       <Art />
     </svg>
   );

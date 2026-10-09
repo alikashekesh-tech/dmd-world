@@ -8,6 +8,7 @@ export const MenuIcon = I(<path d="M4 7h16M4 12h16M4 17h16" />);
 export const CloseIcon = I(<path d="M6 6l12 12M18 6 6 18" />);
 export const ChevronDown = I(<path d="m6 9 6 6 6-6" />);
 export const ChevronRight = I(<path d="m9 6 6 6-6 6" />);
+export const ChevronLeft = I(<path d="m15 6-6 6 6 6" />);
 export const ArrowRight = I(<path d="M5 12h14M13 6l6 6-6 6" />);
 export const CheckIcon = I(<path d="m5 12.5 4.5 4.500L19 7.5" />);
 export const StarIcon = ({ size = 14, fill = 'currentColor', ...p }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill={fill} aria-hidden {...p}><path d="m12 2.8 2.8 5.9 6.4.9-4.7 4.5 1.2 6.400L12 17.4 6.3 20.500l1.2-6.400L2.8 9.600l6.4-.9L12 2.800Z" /></svg>);

@@ -4,19 +4,22 @@ import { useCatalog } from '../../data/live.js';
 import { recentIds, forgetViews } from '../../lib/recent.js';
 import ProductGrid from '../product/ProductGrid.jsx';
 
-/* For returning visitors: what they looked at last time, right under the hero. Hidden until there's something to show. */
+/* For returning visitors: what they looked at last time, as a white band after the price drops.
+   Hidden until there's something to show. */
 export default function RecentlyViewed() {
   const version = useCatalog();
   const [cleared, setCleared] = useState(false);
   const items = useMemo(() => (cleared ? [] : recentIds().map(getProduct).filter(Boolean).slice(0, 4)), [version, cleared]); // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length < 2) return null;
   return (
-    <section className="container" style={{ paddingBlock: 'clamp(36px, 5vw, 56px) 8px' }} aria-labelledby="rv-title">
-      <div className="section-head">
-        <div><p className="eyebrow">Continue where you left off</p><h2 id="rv-title">Recently viewed</h2></div>
-        <button type="button" className="link" onClick={() => { forgetViews(); setCleared(true); }}>Clear history</button>
+    <section style={{ paddingBlock: 'var(--section-y)', background: 'var(--surface)', borderTop: '1px solid var(--line-soft)' }} aria-labelledby="rv-title">
+      <div className="container">
+        <div className="section-head">
+          <div><p className="eyebrow" style={{ color: 'var(--muted)' }}>Continue where you left off</p><h2 id="rv-title">Recently viewed</h2></div>
+          <button type="button" className="link" onClick={() => { forgetViews(); setCleared(true); }}>Clear history</button>
+        </div>
+        <ProductGrid products={items} cols={4} />
       </div>
-      <ProductGrid products={items} cols={4} />
     </section>
   );
 }

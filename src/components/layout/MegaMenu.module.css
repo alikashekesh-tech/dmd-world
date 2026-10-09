@@ -57,7 +57,7 @@ a.colHead:hover { color: var(--accent); }
 .featTxt small { color: var(--text-2); font-size: 13px; }
 .featCard:hover strong { color: var(--accent); }
 .offer { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 14px; background: var(--ink); color: #fff; transition: background .2s; }
-.offer em { display: flex; align-items: center; gap: 7px; font: 500 10.5px var(--font-mono); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: var(--coral); }
+.offer em { display: flex; align-items: center; gap: 7px; font: 500 10.5px var(--font-mono); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: var(--deal); }
 .offer em::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: currentColor; }
 .offer b { font: 800 17px var(--font-display); letter-spacing: -.02em; }
 .offer svg { transition: transform .25s; }

@@ -145,7 +145,6 @@ export default function HeroRoom() {
                 <linearGradient id="h-glare" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".09" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /></linearGradient>
                 <clipPath id="h-screen"><rect x="382" y="160" width="356" height="196" rx="3" /></clipPath>
                 <pattern id="h-scan" width="4" height="3" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="#000" opacity=".28" /></pattern>
-                <filter id="h-blur" x="-50%" y="-300%" width="200%" height="700%"><feGaussianBlur stdDeviation="5" /></filter>
               </defs>
 
               {/* Wall: glow, a slowly turning wireframe world, a shelf and a poster */}
@@ -204,7 +203,6 @@ export default function HeroRoom() {
                   <rect x="146" y="412" width="790" height="46" rx="3" {...D} className={`${s.d} ${s.top}`} />
                   <rect x="146" y="458" width="790" height="18" rx="2" {...D} />
                 </g>
-                <line x1="176" y1="482" x2="904" y2="482" className={s.ledGlow} filter="url(#h-blur)" />
                 <line x1="176" y1="482" x2="904" y2="482" className={s.led} />
 
                 <a {...spot('headset')}>
@@ -291,7 +289,6 @@ export default function HeroRoom() {
                   <rect x="684" y="420" width="124" height="40" className={s.hit} />
                   <g style={{ '--d': '.6s' }}>
                     <rect x="686" y="424" width="120" height="32" rx="5" {...D} />
-                    <ellipse cx="746" cy="448" rx="20" ry="5" className={s.mouseGlow} filter="url(#h-blur)" />
                     <path d="M746 430 C758 430 762 436 762 441 C762 447 756 451 746 451 C736 451 730 447 730 441 C730 436 734 430 746 430 Z" {...D} />
                     <line x1="746" y1="430.5" x2="746" y2="438" {...DN} />
                     <rect x="744.6" y="432" width="2.8" height="4.4" rx="1.2" className={s.wheel} />
@@ -305,7 +302,6 @@ export default function HeroRoom() {
                     <path d="M860 424 L852 424 C848 360 846 300 842 252 C842 243 848 238 856 240 L860 252 Z" {...D} className={`${s.d} ${s.wing}`} />
                     <path d="M876 424 L884 424 C888 360 890 300 894 252 C894 243 888 238 880 240 L876 252 Z" {...D} className={`${s.d} ${s.wing}`} />
                     <rect x="860" y="250" width="16" height="174" rx="3" {...D} className={`${s.d} ${s.core}`} />
-                    <path d="M860.5 254 V420 M875.5 254 V420" className={s.seamGlow} filter="url(#h-blur)" />
                     <path d="M860.5 254 V420 M875.5 254 V420" className={s.seam} />
                   </g>
                 </a>

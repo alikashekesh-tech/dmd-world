@@ -2,7 +2,9 @@
 
 **Data:** `src/data/dmdCatalog.js` is a snapshot of dmdworld.store (112 categories, 187 of 1,993 products, real prices and photos, captured 2026-10-02). The photos are hotlinked from dmdworld.store. The store's public API blocks cross-origin requests, so to use the full catalog either deploy this frontend on the store's domain / behind a proxy and fetch `/wp-json/wc/store/v1/products`, or regenerate the snapshot from a full WooCommerce export.
 
-**Placeholders:** the logo is a text wordmark (`Logo.jsx`); delivery, returns and payment are not defined by DMD, so the cart and checkout show "confirmed on order". Checkout is a demo and takes no payment.
+**Logo:** `public/images/dmd-logo-transparent.png` is the official DMD World logo with its white background and crop strip removed (transparent, 247×100). It sits directly on light surfaces and on a white plate on ink (`Logo.jsx`). A vector or higher-resolution master would make it sharper on 3× screens.
+
+**Placeholders:** delivery, returns and payment are not defined by DMD, so the cart and checkout show "confirmed on order". Checkout is a demo and takes no payment.
 
 ## Run
 

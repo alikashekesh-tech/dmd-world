@@ -1,22 +1,27 @@
 /* ── "Press Start" design system ─────────────────────────────────────────────
    Light content surfaces, ink-navy stages, mono HUD labels, Sora headlines, line-art drawings.
-   Accent blue for action, coral for price drops, amber for money, green for "on". */
+   One action colour (accent blue, --hud is its tint on ink). One red family, reserved for price drops, discount
+   badges and sale prices (it also marks errors). Amber is money/ratings, green is "on". */
 :root {
-  --bg: #f4f6fa;
-  --bg-2: #eaeff6;
+  --bg: #f4f6f9;
+  --bg-2: #eceff4;
   --surface: #ffffff;
-  --surface-2: #f1f4f9;
-  --surface-3: #e3e9f2;
-  --line: #d9e0ec;
-  --line-soft: #e6ebf3;
+  --surface-2: #f1f4f8;
+  --surface-3: #e3e8ef;
+  --line: #dbe1ea;
+  --line-soft: #e6eaf0;
+  --line-strong: #c5cfdf; /* outline buttons and controls */
   --text: #0b1220;
   --text-2: #46526a;
-  --muted: #6b778e;
-  --accent: #2f6bff;
-  --accent-hover: #1f56e0;
-  --accent-soft: rgba(47, 107, 255, 0.1);
+  --muted: #5f6b82;
+  --accent: #1f5eff; /* the store blue, one step deeper than #2f6bff so white text on it passes AA (5.1:1) */
+  --accent-hover: #1749d6;
+  --accent-lift: #4a80ff; /* hover on ink surfaces, where lighter reads as "more" */
+  --accent-soft: rgba(31, 94, 255, 0.1);
   --accent-ink: #ffffff;
-  --deal: #f0533f;
+  --deal: #cc2a1f; /* AA as text on white and canvas, and under white text */
+  --deal-hover: #a8231a;
+  --deal-soft: rgba(204, 42, 31, 0.08);
   --ok: #1fa45a;
   --warn: #c98a12;
 
@@ -25,9 +30,11 @@
   --ink-3: #121c31;
   --ink-line: rgba(159, 178, 214, 0.14);
   --ink-text: #e9efff;
+  --ink-head: #f4f7ff;
+  --ink-text-2: #a7b4cf;
   --ink-muted: #8191b0;
   --hud: #8fb8ff;
-  --coral: #ff6b57;
+  --coral: #ff6b57; /* the sale red's tint on ink, as --hud is the accent's (too light for white surfaces) */
   --amber: #ffc23d;
   --led: #3ccf6e;
 
@@ -44,6 +51,13 @@
   --container: 1360px;
   --gutter: clamp(16px, 4vw, 40px);
   --header-h: 76px;
+
+  /* landing rhythm: one section padding (a change of surface), a tight step where the same surface continues
+     (always with a hairline), one headline scale, one head → content gap */
+  --section-y: clamp(48px, calc(4.8vw + 11px), 80px);
+  --section-tight: clamp(40px, 4.5vw, 64px);
+  --display-2: clamp(30px, 3.6vw, 48px);
+  --head-gap: clamp(28px, 3vw, 40px);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -67,7 +81,7 @@ img, svg { display: block; max-width: 100%; }
 button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
 input, select, textarea { font: inherit; color: inherit; }
 ul, ol { margin: 0; padding: 0; list-style: none; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--focus, var(--accent)); outline-offset: 2px; border-radius: 4px; }
 ::selection { background: var(--accent); color: #fff; }
 
 .container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
@@ -94,9 +108,9 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .btn svg { transition: transform .25s; }
 .btn:active { transform: translateY(1px); }
-.btn--primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 14px 30px -12px rgba(47, 107, 255, 0.75); }
-.btn--primary:hover { background: #4a80ff; }
-.btn--secondary { background: transparent; color: var(--text); border-color: #c5cfdf; }
+.btn--primary { background: var(--accent); color: var(--accent-ink); }
+.btn--primary:hover { background: var(--accent-lift); }
+.btn--secondary { background: transparent; color: var(--text); border-color: var(--line-strong); }
 .btn--secondary:hover { border-color: var(--text); background: var(--surface); }
 .btn--dark { background: var(--text); color: #fff; }
 .btn--dark:hover { background: var(--accent); }

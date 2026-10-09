@@ -1,7 +1,7 @@
-.sec { padding-block: clamp(72px, 9vw, 120px); background: #fff; border-top: 1px solid var(--line-soft); }
+.sec { padding-block: var(--section-y); background: var(--surface); border-top: 1px solid var(--line-soft); }
 .head { max-width: 760px; }
-.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: #6b4fd8; }
-.title { margin-top: 16px; font-size: clamp(34px, 4.4vw, 60px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.title { margin-top: 14px; font-size: var(--display-2); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; }
 .sub { margin-top: 14px; max-width: 52ch; color: var(--text-2); font-size: 15.5px; }
 
 .grid {
@@ -12,7 +12,7 @@
     'fig fig spk phone'
     'lap net car watch';
   gap: 14px;
-  margin-top: 44px;
+  margin-top: var(--head-gap);
 }
 .cell { min-width: 0; opacity: 0; }
 .sec[data-seen] .cell { animation: rise 0.7s calc(var(--i) * 70ms) both cubic-bezier(.2, .7, .2, 1); }

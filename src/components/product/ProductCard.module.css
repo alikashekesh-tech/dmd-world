@@ -38,7 +38,7 @@
 }
 .card:hover .wish, .wish:focus-visible, .wished { opacity: 1; transform: none; }
 .wish:hover { color: var(--deal); }
-.wished { color: var(--deal); border-color: rgba(240, 83, 63, 0.4); }
+.wished { color: var(--deal); border-color: color-mix(in srgb, var(--deal) 40%, transparent); }
 .swatches { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 4px; }
 .swatches i { width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(11, 18, 32, 0.15); }
 
