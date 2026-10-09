@@ -235,7 +235,7 @@ export function ProductEditor({ params }) {
               {form.images.length > 0 && (
                 <ul className="row wrap" style={{ gap: 10 }}>
                   {form.images.map((im, i) => (
-                    <li key={`${im.url}-${i}`} className="surface" style={{ width: 132, padding: 8, display: 'grid', gap: 6, borderColor: i === 0 ? 'rgba(91,149,255,.5)' : undefined }}>
+                    <li key={`${im.url}-${i}`} className="surface" style={{ width: 132, padding: 8, display: 'grid', gap: 6, borderColor: i === 0 ? 'var(--blue)' : undefined }}>
                       <span className="thumb" style={{ width: '100%', height: 96 }}><img src={im.url} alt="" referrerPolicy="no-referrer" /></span>
                       <span className="row" style={{ justifyContent: 'space-between' }}>
                         {i === 0 ? <Chip tone="blue">Main</Chip> : <Button size="sm" variant="quiet" icon="back" aria-label="Move left" onClick={() => moveImg(i, -1)} />}

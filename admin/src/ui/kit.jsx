@@ -69,7 +69,7 @@ export function StatusChip({ status }) {
 }
 
 const TONE_COLOR = { amber: 'var(--amber)', blue: 'var(--blue)', violet: 'var(--violet)', green: 'var(--green)', coral: 'var(--coral)', muted: 'var(--muted)' };
-const TONE_BG = { amber: 'rgba(255,194,61,.11)', blue: 'rgba(91,149,255,.12)', violet: 'rgba(167,139,250,.12)', green: 'rgba(60,207,110,.1)', coral: 'rgba(255,107,87,.12)', muted: 'rgba(159,178,214,.09)' };
+const TONE_BG = Object.fromEntries(Object.entries({ ...TONE_COLOR, muted: 'var(--shade)' }).map(([t, c]) => [t, `color-mix(in srgb, ${c} ${t === 'muted' ? 7 : 11}%, transparent)`]));
 /** Order status you can change in place. */
 export function StatusSelect({ status, onChange, busy }) {
   const s = STATUS[status] || STATUS.pending;
