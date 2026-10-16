@@ -63,7 +63,7 @@ class HomepageController extends Controller
     public function storeBanner(BannerRequest $request): JsonResponse
     {
         $banner = new Banner;
-        $banner->forceFill($request->validated() + ['position' => (int) Banner::where('placement', $request->validated('placement'))->max('position') + 1])->save();
+        $banner->forceFill($request->banner() + ['position' => (int) Banner::where('placement', $request->validated('placement'))->max('position') + 1])->save();
         Activity::record('banner.created', "Added the banner “{$banner->title}”", $banner, $request->user('admin'));
 
         return response()->json(['data' => $this->banner($banner->refresh())], 201);
@@ -71,8 +71,18 @@ class HomepageController extends Controller
 
     public function updateBanner(BannerRequest $request, Banner $banner): JsonResponse
     {
-        $banner->forceFill($request->validated())->save();
+        $banner->forceFill($request->banner())->save();
         Activity::record('banner.updated', "Updated the banner “{$banner->title}”", $banner, $request->user('admin'));
+
+        return response()->json(['data' => $this->banner($banner)]);
+    }
+
+    /** Switches a banner on or off without touching anything else. */
+    public function toggleBanner(Request $request, Banner $banner): JsonResponse
+    {
+        $v = $request->validate(['is_active' => ['required', 'boolean']]);
+        $banner->forceFill(['is_active' => $v['is_active']])->save();
+        Activity::record('banner.updated', ($v['is_active'] ? 'Switched on' : 'Switched off')." the banner “{$banner->title}”", $banner, $request->user('admin'));
 
         return response()->json(['data' => $this->banner($banner)]);
     }
@@ -102,8 +112,9 @@ class HomepageController extends Controller
     {
         return Homepage::banner($b) + [
             'placement' => $b->placement, 'position' => $b->position, 'is_active' => $b->is_active,
-            'starts_at' => $b->starts_at?->toIso8601String(),
-            'showing' => $b->is_active && ($b->starts_at === null || $b->starts_at->lte(now())) && ($b->ends_at === null || $b->ends_at->gt(now())),
+            'starts_at' => $b->starts_at?->utc()->toIso8601String(),
+            'showing' => $b->status() === 'live', 'status' => $b->status(),
+            'updated_at' => $b->updated_at?->toIso8601String(),
         ];
     }
 }

@@ -107,6 +107,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::post('banners', [HomepageController::class, 'storeBanner'])->name('banners.store');
     Route::post('banners/reorder', [HomepageController::class, 'reorderBanners'])->name('banners.reorder');
     Route::put('banners/{banner}', [HomepageController::class, 'updateBanner'])->whereNumber('banner')->name('banners.update');
+    Route::patch('banners/{banner}/active', [HomepageController::class, 'toggleBanner'])->whereNumber('banner')->name('banners.toggle');
     Route::delete('banners/{banner}', [HomepageController::class, 'destroyBanner'])->whereNumber('banner')->name('banners.destroy');
 
     Route::get('trash', [TrashController::class, 'index'])->name('trash.index');
