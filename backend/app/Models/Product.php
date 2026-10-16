@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Catalog;
+use App\Services\Offers;
 use App\Services\StockAlerts;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,8 +60,14 @@ class Product extends Model
         static::saved(function (Product $p) {
             Catalog::bust();
             StockAlerts::afterChange($p); // emails waiting buyers if this change brought it back
+            // Offers cover products through their brand and the entire store too: a new product or a new brand
+            // changes which offers apply to it, at once (not when the offer index is next rebuilt).
+            if ($p->wasRecentlyCreated || $p->wasChanged(['brand_id', 'status'])) {
+                Offers::changed();
+            }
         });
         static::deleted(fn () => Catalog::bust());
+        static::forceDeleted(fn () => Offers::changed());
         static::restored(fn () => Catalog::bust()); // restore() saves, so `saved` above has already run
     }
 

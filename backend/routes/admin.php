@@ -94,6 +94,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::get('stock-alerts', [StockAlertController::class, 'index'])->name('stock-alerts.index');
 
     // Offers: discounts computed into prices (products are never edited). Coupons: codes checked at checkout.
+    Route::post('offers/preview', [OfferController::class, 'preview'])->name('offers.preview');
     Route::apiResource('offers', OfferController::class)->whereNumber('offer');
     Route::put('offers/{offer}/active', [OfferController::class, 'toggle'])->whereNumber('offer')->name('offers.toggle');
     Route::post('coupons/{id}/restore', [CouponController::class, 'restore'])->whereNumber('id')->name('coupons.restore');

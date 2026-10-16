@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Filters and sorts for product lists, written once for the storefront and the admin. The selling-price expression
  * is the SQL twin of Pricing::forProduct: the lowest of the regular price, the product's sale inside its dates and
- * any running offer covering it (picked directly, or through a category in offer_categories).
+ * any running offer covering it (picked directly, through a category in offer_categories, through its brand, or an
+ * entire-store offer: the same coverage as Offers::COVERAGE_SQL).
  */
 final class ProductQuery
 {
@@ -21,7 +22,8 @@ final class ProductQuery
              FROM offers o
              WHERE o.is_active = 1 AND (o.starts_at IS NULL OR o.starts_at <= ?) AND (o.ends_at IS NULL OR o.ends_at > ?)
                AND (EXISTS (SELECT 1 FROM offer_targets t WHERE t.offer_id = o.id AND t.target_type = 'product' AND t.target_id = products.id)
-                 OR EXISTS (SELECT 1 FROM offer_categories oc JOIN category_product cp ON cp.category_id = oc.category_id WHERE oc.offer_id = o.id AND cp.product_id = products.id)))
+                 OR EXISTS (SELECT 1 FROM offer_categories oc JOIN category_product cp ON cp.category_id = oc.category_id WHERE oc.offer_id = o.id AND cp.product_id = products.id)
+                 OR EXISTS (SELECT 1 FROM offer_targets t WHERE t.offer_id = o.id AND (t.target_type = 'store' OR (t.target_type = 'brand' AND t.target_id = products.brand_id)))))
             SQL;
 
         return ["LEAST({$sale}, COALESCE({$offer}, products.regular_price))", [$now, $now, $now, $now]];

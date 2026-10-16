@@ -31,10 +31,14 @@ class OfferRequest extends ApiRequest
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', ...($this->filled('starts_at') ? ['after:starts_at'] : [])],
             'is_active' => ['sometimes', 'boolean'],
-            'product_ids' => ['present', 'array', 'max:1000'],
+            // Any mix of products, brands and categories, or the entire store (at least one: checked by Offers::save).
+            'product_ids' => ['sometimes', 'array', 'max:5000'],
             'product_ids.*' => ['integer', 'min:1'],
-            'category_ids' => ['present', 'array', 'max:200'],
+            'brand_ids' => ['sometimes', 'array', 'max:500'],
+            'brand_ids.*' => ['integer', 'min:1'],
+            'category_ids' => ['sometimes', 'array', 'max:500'],
             'category_ids.*' => ['integer', 'min:1'],
+            'entire_store' => ['sometimes', 'boolean'],
         ];
     }
 
