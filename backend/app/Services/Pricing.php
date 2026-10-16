@@ -47,8 +47,37 @@ final class Pricing
         return self::compute($product, Money::cents($variant->regular_price), $variant->sale_price !== null ? Money::cents($variant->sale_price) : null, null, $at ?? now());
     }
 
-    /** The rule itself: the regular price, the sale price (if any) and the product's running offers, lowest wins. */
-    private static function compute(Product $product, int $regular, ?int $sale, ?CarbonInterface $saleEndsAt, CarbonInterface $at): array
+    /**
+     * What a proposed offer would do to one product (or one variant) at $at, by the same rule as every price: the
+     * lowest of the regular price, the own sale and the running offers wins; offers never add up. $offer is the
+     * proposal ({discount_type, discount_value, name}); $exclude is the offer being edited (its saved version is
+     * replaced by the proposal, not counted twice).
+     *
+     * @return array{regular: int, current: int, with: int, offer_price: ?int, cheaper_by: ?string} amounts in cents;
+     *                                                                                              cheaper_by says what already beats the proposal ("sale" or another offer's name) when it doesn't lower the price
+     */
+    public static function preview(Product $product, ?ProductVariant $variant, CarbonInterface $at, array $offer, ?int $exclude = null): array
+    {
+        $regular = Money::cents(($variant ?? $product)->regular_price);
+        $sale = $variant ? ($variant->sale_price !== null ? Money::cents($variant->sale_price) : null) : (self::saleActive($product, $at) ? Money::cents($product->sale_price) : null);
+        $others = array_values(array_filter(app(Offers::class)->runningFor($product->id, $at), fn ($o) => $o['id'] !== $exclude));
+        $current = self::compute($product, $regular, $sale, null, $at, $others);
+        $proposed = ['id' => 0, 'name' => $offer['name'] ?? 'This offer', 'label' => null, 'discount_type' => $offer['discount_type'], 'discount_value' => (string) $offer['discount_value'], 'ends_at' => null];
+        $with = self::compute($product, $regular, $sale, null, $at, [...$others, $proposed]);
+        $offerPrice = self::offerPrice($regular, $offer['discount_type'], (string) $offer['discount_value']);
+        $cheaperBy = null;
+        if ($offerPrice !== null && $with['price'] >= $current['price'] && $current['price'] < $regular) {
+            $cheaperBy = $current['offer'] ? $current['offer']['name'] : 'sale';
+        }
+
+        return ['regular' => $regular, 'current' => $current['price'], 'with' => $with['price'], 'offer_price' => $offerPrice, 'cheaper_by' => $cheaperBy];
+    }
+
+    /**
+     * The rule itself: the regular price, the sale price (if any) and the product's running offers, lowest wins.
+     * $offers: the running offers to consider (default: the product's, from Offers).
+     */
+    private static function compute(Product $product, int $regular, ?int $sale, ?CarbonInterface $saleEndsAt, CarbonInterface $at, ?array $offers = null): array
     {
         $price = $regular;
         $endsAt = null;
@@ -58,7 +87,7 @@ final class Pricing
             $price = $sale;
             $endsAt = $saleEndsAt;
         }
-        foreach (app(Offers::class)->runningFor($product->id, $at) as $o) {
+        foreach ($offers ?? app(Offers::class)->runningFor($product->id, $at) as $o) {
             $cents = self::offerPrice($regular, $o['discount_type'], $o['discount_value']);
             if ($cents !== null && $cents < $price) {
                 $price = $cents;

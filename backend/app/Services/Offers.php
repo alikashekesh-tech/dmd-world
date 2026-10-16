@@ -5,20 +5,26 @@ namespace App\Services;
 use App\Exceptions\ApiException;
 use App\Models\Activity;
 use App\Models\Admin;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Offer;
 use App\Models\OfferTarget;
 use App\Models\Product;
 use App\Support\Money;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Store-wide offers. The owner picks products and/or categories; Pricing applies the best running offer to each
+ * Store-wide offers. The owner picks any mix of products, brands (products.brand_id, whatever their categories) and
+ * categories (each with everything below it), or the entire store; Pricing applies the best running offer to each
  * covered product, so a product's own prices are never rewritten and switching an offer off restores nothing
  * because nothing was changed. offer_categories (each picked category plus everything below it) is derived here
  * whenever an offer's targets or the category tree change, so SQL can sort and filter by the same price.
+ *
+ * Targets are offer_targets rows: product | brand | category (target_id) or store (target_id 0).
+ * Eligible products are the covered ones a buyer can see: published and not in the trash.
  */
 final class Offers
 {
@@ -32,31 +38,53 @@ final class Offers
         Catalog::bust();
     }
 
-    /** @param array{name: string, label: ?string, discount_type: string, discount_value: mixed, starts_at: ?string, ends_at: ?string, is_active: bool, product_ids: list<int>, category_ids: list<int>} $data */
+    /** The SQL target types; `store` covers every product. */
+    public const TARGETS = ['product', 'brand', 'category', 'store'];
+
+    /**
+     * (offer_id, product_id) for every product an offer covers, eligible or not: the one definition the price index,
+     * the admin counts and the overlap check all use (ProductQuery::priceExpression is its per-product twin).
+     */
+    public const COVERAGE_SQL = <<<'SQL'
+        SELECT offer_id, target_id AS product_id FROM offer_targets WHERE target_type = 'product'
+        UNION SELECT oc.offer_id, cp.product_id FROM offer_categories oc JOIN category_product cp ON cp.category_id = oc.category_id
+        UNION SELECT t.offer_id, p.id FROM offer_targets t JOIN products p ON p.brand_id = t.target_id WHERE t.target_type = 'brand'
+        UNION SELECT t.offer_id, p.id FROM offer_targets t CROSS JOIN products p WHERE t.target_type = 'store'
+        SQL;
+
+    /**
+     * @param array{name: string, label: ?string, discount_type: string, discount_value: mixed, starts_at: ?string, ends_at: ?string, is_active: bool,
+     *   product_ids?: list<int>, brand_ids?: list<int>, category_ids?: list<int>, entire_store?: bool} $data
+     */
     public function save(Offer $offer, array $data, ?Admin $by = null): Offer
     {
-        $products = array_values(array_unique(array_map('intval', $data['product_ids'] ?? [])));
-        $categories = array_values(array_unique(array_map('intval', $data['category_ids'] ?? [])));
-        if (! $products && ! $categories) {
-            throw new ApiException(422, 'NO_TARGETS', 'Pick at least one product or category.', ['product_ids' => ['Pick at least one product or category.']]);
+        $ids = fn (string $key) => array_values(array_unique(array_map('intval', $data[$key] ?? [])));
+        [$products, $brands, $categories] = [$ids('product_ids'), $ids('brand_ids'), $ids('category_ids')];
+        $store = (bool) ($data['entire_store'] ?? false);
+        if (! $products && ! $brands && ! $categories && ! $store) {
+            throw new ApiException(422, 'NO_TARGETS', 'Choose what the offer covers: products, brands, categories or the entire store.', ['targets' => ['Choose what the offer covers: products, brands, categories or the entire store.']]);
         }
-        if (count($products) !== Product::withTrashed()->whereKey($products)->count()) {
-            throw new ApiException(422, 'UNKNOWN_PRODUCT', 'One of the products doesn’t exist.', ['product_ids' => ['One of the products doesn’t exist.']]);
-        }
-        if (count($categories) !== Category::withTrashed()->whereKey($categories)->count()) {
-            throw new ApiException(422, 'UNKNOWN_CATEGORY', 'One of the categories doesn’t exist.', ['category_ids' => ['One of the categories doesn’t exist.']]);
+        // New picks must exist. Ones already saved on this offer may have been deleted since: they are kept (and shown
+        // as deleted) rather than blocking an unrelated change, and cover nothing.
+        $saved = $offer->exists ? OfferTarget::where('offer_id', $offer->id)->get()->groupBy('target_type')->map(fn ($g) => $g->pluck('target_id')->map(fn ($v) => (int) $v)->all()) : collect();
+        foreach ([['product', $products, Product::class, 'product_ids', 'UNKNOWN_PRODUCT', 'products'], ['brand', $brands, Brand::class, 'brand_ids', 'UNKNOWN_BRAND', 'brands'], ['category', $categories, Category::class, 'category_ids', 'UNKNOWN_CATEGORY', 'categories']] as [$type, $list, $model, $field, $code, $noun]) {
+            $new = array_values(array_diff($list, $saved->get($type, [])));
+            if ($new && count($new) !== $model::withTrashed()->whereKey($new)->count()) {
+                throw new ApiException(422, $code, "One of the {$noun} doesn’t exist any more. Remove it and try again.", [$field => ["One of the {$noun} doesn’t exist any more. Remove it and try again."]]);
+            }
         }
         $created = ! $offer->exists;
 
-        DB::transaction(function () use ($offer, $data, $by, $products, $categories) {
+        DB::transaction(function () use ($offer, $data, $by, $products, $brands, $categories, $store) {
             $offer->forceFill([
                 'name' => $data['name'], 'label' => $data['label'] ?? null,
                 'discount_type' => $data['discount_type'], 'discount_value' => Money::decimal(Money::cents($data['discount_value'])),
                 'starts_at' => $data['starts_at'] ?? null, 'ends_at' => $data['ends_at'] ?? null, 'is_active' => (bool) ($data['is_active'] ?? true),
             ] + ($offer->exists ? [] : ['created_by' => $by?->id]))->save();
             OfferTarget::where('offer_id', $offer->id)->delete();
-            $rows = [...array_map(fn ($id) => ['offer_id' => $offer->id, 'target_type' => 'product', 'target_id' => $id], $products),
-                ...array_map(fn ($id) => ['offer_id' => $offer->id, 'target_type' => 'category', 'target_id' => $id], $categories)];
+            $row = fn (string $type) => fn ($id) => ['offer_id' => $offer->id, 'target_type' => $type, 'target_id' => $id];
+            $rows = [...array_map($row('product'), $products), ...array_map($row('brand'), $brands), ...array_map($row('category'), $categories),
+                ...($store ? [$row('store')(0)] : [])];
             OfferTarget::insert($rows);
             $this->expand($offer->id);
         });
@@ -124,6 +152,47 @@ final class Offers
     }
 
     /**
+     * The products a set of targets covers that buyers can see (published, not in the trash), as a query. The same
+     * rule as COVERAGE_SQL, for targets that may not be saved yet (the form's live preview).
+     *
+     * @param  array{product_ids?: list<int>, brand_ids?: list<int>, category_ids?: list<int>, entire_store?: bool}  $t
+     */
+    public static function eligibleQuery(array $t): Builder
+    {
+        $q = Product::query()->published();
+        if (! empty($t['entire_store'])) {
+            return $q;
+        }
+        $products = array_map('intval', $t['product_ids'] ?? []);
+        $brands = array_map('intval', $t['brand_ids'] ?? []);
+        $categories = self::withDescendants(array_map('intval', $t['category_ids'] ?? []));
+        if (! $products && ! $brands && ! $categories) {
+            return $q->whereRaw('1 = 0');
+        }
+
+        return $q->where(function (Builder $w) use ($products, $brands, $categories) {
+            $w->whereIn('products.id', $products ?: [0])->orWhereIn('products.brand_id', $brands ?: [0])
+                ->orWhereExists(fn ($e) => $e->selectRaw('1')->from('category_product')->whereColumn('category_product.product_id', 'products.id')->whereIn('category_product.category_id', $categories ?: [0]));
+        });
+    }
+
+    /** @return array<int, int> offer id → eligible products it covers (published, not in the trash), in one query */
+    public static function eligibleCounts(array $offerIds): array
+    {
+        if (! $offerIds) {
+            return [];
+        }
+        $coverage = self::COVERAGE_SQL;
+        $in = implode(',', array_map('intval', $offerIds));
+
+        return collect(DB::select(<<<SQL
+            SELECT x.offer_id, COUNT(DISTINCT x.product_id) AS n FROM ({$coverage}) x
+            JOIN products p ON p.id = x.product_id AND p.status = 'published' AND p.deleted_at IS NULL
+            WHERE x.offer_id IN ({$in}) GROUP BY x.offer_id
+            SQL))->mapWithKeys(fn ($r) => [(int) $r->offer_id => (int) $r->n])->all();
+    }
+
+    /**
      * Offers running at $at for one product: [{id, name, label, discount_type, discount_value, ends_at}].
      * Built with one query for all products and kept for the request (re-read when an offer changes, and at
      * least every minute in a long-running process).
@@ -149,14 +218,11 @@ final class Offers
         if ($memo && $memo['version'] === $version && $memo['built'] > microtime(true) - 60) {
             return $memo['index'];
         }
-        $rows = DB::select(<<<'SQL'
+        $coverage = self::COVERAGE_SQL;
+        $rows = DB::select(<<<SQL
             SELECT o.id, o.name, o.label, o.discount_type, o.discount_value, o.starts_at, o.ends_at, x.product_id
             FROM offers o
-            JOIN (
-                SELECT offer_id, target_id AS product_id FROM offer_targets WHERE target_type = 'product'
-                UNION
-                SELECT oc.offer_id, cp.product_id FROM offer_categories oc JOIN category_product cp ON cp.category_id = oc.category_id
-            ) x ON x.offer_id = o.id
+            JOIN ({$coverage}) x ON x.offer_id = o.id
             WHERE o.is_active = 1 AND (o.ends_at IS NULL OR o.ends_at > ?)
             SQL, [now()->subMinute()->toDateTimeString()]);
         $index = [];
