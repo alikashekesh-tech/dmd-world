@@ -3,12 +3,24 @@
 namespace App\Http\Requests\Admin;
 
 use App\Http\Requests\ApiRequest;
+use App\Http\Requests\Concerns\NormalizesTimes;
 use App\Models\Offer;
 use Illuminate\Validation\Rule;
 
 /** A store-wide offer: how much off, on what, and when. */
 class OfferRequest extends ApiRequest
 {
+    use NormalizesTimes;
+
+    /** Converted to UTC before validation (see NormalizesTimes). */
+    protected const TIME_FIELDS = ['starts_at', 'ends_at'];
+
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+        $this->normalizeTimes();
+    }
+
     public function rules(): array
     {
         return [

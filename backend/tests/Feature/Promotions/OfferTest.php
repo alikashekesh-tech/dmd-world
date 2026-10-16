@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Services\Pricing;
 use App\Services\ProductQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -151,5 +152,54 @@ class OfferTest extends TestCase
 
         $this->offer($this->buyer(), ['product_ids' => [$p->id]])->assertUnauthorized();
         $this->client()->get('/api/v1/admin/offers')->assertUnauthorized();
+    }
+
+    public function test_schedule_times_in_the_store_time_zone_are_stored_as_utc_and_run_at_the_right_moment(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-16 12:00:00', 'UTC'));
+        $p = Product::factory()->create(['regular_price' => '50.00']);
+        $owner = $this->owner();
+        $owner->get('/api/v1/admin/auth/me')->assertOk()->assertJsonPath('data.store_timezone', 'Asia/Beirut');
+
+        // Picked in Beirut summer time (UTC+3), ending after the clocks go back (UTC+2) on Sunday 25 October.
+        $id = $this->offer($owner, ['product_ids' => [$p->id], 'starts_at' => '2026-10-16T18:00:00+03:00', 'ends_at' => '2026-10-26T09:30:00+02:00'])
+            ->assertCreated()->assertJsonPath('data.state', 'scheduled')
+            ->assertJsonPath('data.starts_at', '2026-10-16T15:00:00+00:00')->assertJsonPath('data.ends_at', '2026-10-26T07:30:00+00:00')->json('data.id');
+        $row = DB::table('offers')->find($id);
+        $this->assertSame(['2026-10-16 15:00:00', '2026-10-26 07:30:00'], [$row->starts_at, $row->ends_at], 'stored as UTC');
+
+        // The same instants written another way are the same schedule.
+        $owner->put("/api/v1/admin/offers/{$id}", ['name' => 'Back to school', 'discount_type' => 'percent', 'discount_value' => 20, 'product_ids' => [$p->id], 'category_ids' => [],
+            'starts_at' => '2026-10-16T15:00:00.000Z', 'ends_at' => '2026-10-26T00:30:00-07:00'])
+            ->assertOk()->assertJsonPath('data.starts_at', '2026-10-16T15:00:00+00:00')->assertJsonPath('data.ends_at', '2026-10-26T07:30:00+00:00');
+
+        $price = fn () => $this->inCatalog($p)['price'];
+        $this->travelTo(Carbon::parse('2026-10-16 14:59:00', 'UTC'));
+        $this->assertEquals(50, $price(), 'a minute before 18:00 Beirut time');
+        $this->travelTo(Carbon::parse('2026-10-16 15:00:30', 'UTC'));
+        $this->assertEquals(40, $price(), 'from 18:00 Beirut time');
+        $this->travelTo(Carbon::parse('2026-10-26 07:29:00', 'UTC'));
+        $this->assertEquals(40, $price(), 'still on a minute before the end (after the clocks went back)');
+        $this->travelTo(Carbon::parse('2026-10-26 07:31:00', 'UTC'));
+        $this->assertEquals(50, $price(), 'over at 09:30 Beirut winter time');
+    }
+
+    public function test_an_offer_can_start_now_and_never_expire_and_bad_schedules_are_explained(): void
+    {
+        $p = Product::factory()->create(['regular_price' => '50.00']);
+        $owner = $this->owner();
+        $id = $this->offer($owner, ['product_ids' => [$p->id], 'starts_at' => null, 'ends_at' => null])->assertCreated()
+            ->assertJsonPath('data.state', 'running')->assertJsonPath('data.starts_at', null)->assertJsonPath('data.ends_at', null)->json('data.id');
+        $this->travel(400)->days();
+        $this->assertEquals(40, $this->inCatalog($p)['price'], 'no expiration');
+
+        // The end must be after the start, compared as instants: 10:00+03:00 is 07:00 UTC, before 08:00 UTC.
+        $owner = $this->owner();
+        $this->offer($owner, ['product_ids' => [$p->id], 'starts_at' => '2027-12-01T08:00:00Z', 'ends_at' => '2027-12-01T10:00:00+03:00'])
+            ->assertStatus(422)->assertJsonPath('error.fields.ends_at.0', 'The end must be after the start.');
+        $this->offer($owner, ['product_ids' => [$p->id], 'starts_at' => '2027-12-01T08:00:00Z', 'ends_at' => '2027-12-01T08:00:00Z'])->assertStatus(422);
+        $this->offer($owner, ['product_ids' => [$p->id], 'starts_at' => 'next blursday'])->assertStatus(422);
+        $this->assertSame(1, Offer::count());
+        $this->assertSame([null, null], [Offer::find($id)->starts_at, Offer::find($id)->ends_at]);
     }
 }

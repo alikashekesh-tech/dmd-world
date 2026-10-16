@@ -4,6 +4,8 @@ import { navigate, setQuery } from '../lib/router.jsx';
 import { useApi } from '../lib/hooks.js';
 import { day, money, num, toInputDate, fromInputDate } from '../lib/format.js';
 import { productFromApi, useCatalogLists } from '../lib/catalog.js';
+import { formatWhen, zoneCity } from '../lib/zone.js';
+import ScheduleRange, { scheduleOk } from '../ui/ScheduleRange.jsx';
 import { Button, CategoryPicker, Check, Chip, Drawer, Empty, Field, Notice, PageHeader, ProductPicker, SearchBox, SkeletonRows, Tabs, Thumb, Toggle, useUi } from '../ui/kit.jsx';
 
 const STATE = { running: ['green', 'Running'], scheduled: ['blue', 'Scheduled'], ended: ['muted', 'Ended'], off: ['muted', 'Off'] };
@@ -79,7 +81,7 @@ function OfferList({ list }) {
                 <td><div className="cell-main"><div><b>{o.name}</b><small>{o.label ? `Shown as “${o.label}”` : 'No storefront label'}</small></div></div></td>
                 <td data-label="Discount"><Chip tone="coral">{off(o)}</Chip></td>
                 <td data-label="Products" className="mono">{num(o.products_covered)}<span className="muted" style={{ fontSize: 11.5 }}> {o.category_ids.length ? `· ${o.category_ids.length} categor${o.category_ids.length === 1 ? 'y' : 'ies'}` : ''}</span></td>
-                <td data-label="When" className="t2" style={{ fontSize: 12.5 }}>{o.starts_at ? day(o.starts_at) : 'Now'} → {o.ends_at ? day(o.ends_at) : 'until you stop it'}</td>
+                <td data-label="When" className="t2" style={{ fontSize: 12.5 }} title={`${zoneCity()} time`}>{o.starts_at ? formatWhen(o.starts_at) : 'Now'} → {o.ends_at ? formatWhen(o.ends_at) : 'no expiration'}</td>
                 <td data-label="Status"><Chip tone={tone} led>{label}</Chip></td>
                 <td className="shrink" onClick={(e) => e.stopPropagation()}>
                   <div className="row-actions">
@@ -100,24 +102,31 @@ function OfferList({ list }) {
 function OfferForm({ o, categories, onClose }) {
   const { toast, fail } = useUi();
   const isNew = !o.id;
-  const [f, setF] = useState({ name: o.name || '', label: o.label || '', type: o.discount_type || 'percent', value: o.discount_value ?? '', start: toInputDate(o.starts_at), end: toInputDate(o.ends_at), active: o.is_active ?? true, productIds: o.product_ids || [], categoryIds: o.category_ids || [] });
+  const [f, setF] = useState({ name: o.name || '', label: o.label || '', type: o.discount_type || 'percent', value: o.discount_value ?? '', active: o.is_active ?? true, productIds: o.product_ids || [], categoryIds: o.category_ids || [] });
+  // Schedule: UTC instants from the API (null: starts immediately / no expiration), shown in the store's time zone.
+  const saved = useMemo(() => ({ start: o.starts_at || null, end: o.ends_at || null }), [o.starts_at, o.ends_at]);
+  const [when, setWhen] = useState(saved);
+  const [serverErrors, setServerErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
   const save = async () => {
     setBusy(true);
     try {
-      const body = { name: f.name.trim(), label: f.label.trim() || null, discount_type: f.type, discount_value: Number(f.value), starts_at: fromInputDate(f.start), ends_at: fromInputDate(f.end), is_active: f.active, product_ids: f.productIds, category_ids: f.categoryIds };
+      const body = { name: f.name.trim(), label: f.label.trim() || null, discount_type: f.type, discount_value: Number(f.value), starts_at: when.start, ends_at: when.end, is_active: f.active, product_ids: f.productIds, category_ids: f.categoryIds };
       const { data: r } = isNew ? await api.post('/offers', body) : await api.put(`/offers/${o.id}`, body);
       changed('offers');
       toast(`“${r.name}” ${isNew ? 'created' : 'saved'}: ${num(r.products_covered)} product${r.products_covered === 1 ? '' : 's'} covered`);
       onClose();
-    } catch (e) { fail(e); }
+    } catch (e) {
+      if (e.fields) setServerErrors({ start: e.fields.starts_at, end: e.fields.ends_at });
+      fail(e);
+    }
     setBusy(false);
   };
   const example = Number(f.value) > 0 ? (f.type === 'percent' ? 100 * (1 - Number(f.value) / 100) : Math.max(0, 100 - Number(f.value))) : null;
   return (
     <Drawer wide title={isNew ? 'Create offer' : `Edit “${o.name}”`} hud={isNew ? 'Offer' : `${STATE[o.state]?.[1] || ''} · ${num(o.products_covered)} products`} onClose={onClose}
-      footer={<><Button variant="quiet" onClick={onClose}>Cancel</Button><Button variant="primary" icon="check" loading={busy} onClick={save} disabled={!f.name.trim() || !(Number(f.value) > 0) || !(f.productIds.length || f.categoryIds.length)}>{isNew ? 'Create offer' : 'Save'}</Button></>}>
+      footer={<><Button variant="quiet" onClick={onClose}>Cancel</Button><Button variant="primary" icon="check" loading={busy} onClick={save} disabled={!f.name.trim() || !(Number(f.value) > 0) || !(f.productIds.length || f.categoryIds.length) || !scheduleOk(when, saved)}>{isNew ? 'Create offer' : 'Save'}</Button></>}>
       <div className="grid-2">
         <Field label="Name" hint="For you."><input className="input" value={f.name} onChange={set('name')} placeholder="e.g. Back to school headsets" autoFocus /></Field>
         <Field label="Label in the shop" hint="Optional, short."><input className="input" maxLength={40} value={f.label} onChange={set('label')} placeholder="e.g. School sale" /></Field>
@@ -130,10 +139,7 @@ function OfferForm({ o, categories, onClose }) {
           <span className="input-affix"><span>{f.type === 'percent' ? '%' : '$'}</span><input className="input mono" inputMode="decimal" value={f.value} onChange={set('value')} /></span>
         </Field>
       </div>
-      <div className="grid-2">
-        <Field label="Starts" hint="Empty = right away"><input className="input" type="datetime-local" value={f.start} onChange={set('start')} /></Field>
-        <Field label="Ends" hint="Empty = until you switch it off"><input className="input" type="datetime-local" value={f.end} onChange={set('end')} /></Field>
-      </div>
+      <ScheduleRange value={when} initial={saved} serverErrors={serverErrors} onChange={(v) => { setWhen(v); setServerErrors({}); }} />
       <Toggle label="Switched on" checked={f.active} onChange={set('active')} />
       <Field label="Categories" hint="Every product inside them (including subcategories) is covered.">
         <CategoryPicker categories={categories} value={f.categoryIds} onChange={set('categoryIds')} maxHeight={220} />

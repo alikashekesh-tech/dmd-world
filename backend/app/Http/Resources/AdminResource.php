@@ -14,6 +14,8 @@ class AdminResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
+            // The store's time zone: the admin shows and picks schedule times in it (stored in UTC).
+            'store_timezone' => config('dmd.timezone'),
         ];
     }
 }
