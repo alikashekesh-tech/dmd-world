@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { api, changed } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
-import { day, toInputDate, fromInputDate } from '../lib/format.js';
 import { useCatalogLists } from '../lib/catalog.js';
-import { Button, CategoryPicker, Chip, Drawer, Empty, Field, Icon, Notice, PageHeader, ProductPicker, SkeletonRows, Toggle, useUi } from '../ui/kit.jsx';
-import { ImageField } from './Categories.jsx';
+import { Button, Chip, Empty, Icon, Notice, PageHeader, SkeletonRows, Tabs, Toggle, useUi } from '../ui/kit.jsx';
+import { whenLabel } from '../ui/DateTimeField.jsx';
+import BannerEditor from './homepage/BannerEditor.jsx';
+import Picks from './homepage/Picks.jsx';
+import '../styles/homepage.css';
 
 const SECTION = {
   hero: ['The desk', 'The opening scene: objects on the desk link to shop searches.'],
-  banners: ['Promo banners', 'Your banners, below. Shows nothing while none are running.'],
+  banners: ['Promo banners', 'Your home page banners. Shows nothing while none are running.'],
   recently_viewed: ['Recently viewed', 'Each visitor’s own recent products (only once they have some).'],
   platforms: ['Your platform', 'PlayStation, Switch, Xbox and PC, with their best sellers.'],
   price_drops: ['Price drops', 'Discounted products: the deepest first, or the ones you pick.'],
@@ -17,6 +19,8 @@ const SECTION = {
   ask_us: ['Ask first', 'Call or email before you buy.'],
   continue: ['Continue?', 'The closing credits with every brand.'],
 };
+const STATE = { live: ['green', 'Live'], scheduled: ['blue', 'Scheduled'], ended: ['amber', 'Ended'], off: ['muted', 'Off'] };
+const statusOf = (b) => b.status || (b.showing ? 'live' : b.is_active ? 'scheduled' : 'off');
 
 /** The home page's sections: drag or move them, and switch each on or off. */
 function Sections({ sections, onSaved }) {
@@ -32,21 +36,30 @@ function Sections({ sections, onSaved }) {
     try { await api.put('/homepage/sections', { sections: order.map((s) => ({ key: s.key, visible: s.visible })) }); changed('homepage'); toast('Home page saved. Visitors see it on their next page load.'); onSaved(); } catch (e) { fail(e); }
     setBusy(false);
   };
+  const shown = order.filter((s) => s.visible).length;
   return (
     <section className="surface">
-      <div className="surface-head"><div><h3>Sections</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>The order visitors scroll through. Hidden sections are skipped; the “01 · …” labels follow what is shown.</p></div></div>
-      <ul className="order-list">
+      <div className="surface-head hp-head">
+        <div className="grow"><h3>Sections</h3><p className="hp-desc">The order visitors scroll through, top to bottom. Drag a section or use the arrows; switch one off to skip it. The “01 · …” labels on the storefront follow what is shown.</p></div>
+        <Chip tone="blue">{shown} of {order.length} shown</Chip>
+      </div>
+      <ol className="sec-list">
         {order.map((s, i) => (
-          <li key={s.key} draggable onDragStart={() => setDrag(i)} onDragOver={(e) => { e.preventDefault(); if (drag != null && drag !== i) { move(drag, i); setDrag(i); } }} onDragEnd={() => setDrag(null)} className={drag === i ? 'dragging' : ''}>
+          <li key={s.key} draggable onDragStart={() => setDrag(i)} onDragOver={(e) => { e.preventDefault(); if (drag != null && drag !== i) { move(drag, i); setDrag(i); } }} onDragEnd={() => setDrag(null)} className={`${drag === i ? 'dragging' : ''} ${s.visible ? '' : 'hidden-sec'}`}>
             <Icon name="grip" size={15} className="muted grip" />
-            <span className="mono muted" style={{ fontSize: 11, width: 18 }}>{i + 1}</span>
-            <span className="grow" style={{ minWidth: 0 }}><b className="clamp1" style={{ opacity: s.visible ? 1 : 0.55 }}>{SECTION[s.key]?.[0] || s.key}</b><small className="muted clamp1" style={{ display: 'block', fontSize: 11.5 }}>{SECTION[s.key]?.[1]}</small></span>
-            <Toggle checked={s.visible} onChange={(v) => setOrder((l) => l.map((x) => (x.key === s.key ? { ...x, visible: v } : x)))} label={<span className="sr">{s.visible ? `Hide ${s.key}` : `Show ${s.key}`}</span>} />
-            <Button size="sm" variant="quiet" icon="up" aria-label="Move up" disabled={i === 0} onClick={() => move(i, i - 1)} />
-            <Button size="sm" variant="quiet" icon="down" aria-label="Move down" disabled={i === order.length - 1} onClick={() => move(i, i + 1)} />
+            <span className="pick-n mono">{i + 1}</span>
+            <span className="grow" style={{ minWidth: 0 }}>
+              <b>{SECTION[s.key]?.[0] || s.key}{!s.visible && <span className="muted" style={{ fontWeight: 500 }}> · hidden</span>}</b>
+              <small>{SECTION[s.key]?.[1]}</small>
+            </span>
+            <Toggle checked={s.visible} onChange={(v) => setOrder((l) => l.map((x) => (x.key === s.key ? { ...x, visible: v } : x)))} label={<span className="sr">{s.visible ? `Hide ${SECTION[s.key]?.[0]}` : `Show ${SECTION[s.key]?.[0]}`}</span>} />
+            <span className="sec-arrows">
+              <Button size="sm" variant="quiet" icon="up" aria-label={`Move ${SECTION[s.key]?.[0]} up`} disabled={i === 0} onClick={() => move(i, i - 1)} />
+              <Button size="sm" variant="quiet" icon="down" aria-label={`Move ${SECTION[s.key]?.[0]} down`} disabled={i === order.length - 1} onClick={() => move(i, i + 1)} />
+            </span>
           </li>
         ))}
-      </ul>
+      </ol>
       {dirty && (
         <div className="drawer-foot" style={{ borderRadius: '0 0 var(--radius) var(--radius)' }}>
           <Button variant="quiet" onClick={() => setOrder(sections)}>Reset</Button>
@@ -57,81 +70,98 @@ function Sections({ sections, onSaved }) {
   );
 }
 
-/** Hand-picked items for a section (products for Price drops, categories for Beyond the console). */
-function Picks({ section, categories, onSaved }) {
-  const { toast, fail } = useUi();
-  const initial = section.items.map((i) => i.id);
-  const [ids, setIds] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => setIds(section.items.map((i) => i.id)), [section]);
-  const dirty = ids.join() !== initial.join();
-  const save = async () => {
-    setBusy(true);
-    try { await api.put(`/homepage/sections/${section.key}/items`, { ids }); changed('homepage'); toast(ids.length ? 'Picks saved' : 'Back to choosing automatically'); onSaved(); } catch (e) { fail(e); }
-    setBusy(false);
-  };
-  const products = section.picks === 'product';
-  return (
-    <section className="surface">
-      <div className="surface-head">
-        <div><h3>{SECTION[section.key][0]}</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{products ? 'Pick up to 12 discounted products, in order. Products show while they are discounted. Leave empty to show the deepest discounts.' : 'Pick up to 8 categories for the grid, in order; the built-in tiles fill any places left. Leave empty for the built-in tiles.'}</p></div>
-        <Chip tone={ids.length ? 'blue' : 'muted'}>{ids.length ? `${ids.length} picked` : 'Automatic'}</Chip>
-      </div>
-      <div className="surface-body stack">
-        {products ? <ProductPicker value={ids} onChange={setIds} placeholder="Search a product to pick…" /> : <CategoryPicker categories={categories} value={ids} onChange={setIds} maxHeight={240} />}
-        {section.items.some((i) => !i.on_storefront) && <Notice tone="amber" icon="alert">Some picks aren’t on the storefront any more; they are skipped.</Notice>}
-        {dirty && <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}><Button variant="quiet" onClick={() => setIds(initial)}>Reset</Button><Button variant="primary" icon="check" loading={busy} onClick={save}>Save picks</Button></div>}
-      </div>
-    </section>
-  );
+function when(b) {
+  const s = statusOf(b);
+  if (s === 'scheduled' && b.starts_at) return `Starts ${whenLabel(b.starts_at)}${b.ends_at ? ` · ends ${whenLabel(b.ends_at)}` : ''}`;
+  if (s === 'ended') return `Ended ${whenLabel(b.ends_at)}`;
+  if (b.ends_at) return `Until ${whenLabel(b.ends_at)}`;
+  return b.starts_at && new Date(b.starts_at) > new Date() ? `Starts ${whenLabel(b.starts_at)}` : 'No end date';
 }
 
-function BannerForm({ banner, onClose }) {
+/** One placement's banners: thumbnails, state, an on/off switch, ordering and actions. */
+function BannerGroup({ title, text, placement, banners, onEdit, onReload }) {
   const { toast, fail, confirm } = useUi();
-  const isNew = !banner.id;
-  const [f, setF] = useState({ placement: banner.placement || 'home', title: banner.title || '', text: banner.text || '', link_url: banner.link_url || '', link_label: banner.link_label || '', image_url: banner.image_url || '', is_active: banner.is_active ?? true, starts_at: toInputDate(banner.starts_at), ends_at: toInputDate(banner.ends_at) });
-  const [busy, setBusy] = useState(false);
-  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
-  const save = async () => {
-    setBusy(true);
+  const [list, setList] = useState(banners);
+  const [busy, setBusy] = useState(null);
+  const [drag, setDrag] = useState(null);
+  useEffect(() => setList(banners), [banners]);
+  const home = placement === 'home';
+
+  const persistOrder = async (next) => {
+    setList(next);
+    try { await api.post('/banners/reorder', { ids: next.map((b) => b.id) }); changed('homepage'); } catch (e) { fail(e); setList(banners); }
+  };
+  const move = (from, to) => { if (to < 0 || to >= list.length) return; const a = [...list]; const [x] = a.splice(from, 1); a.splice(to, 0, x); persistOrder(a); };
+  const toggle = async (b, on) => {
+    setBusy(b.id);
+    setList((l) => l.map((x) => (x.id === b.id ? { ...x, is_active: on, status: on ? x.status : 'off' } : x)));
+    try { await api.patch(`/banners/${b.id}/active`, { is_active: on }); changed('homepage'); toast(on ? `“${b.title}” switched on` : `“${b.title}” switched off`); onReload(); } catch (e) { fail(e); setList(banners); }
+    setBusy(null);
+  };
+  const duplicate = async (b) => {
+    setBusy(b.id);
     try {
-      const body = { ...f, title: f.title.trim(), text: f.text.trim() || null, link_url: f.link_url.trim() || null, link_label: f.link_label.trim() || null, image_url: f.placement === 'home' ? (f.image_url.trim() || null) : null, starts_at: fromInputDate(f.starts_at), ends_at: fromInputDate(f.ends_at) };
-      if (isNew) await api.post('/banners', body); else await api.put(`/banners/${banner.id}`, body);
-      changed('homepage'); toast(isNew ? 'Banner added' : 'Banner saved'); onClose(true);
+      const copy = { placement: b.placement, title: `Copy of ${b.title}`.slice(0, 120), text: b.text, link_url: b.link_url, link_label: b.link_label, image_url: b.image_url, image_mobile_url: b.image_mobile_url, focal_point: b.focal_point, overlay: home ? b.overlay : null, is_active: false, starts_at: b.starts_at, ends_at: b.ends_at };
+      await api.post('/banners', copy); changed('homepage'); toast('Duplicated. The copy is switched off until you are ready.'); onReload();
     } catch (e) { fail(e); }
-    setBusy(false);
+    setBusy(null);
   };
-  const remove = async () => {
-    if (!(await confirm({ title: `Remove “${banner.title}”?`, text: 'It disappears from the shop straight away.', confirmLabel: 'Remove', danger: true }))) return;
-    setBusy(true);
-    try { await api.del(`/banners/${banner.id}`); changed('homepage'); toast('Banner removed'); onClose(true); } catch (e) { fail(e); }
-    setBusy(false);
+  const remove = async (b) => {
+    if (!(await confirm({ title: `Delete “${b.title}”?`, text: 'It disappears from the shop straight away. This can’t be undone.', confirmLabel: 'Delete banner', danger: true }))) return;
+    setBusy(b.id);
+    try { await api.del(`/banners/${b.id}`); changed('homepage'); toast('Banner deleted'); onReload(); } catch (e) { fail(e); }
+    setBusy(null);
   };
+
   return (
-    <Drawer title={isNew ? 'Add banner' : 'Edit banner'} onClose={() => onClose(false)}
-      footer={<>
-        {!isNew && <Button variant="danger" icon="trash" onClick={remove} disabled={busy} style={{ marginRight: 'auto' }}>Remove</Button>}
-        <Button variant="quiet" onClick={() => onClose(false)}>Cancel</Button>
-        <Button variant="primary" icon="check" loading={busy} disabled={f.title.trim().length < 2 || (f.link_url.trim() && !f.link_label.trim())} onClick={save}>{isNew ? 'Add banner' : 'Save'}</Button>
-      </>}>
-      <Field label="Where">
-        <select className="select" value={f.placement} onChange={set('placement')}>
-          <option value="home">Home page banner</option><option value="announcement">Announcement line (top of every page)</option>
-        </select>
-      </Field>
-      <Field label="Title"><input className="input" maxLength={120} value={f.title} onChange={set('title')} placeholder={f.placement === 'home' ? 'e.g. Ramadan deals' : 'e.g. Free pickup from Hamra'} autoFocus /></Field>
-      {f.placement === 'home' && <Field label="Text" hint="One or two short lines."><textarea className="textarea" maxLength={300} value={f.text} onChange={set('text')} /></Field>}
-      <div className="grid-2">
-        <Field label="Link" hint="A page of the store (/shop?on_sale=1) or an https:// address."><input className="input mono" value={f.link_url} onChange={set('link_url')} placeholder="/shop?on_sale=1" /></Field>
-        <Field label="Link text"><input className="input" maxLength={40} value={f.link_label} onChange={set('link_label')} placeholder="e.g. Shop the sale" /></Field>
+    <section className="surface">
+      <div className="surface-head hp-head">
+        <div className="grow"><h3>{title}</h3><p className="hp-desc">{text}</p></div>
+        <Button size="sm" icon="plus" onClick={() => onEdit({ placement })}>Add</Button>
       </div>
-      {f.placement === 'home' && <ImageField label="Background image" value={f.image_url} onChange={set('image_url')} />}
-      <div className="grid-2">
-        <Field label="Starts" hint="Empty = right away"><input className="input" type="datetime-local" value={f.starts_at} onChange={set('starts_at')} /></Field>
-        <Field label="Ends" hint="Empty = until you remove it"><input className="input" type="datetime-local" value={f.ends_at} onChange={set('ends_at')} /></Field>
-      </div>
-      <Toggle label="Switched on" checked={f.is_active} onChange={set('is_active')} />
-    </Drawer>
+      {!list.length ? (
+        <Empty icon={home ? 'image' : 'bell'} title={home ? 'No home page banners' : 'No announcement'} action={<Button icon="plus" onClick={() => onEdit({ placement })}>{home ? 'Add a banner' : 'Add an announcement'}</Button>}>
+          {home ? 'Promote a sale, a new arrival or a brand with a large image banner.' : 'A short line at the top of every page: opening hours, free pickup, a sale.'}
+        </Empty>
+      ) : (
+        <ol className="bn-list">
+          {list.map((b, i) => {
+            const [tone, label] = STATE[statusOf(b)];
+            return (
+              <li key={b.id} className={`bn-row ${drag === i ? 'dragging' : ''}`} draggable={list.length > 1}
+                onDragStart={() => setDrag(i)} onDragOver={(e) => { e.preventDefault(); if (drag != null && drag !== i) { const a = [...list]; const [x] = a.splice(drag, 1); a.splice(i, 0, x); setList(a); setDrag(i); } }}
+                onDragEnd={() => { setDrag(null); if (list.map((x) => x.id).join() !== banners.map((x) => x.id).join()) persistOrder(list); }}>
+                {list.length > 1 && <Icon name="grip" size={15} className="muted grip" />}
+                <button type="button" className="bn-thumb" onClick={() => onEdit(b)} aria-label={`Edit ${b.title}`}>
+                  {home && b.image_url ? <img src={b.image_url} alt="" style={{ objectPosition: b.focal_point || '50% 50%' }} referrerPolicy="no-referrer" /> : <span className="bn-thumb-plain"><Icon name={home ? 'image' : 'bell'} size={18} /></span>}
+                </button>
+                <button type="button" className="bn-info" onClick={() => onEdit(b)}>
+                  <b className="clamp1">{b.title}</b>
+                  {b.text && <span className="bn-sub clamp2">{b.text}</span>}
+                  <span className="bn-meta">
+                    <span><Icon name="clock" size={12} />{when(b)}</span>
+                    {b.link_url && <span className="mono clamp1"><Icon name="link" size={12} />{home && b.link_label ? `${b.link_label} → ` : ''}{b.link_url}</span>}
+                  </span>
+                </button>
+                <div className="bn-side">
+                  <Chip tone={tone} led={tone !== 'muted'}>{label}</Chip>
+                  <Toggle checked={b.is_active} disabled={busy === b.id} onChange={(on) => toggle(b, on)} label={<span className="sr">{b.is_active ? `Switch off ${b.title}` : `Switch on ${b.title}`}</span>} />
+                  <span className="bn-actions">
+                    {list.length > 1 && <>
+                      <Button size="sm" variant="quiet" icon="up" aria-label={`Move ${b.title} up`} disabled={i === 0} onClick={() => move(i, i - 1)} />
+                      <Button size="sm" variant="quiet" icon="down" aria-label={`Move ${b.title} down`} disabled={i === list.length - 1} onClick={() => move(i, i + 1)} />
+                    </>}
+                    <Button size="sm" variant="quiet" icon="edit" aria-label={`Edit ${b.title}`} title="Edit" onClick={() => onEdit(b)} />
+                    <Button size="sm" variant="quiet" icon="layers" aria-label={`Duplicate ${b.title}`} title="Duplicate" loading={busy === b.id} onClick={() => duplicate(b)} />
+                    <Button size="sm" variant="quiet" icon="trash" aria-label={`Delete ${b.title}`} title="Delete" onClick={() => remove(b)} />
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
 
@@ -139,42 +169,63 @@ export default function Homepage() {
   const { data, error, reload } = useApi('/homepage');
   const lists = useCatalogLists();
   const [editing, setEditing] = useState(null);
+  const [tab, setTab] = useState('banners');
   const d = data?.data;
   const banners = d?.banners || [];
+  const home = banners.filter((b) => b.placement === 'home');
+  const announce = banners.filter((b) => b.placement === 'announcement');
+  const counts = banners.reduce((m, b) => ({ ...m, [statusOf(b)]: (m[statusOf(b)] || 0) + 1 }), {});
+  const bannersSection = d?.sections.find((s) => s.key === 'banners');
+  const picks = d?.sections.filter((s) => s.picks) || [];
 
   return (
     <>
-      <PageHeader hud={<><span className="led blue" />Site</>} title="Homepage" text="What the store’s home page shows: the order of its sections, hand-picked products and categories, and banners."
-        actions={<><a className="btn" href="/" target="_blank" rel="noopener noreferrer"><Icon name="external" />View home page</a><Button variant="primary" icon="plus" onClick={() => setEditing({})}>Add banner</Button></>} />
+      <PageHeader hud={<><span className="led blue" />Site</>} title="Homepage" text="What the store’s home page shows: banners, the order of its sections, and hand-picked products and categories."
+        actions={<><a className="btn" href="/" target="_blank" rel="noopener noreferrer"><Icon name="external" />View home page</a><Button variant="primary" icon="plus" onClick={() => setEditing({ placement: 'home' })}>Add banner</Button></>} />
       {error && <Notice tone="coral" icon="alert">{error.message}</Notice>}
       {!d ? <div className="surface"><SkeletonRows /></div> : (
-        <div className="split">
-          <div className="stack">
-            <section className="surface">
-              <div className="surface-head"><div><h3>Banners</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Home page banners show in the “Promo banners” section; the announcement shows on every page.</p></div></div>
-              {!banners.length ? <Empty icon="image" title="No banners" action={<Button icon="plus" onClick={() => setEditing({})}>Add banner</Button>}>Announce a sale, a new arrival or opening hours.</Empty> : (
-                <ul className="ledger">
-                  {banners.map((b) => (
-                    <li key={b.id}>
-                      <button type="button" className="mini-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => setEditing(b)}>
-                        <Icon name={b.placement === 'home' ? 'image' : 'bell'} size={16} className="muted" />
-                        <span className="grow" style={{ minWidth: 0 }}><b className="clamp1" style={{ fontWeight: 600 }}>{b.title}</b><small className="muted" style={{ display: 'block', fontSize: 12 }}>{b.placement === 'home' ? 'Home page' : 'Announcement'}{b.link_url ? ` · ${b.link_url}` : ''}{b.ends_at ? ` · until ${day(b.ends_at)}` : ''}</small></span>
-                        {b.showing ? <Chip tone="green" led>Showing</Chip> : b.is_active ? <Chip tone="blue">Scheduled or ended</Chip> : <Chip tone="muted">Off</Chip>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+        <div className="stack">
+          <Tabs label="Homepage settings" value={tab} onChange={setTab} items={[
+            { value: 'banners', label: 'Banners', count: banners.length },
+            { value: 'sections', label: 'Sections', count: d.sections.filter((s) => s.visible).length },
+            { value: 'picks', label: 'Hand-picked', count: picks.reduce((n, s) => n + s.items.length, 0) },
+          ]} />
+
+          {tab === 'banners' && (
+            <div className="stack">
+              <div className="hp-summary">
+                {['live', 'scheduled', 'ended', 'off'].map((k) => <span key={k} className={`hp-stat ${counts[k] ? '' : 'zero'}`}><Chip tone={STATE[k][0]} led={STATE[k][0] !== 'muted'}>{STATE[k][1]}</Chip><b className="num">{counts[k] || 0}</b></span>)}
+                <span className="grow" />
+                <span className="muted" style={{ fontSize: 12.5 }}>Changes reach visitors on their next page load.</span>
+              </div>
+              {bannersSection && !bannersSection.visible && home.length > 0 && (
+                <Notice tone="amber" icon="alert">The “Promo banners” section is hidden, so home page banners don’t show. <button type="button" className="linkish" onClick={() => setTab('sections')}>Show it in Sections</button></Notice>
               )}
-            </section>
-            {d.sections.filter((s) => s.picks).map((s) => <Picks key={s.key} section={s} categories={lists.categories} onSaved={() => reload(true)} />)}
-          </div>
-          <aside className="stack sticky-col">
-            <Sections sections={d.sections} onSaved={() => reload(true)} />
-            <Notice icon="info">Featured products are set on each product (Products → Featured). Category order is on the Categories screen.</Notice>
-          </aside>
+              <BannerGroup title="Home page banners" placement="home" banners={home} onEdit={setEditing} onReload={() => reload(true)}
+                text="Large image banners in the “Promo banners” section. One shows full width; two or three sit side by side; more become a swipeable row." />
+              <BannerGroup title="Announcement line" placement="announcement" banners={announce} onEdit={setEditing} onReload={() => reload(true)}
+                text="One short line at the top of every page. If several are running, the first one in this list shows." />
+            </div>
+          )}
+
+          {tab === 'sections' && (
+            <div className="hp-cols">
+              <Sections sections={d.sections} onSaved={() => reload(true)} />
+              <div className="stack">
+                <Notice icon="info">Featured products are set on each product (Products → Featured). The order of categories in menus is on the Categories screen.</Notice>
+                <Notice icon="sparkle">“Price drops” and “Beyond the console” can show products and categories you choose: see the Hand-picked tab.</Notice>
+              </div>
+            </div>
+          )}
+
+          {tab === 'picks' && (
+            <div className="hp-picks">
+              {picks.map((s) => <Picks key={s.key} section={s} title={SECTION[s.key]?.[0] || s.key} categories={lists.categories} onSaved={() => reload(true)} />)}
+            </div>
+          )}
         </div>
       )}
-      {editing && <BannerForm key={editing.id || 'new'} banner={editing} onClose={(saved) => { setEditing(null); if (saved) reload(true); }} />}
+      {editing && <BannerEditor key={editing.id || `new-${editing.placement}`} banner={editing} onClose={(saved) => { setEditing(null); if (saved) reload(true); }} />}
     </>
   );
 }

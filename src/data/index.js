@@ -32,11 +32,34 @@ export const HOMEPAGE = { sections: null, picks: {}, banners: [], announcement: 
 /** The public store settings (defaults until the first catalog). */
 export const STORE = { name: 'DMD World', couponsEnabled: true, reviewsEnabled: true };
 
+/* Banners carry their end time; one whose end has passed is dropped here, even from an older copy of the catalog, and a
+   timer drops the next one to end at its exact moment while the page stays open. */
+const running = (b) => b && (!b.ends_at || Date.parse(b.ends_at) > Date.now());
+let bannerTimer = null;
+function expireBanners() {
+  clearTimeout(bannerTimer);
+  const banners = HOMEPAGE.banners.filter(running);
+  const announcement = running(HOMEPAGE.announcement) ? HOMEPAGE.announcement : null;
+  const gone = banners.length !== HOMEPAGE.banners.length || announcement !== HOMEPAGE.announcement;
+  Object.assign(HOMEPAGE, { banners, announcement });
+  const next = Math.min(...[...banners, announcement].filter((b) => b?.ends_at).map((b) => Date.parse(b.ends_at)));
+  if (Number.isFinite(next) && next - Date.now() < 864e5) bannerTimer = setTimeout(() => { if (expireBanners()) changed(); }, Math.max(0, next - Date.now()) + 50);
+  return gone;
+}
+/** Hides the banners and the announcement (shown again by the next catalog the server confirms). */
+export function withdrawBanners() {
+  if (!HOMEPAGE.banners.length && !HOMEPAGE.announcement) return;
+  clearTimeout(bannerTimer);
+  Object.assign(HOMEPAGE, { banners: [], announcement: null });
+  changed();
+}
+
 function applyStore(home = {}, store = {}) {
   Object.assign(HOMEPAGE, {
     sections: Array.isArray(home.sections) ? home.sections : null, picks: home.picks && typeof home.picks === 'object' ? home.picks : {},
     banners: Array.isArray(home.banners) ? home.banners : [], announcement: home.announcement || null,
   });
+  expireBanners();
   if (store.contact_phone) Object.assign(CONTACT, { phone: store.contact_phone, tel: store.contact_phone.replace(/[^\d+]/g, '') });
   if (store.contact_email) CONTACT.email = store.contact_email;
   Object.assign(STORE, { name: store.store_name || STORE.name, couponsEnabled: store.coupons_enabled !== false, reviewsEnabled: store.reviews_enabled !== false });
