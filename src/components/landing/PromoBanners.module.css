@@ -1,16 +1,97 @@
+/* Promo banners on the navy/charcoal palette. The image is shown at full strength; a shade sits only behind the
+   text (none, soft or strong, chosen per banner), and the crop keeps the owner's focal point in view.
+   Desktop: one banner is a 21:8 hero, two or three share a row, more scroll sideways.
+   Phones (≤ 640px): every banner is a square card (4:5 with its own phone image), swiped sideways when there are several. */
 .sec { padding: clamp(20px, 3vw, 36px) 0 0; }
-.row { display: grid; gap: 16px; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); }
-.row[data-count='2'] { --cols: 2; }
+
+.row { display: grid; gap: 16px; }
+.row[data-layout='grid'] { grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
 .row[data-count='3'] { --cols: 3; }
+.row[data-layout='track'] {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 0; overscroll-behavior-x: contain;
+  scrollbar-width: none; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter);
+}
+.row[data-layout='track']::-webkit-scrollbar { display: none; }
+.row[data-layout='track'] .cell { flex: 0 0 calc((100% - 32px) / 3); scroll-snap-align: start; }
+.cell { min-width: 0; display: flex; }
+
 .card {
-  position: relative; display: flex; min-height: 150px; overflow: hidden; border-radius: var(--radius-l);
+  position: relative; isolation: isolate; display: flex; width: 100%; overflow: hidden; border-radius: var(--radius-l);
   background: var(--ink-2); color: var(--ink-text); border: 1px solid var(--ink-line); box-shadow: var(--shadow-1);
 }
-.card::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.2px); background-size: 14px 14px; pointer-events: none; }
-.img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .38; }
-.withImage::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6, 10, 19, .92) 0%, rgba(6, 10, 19, .55) 60%, rgba(6, 10, 19, .2) 100%); }
-.body { position: relative; z-index: 1; display: grid; align-content: center; justify-items: start; gap: 10px; padding: clamp(20px, 3vw, 32px); max-width: 60ch; }
-.title { margin: 0; font: 700 clamp(19px, 2vw, 26px)/1.2 var(--font-display); color: #fff; }
-.text { margin: 0; color: var(--ink-muted); font-size: 14.5px; line-height: 1.55; }
-.body :global(.btn) { margin-top: 4px; }
-@media (max-width: 900px) { .row[data-count] { --cols: 1; } }
+.row[data-layout='hero'] .card { aspect-ratio: 21 / 8; min-height: 300px; max-height: 500px; }
+.row:not([data-layout='hero']) .card { aspect-ratio: 4 / 3; min-height: 280px; }
+.row[data-count='2'] .card { aspect-ratio: 16 / 10; }
+
+/* No image: the store's navy with a soft blue glow and the dot grid. */
+.plain {
+  aspect-ratio: auto !important; min-height: 240px;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(47, 107, 255, 0.32), transparent 55%),
+    radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.2px) 0 0 / 14px 14px,
+    var(--ink-2);
+}
+
+.media { position: absolute; inset: 0; z-index: -2; }
+.img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; transition: transform .6s var(--ease); }
+.card:hover .img { transform: scale(1.02); }
+.withImage::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+
+/* Hero: the text sits on the left, so the shade runs left to right and fades out before the image's subject. */
+.row[data-layout='hero'] .ovSoft::after { background: linear-gradient(90deg, rgba(6, 10, 19, 0.78) 0%, rgba(6, 10, 19, 0.5) 38%, rgba(6, 10, 19, 0) 72%); }
+.row[data-layout='hero'] .ovStrong::after { background: linear-gradient(90deg, rgba(6, 10, 19, 0.92) 0%, rgba(6, 10, 19, 0.72) 50%, rgba(6, 10, 19, 0.3) 100%); }
+/* Cards: the text sits at the bottom, so the shade rises from the bottom edge. */
+.row:not([data-layout='hero']) .ovSoft::after { background: linear-gradient(0deg, rgba(6, 10, 19, 0.85) 0%, rgba(6, 10, 19, 0.45) 45%, rgba(6, 10, 19, 0) 75%); }
+.row:not([data-layout='hero']) .ovStrong::after { background: linear-gradient(0deg, rgba(6, 10, 19, 0.94) 0%, rgba(6, 10, 19, 0.7) 55%, rgba(6, 10, 19, 0.3) 100%); }
+.ovNone .title, .ovNone .text { text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5); }
+
+.body {
+  position: relative; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 14px;
+  max-width: 600px; padding: clamp(28px, 5vw, 64px);
+}
+.row:not([data-layout='hero']) .body { justify-content: flex-end; max-width: none; width: 100%; gap: 10px; padding: clamp(20px, 2.2vw, 28px); }
+.row:not([data-layout='hero']) .plain .body { justify-content: center; }
+
+.tag {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px;
+  background: rgba(255, 194, 61, 0.16); color: var(--amber); font: 600 11px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.title {
+  margin: 0; font: 800 clamp(28px, 3.6vw, 48px)/1.05 var(--font-display); letter-spacing: -0.03em; color: #fff; text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.row:not([data-layout='hero']) .title { font-size: clamp(21px, 1.9vw, 27px); line-height: 1.12; }
+.text {
+  margin: 0; max-width: 46ch; color: rgba(233, 239, 255, 0.86); font-size: 16.5px; line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.row:not([data-layout='hero']) .text { font-size: 14.5px; -webkit-line-clamp: 2; }
+.cta { margin-top: 6px; }
+.row:not([data-layout='hero']) .cta { height: 44px; padding: 0 18px; font-size: 14px; margin-top: 4px; }
+
+@media (max-width: 1100px) {
+  .row[data-layout='hero'] .card { aspect-ratio: 16 / 7; }
+  .row[data-count='3'] { --cols: 2; }
+  .row[data-count='3'] .cell:first-child { grid-column: 1 / -1; }
+  .row[data-count='3'] .cell:first-child .card { aspect-ratio: 21 / 8; }
+  .row[data-layout='track'] .cell { flex-basis: calc((100% - 16px) / 2); }
+}
+
+/* Phones: square cards (4:5 with a phone image), text at the bottom; several banners swipe sideways with a peek. */
+@media (max-width: 640px) {
+  .row, .row[data-layout] { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 12px; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scroll-padding-inline: var(--gutter); }
+  .row::-webkit-scrollbar { display: none; }
+  .row .cell, .row[data-layout] .cell { flex: 0 0 86%; scroll-snap-align: start; grid-column: auto; }
+  .row[data-layout='hero'] .cell { flex-basis: 100%; }
+  .row .card, .row[data-layout] .card, .row[data-count] .cell:first-child .card { aspect-ratio: 1 / 1; min-height: 0; max-height: none; }
+  .row .card.tall { aspect-ratio: 4 / 5; }
+  .row .card.plain { aspect-ratio: auto; min-height: 220px; }
+  .row .ovSoft::after { background: linear-gradient(0deg, rgba(6, 10, 19, 0.85) 0%, rgba(6, 10, 19, 0.45) 45%, rgba(6, 10, 19, 0) 75%) !important; }
+  .row .ovStrong::after { background: linear-gradient(0deg, rgba(6, 10, 19, 0.94) 0%, rgba(6, 10, 19, 0.7) 55%, rgba(6, 10, 19, 0.3) 100%) !important; }
+  .body, .row:not([data-layout='hero']) .body { justify-content: flex-end; max-width: none; width: 100%; gap: 10px; padding: 22px 20px; }
+  .plain .body { justify-content: center !important; }
+  .title, .row:not([data-layout='hero']) .title { font-size: 26px; line-height: 1.1; }
+  .text, .row:not([data-layout='hero']) .text { font-size: 14.5px; -webkit-line-clamp: 2; }
+  .cta, .row:not([data-layout='hero']) .cta { height: 44px; padding: 0 18px; font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .img { transition: none; } .card:hover .img { transform: none; } }
