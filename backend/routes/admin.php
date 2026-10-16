@@ -94,6 +94,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::get('stock-alerts', [StockAlertController::class, 'index'])->name('stock-alerts.index');
 
     // Offers: discounts computed into prices (products are never edited). Coupons: codes checked at checkout.
+    Route::post('offers/preview', [OfferController::class, 'preview'])->name('offers.preview');
     Route::apiResource('offers', OfferController::class)->whereNumber('offer');
     Route::put('offers/{offer}/active', [OfferController::class, 'toggle'])->whereNumber('offer')->name('offers.toggle');
     Route::post('coupons/{id}/restore', [CouponController::class, 'restore'])->whereNumber('id')->name('coupons.restore');
@@ -107,6 +108,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::post('banners', [HomepageController::class, 'storeBanner'])->name('banners.store');
     Route::post('banners/reorder', [HomepageController::class, 'reorderBanners'])->name('banners.reorder');
     Route::put('banners/{banner}', [HomepageController::class, 'updateBanner'])->whereNumber('banner')->name('banners.update');
+    Route::patch('banners/{banner}/active', [HomepageController::class, 'toggleBanner'])->whereNumber('banner')->name('banners.toggle');
     Route::delete('banners/{banner}', [HomepageController::class, 'destroyBanner'])->whereNumber('banner')->name('banners.destroy');
 
     Route::get('trash', [TrashController::class, 'index'])->name('trash.index');

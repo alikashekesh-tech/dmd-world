@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { api } from './lib/api.js';
+import { setStoreZone } from './lib/zone.js';
 import { useRoute, match } from './lib/router.jsx';
 import { UiProvider, SkeletonRows } from './ui/kit.jsx';
 import Shell from './shell/Shell.jsx';
@@ -40,7 +41,7 @@ export default function App() {
   // Signed in when the API recognises the session cookie (401: show the sign-in page).
   const load = useCallback(async () => {
     setError(null);
-    try { setSession({ authed: true, owner: (await api.get('/auth/me')).data }); } catch (e) { if (e.status === 401) setSession({ authed: false }); else setError(e.message); }
+    try { const owner = (await api.get('/auth/me')).data; setStoreZone(owner.store_timezone); setSession({ authed: true, owner }); } catch (e) { if (e.status === 401) setSession({ authed: false }); else setError(e.message); }
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { const on = () => setSession((s) => (s ? { ...s, authed: false } : s)); window.addEventListener('adm:signedout', on); return () => window.removeEventListener('adm:signedout', on); }, []);

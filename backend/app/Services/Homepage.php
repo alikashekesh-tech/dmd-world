@@ -35,7 +35,8 @@ final class Homepage
     public static function banner(Banner $b): array
     {
         return ['id' => $b->id, 'title' => $b->title, 'text' => $b->text, 'link_url' => $b->link_url, 'link_label' => $b->link_label, 'image_url' => $b->image_url,
-            'ends_at' => $b->ends_at?->toIso8601String()];
+            'image_mobile_url' => $b->image_mobile_url, 'focal_point' => $b->focal_point, 'overlay' => $b->overlay ?? 'soft',
+            'ends_at' => $b->ends_at?->utc()->toIso8601String()];
     }
 
     /** @param list<array{key: string, visible: bool}> $sections every section, in the new order */

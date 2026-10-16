@@ -168,7 +168,7 @@ export function Hp({ qty, level, scale = 30 }) {
 }
 
 /* ── overlays ────────────────────────────────────────────────────────── */
-export function Drawer({ title, hud, onClose, children, footer, wide }) {
+export function Drawer({ title, hud, onClose, children, footer, wide, className = '' }) {
   useEffect(() => {
     const on = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', on);
@@ -177,7 +177,7 @@ export function Drawer({ title, hud, onClose, children, footer, wide }) {
   return (
     <>
       <div className="scrim" onClick={onClose} />
-      <aside className={`drawer ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <aside className={`drawer ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="drawer-head">
           <div className="grow">{hud && <span className="hud">{hud}</span>}<h2>{title}</h2></div>
           <Button variant="quiet" icon="close" onClick={onClose} aria-label="Close" />
