@@ -54,7 +54,7 @@ export function OrderSummary({ children, showItems, quote, checking }) {
 
 export default function Cart() {
   usePageMeta({ title: 'Your cart', noindex: true });
-  const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast } = useStore();
+  const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast, lineMax } = useStore();
   const [quote, checking] = useQuote(lines);
   const problemOf = (id) => quote?.lines.find((q) => q.id === Number(id) && q.problem);
   const blocked = lines.some((l) => problemOf(l.id));
@@ -95,12 +95,12 @@ export default function Cart() {
                         <Link to={`/product/${l.product.slug}`}>{l.product.name}</Link>
                         {l.color && COLORS[l.color] && <span className={s.variant}><i style={{ background: COLORS[l.color].hex }} />{COLORS[l.color].label}</span>}
                         {bad ? (
-                          <span className={s.warn}>{bad.code === 'low_stock' ? `Only ${bad.max} left` : bad.code === 'sold_out' ? 'Sold out' : 'No longer available'}
+                          <span className={s.warn}>{bad.code === 'low_stock' ? `Only ${bad.max} left` : bad.code === 'sold_out' ? 'Sold out' : bad.code === 'too_large' ? 'Too many to order online' : 'No longer available'}
                             {bad.code === 'low_stock' && bad.max > 0 ? <button type="button" className={s.fixBtn} onClick={() => setQty(l.key, bad.max)}>Change to {bad.max}</button> : <button type="button" className={s.fixBtn} onClick={() => removeLine(l.key)}>Remove</button>}
                           </span>
                         ) : <span className={l.product.stock === 'out' ? s.warn : s.ok}>{l.product.stock === 'out' ? 'Currently out of stock' : l.product.stock === 'low' ? `Only ${l.product.stockCount} left` : 'In stock'}</span>}
                       </div>
-                      <QtyStepper value={l.qty} max={bad?.code === 'low_stock' ? Math.max(1, bad.max) : live?.max || 10} onChange={(q) => setQty(l.key, q)} label={l.product.name} />
+                      <QtyStepper value={l.qty} max={bad?.code === 'low_stock' ? Math.max(1, bad.max) : lineMax(l.key)} onChange={(q) => setQty(l.key, q)} label={l.product.name} />
                       <div className={s.price}><b>{money(l.qty * unit)}</b>{l.qty > 1 && <small>{money(unit)} each</small>}</div>
                       <button type="button" className={s.rm} aria-label={`Remove ${l.product.name}`} onClick={() => remove(l)}><TrashIcon size={18} /></button>
                     </li>

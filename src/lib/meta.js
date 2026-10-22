@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 export const SITE = 'DMD World';
 const DEFAULT_TITLE = 'DMD World — Gaming, Consoles & Electronics in Lebanon';
 const DEFAULT_DESC = 'Consoles, new and used games, controllers, headsets, keyboards, mice, chairs and gadgets from PlayStation, Nintendo, Xbox, Razer, HyperX, Logitech and more. Order online, pay on delivery.';
-const DEFAULT_IMAGE = '/images/dmd-logo.png';
+const DEFAULT_IMAGE = '/images/dmd-world-logo.png';
 
 function meta(attr, key, value) {
   let el = document.head.querySelector(`meta[${attr}="${key}"]`);

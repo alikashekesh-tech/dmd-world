@@ -1,18 +1,19 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from '../../router/index.jsx';
+import { SIGN_IN, REGISTER } from '../../lib/authRoutes.js';
 import { useStore } from '../../context/StoreContext.jsx';
 import Logo from './Logo.jsx';
 import SearchBox from './SearchBox.jsx';
 import MegaMenu from './MegaMenu.jsx';
 import MobileNav from './MobileNav.jsx';
-import { SearchIcon, UserIcon, HeartIcon, BagIcon, MenuIcon, ChevronDown, CloseIcon, CompareIcon, PhoneIcon, MailIcon } from '../common/icons.jsx';
-import { money } from '../../data/index.js';
+import { SearchIcon, UserIcon, HeartIcon, BagIcon, MenuIcon, ChevronDown, CloseIcon, PhoneIcon, MailIcon } from '../common/icons.jsx';
+import { money, HOMEPAGE } from '../../data/index.js';
 import { CONTACT } from '../../data/dmdMenu.js';
 import s from './Header.module.css';
 
 export default function Header() {
-  const { count, subtotal, wishlist, compare, user, setDrawer, unread } = useStore();
+  const { count, subtotal, wishlist, user, setDrawer, unread } = useStore();
   const [menu, setMenu] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -40,9 +41,19 @@ export default function Header() {
             <a href={`tel:${CONTACT.tel}`}><PhoneIcon size={14} />{CONTACT.phone}</a>
             <a href={`mailto:${CONTACT.email}`} className={s.hideSm}><MailIcon size={14} />{CONTACT.email}</a>
           </div>
+          {HOMEPAGE.announcement && (
+            <p className={s.announce}>
+              {HOMEPAGE.announcement.link_url
+                ? (HOMEPAGE.announcement.link_url.startsWith('/') && !HOMEPAGE.announcement.link_url.startsWith('//')
+                  ? <Link to={HOMEPAGE.announcement.link_url}>{HOMEPAGE.announcement.title}</Link>
+                  : <a href={HOMEPAGE.announcement.link_url} target="_blank" rel="noopener noreferrer">{HOMEPAGE.announcement.title}</a>)
+                : HOMEPAGE.announcement.title}
+            </p>
+          )}
           <div className={s.utilLinks}>
             <Link to="/wishlist">Wishlist{wishlist.length > 0 && ` (${wishlist.length})`}</Link>
-            <Link to="/account">{user ? `My account${unread ? ` (${unread} new)` : ''}` : 'Sign in / Register'}</Link>
+            {user ? <Link to="/account">{`My account${unread ? ` (${unread} new)` : ''}`}</Link>
+              : <span><Link to={SIGN_IN}>Sign in</Link> / <Link to={REGISTER}>Register</Link></span>}
           </div>
         </div>
       </div>
@@ -64,10 +75,9 @@ export default function Header() {
           <div className={s.search}><SearchBox placeholder="Search products, brands, categories..." /></div>
           <div className={s.actions}>
             <button type="button" className={`${s.iconBtn} ${s.searchBtn}`} aria-label="Search" onClick={() => setSearchOpen((v) => !v)}>{searchOpen ? <CloseIcon /> : <SearchIcon />}</button>
-            <Link to="/compare" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Compare, ${compare.length} items`} title="Compare"><CompareIcon />{compare.length > 0 && <span className={s.badge}>{compare.length > 99 ? '99+' : compare.length}</span>}</Link>
-            <Link to="/wishlist" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Wishlist, ${wishlist.length} items`} title="Wishlist"><HeartIcon />{wishlist.length > 0 && <span className={s.badge}>{wishlist.length > 99 ? '99+' : wishlist.length}</span>}</Link>
-            <Link to={unread ? '/account?tab=messages' : '/account'} className={`${s.iconBtn} ${s.hideSm2}`} aria-label={user ? `My account${unread ? `, ${unread} new ${unread === 1 ? 'reply' : 'replies'} from DMD` : ''}` : 'Sign in'} title={unread ? 'New reply from DMD' : 'Account'}><UserIcon />{unread > 0 && <span className={s.badge}>{unread}</span>}</Link>
-            <button type="button" className={s.cart} aria-label={`Cart, ${count} items, ${money(subtotal)}`} onClick={() => setDrawer(true)}>
+            <Link to="/wishlist" className={`${s.iconBtn} ${s.hideSm2}`} aria-label={`Wishlist, ${wishlist.length} ${wishlist.length === 1 ? 'item' : 'items'}`} title="Wishlist"><HeartIcon />{wishlist.length > 0 && <span className={s.badge}>{wishlist.length > 99 ? '99+' : wishlist.length}</span>}</Link>
+            <Link to={!user ? SIGN_IN : unread ? '/account?tab=messages' : '/account'} className={`${s.iconBtn} ${s.hideSm2}`} aria-label={user ? `My account${unread ? `, ${unread} new ${unread === 1 ? 'reply' : 'replies'} from DMD` : ''}` : 'Sign in'} title={unread ? 'New reply from DMD' : 'Account'}><UserIcon />{unread > 0 && <span className={s.badge}>{unread}</span>}</Link>
+            <button type="button" className={s.cart} aria-label={`Cart, ${count} ${count === 1 ? 'item' : 'items'}, ${money(subtotal)}`} onClick={() => setDrawer(true)}>
               <span className={s.cartIcon}><BagIcon />{count > 0 && <span className={s.count}>{count}</span>}</span>
               <span className={s.cartTxt}><small>Cart</small><b>{money(subtotal)}</b></span>
             </button>

@@ -1,0 +1,19 @@
+# Runs Laravel's scheduler once (started every minute by dmd-world-scheduler.timer).
+# Today it retries back-in-stock emails a failed mail server left behind (dmd:stock-alerts, every 10 minutes).
+# Install both files in /etc/systemd/system/, adjust the paths and user, then
+#   sudo systemctl daemon-reload && sudo systemctl enable --now dmd-world-scheduler.timer
+# Logs: journalctl -u dmd-world-scheduler
+[Unit]
+Description=DMD World scheduled tasks (Laravel schedule:run)
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/dmd-world/backend
+ExecStart=/usr/bin/php artisan schedule:run --no-interaction
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/dmd-world/backend/storage /srv/dmd-world/backend/bootstrap/cache

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { storeApi } from './storeApi.js';
+import { orders } from './orders.js';
 
 /**
  * The live price check for the cart (and an optional coupon): real prices, stock problems per line and the
- * discount, straight from WooCommerce. Debounced; only the newest answer is kept. null while unknown or offline
+ * discount, straight from the server. Debounced; only the newest answer is kept. null while unknown or offline
  * (the order itself is always checked again by the server).
  */
 export function useQuote(lines, coupon = '', email = '') {
@@ -18,7 +18,7 @@ export function useQuote(lines, coupon = '', email = '') {
     if (!items.length) { setQuote(null); setChecking(false); return undefined; }
     setChecking(true);
     const t = setTimeout(() => {
-      storeApi.post('/cart/quote', { items, coupon: coupon || undefined, email: mail || undefined })
+      orders.quote(items, coupon, mail)
         .then((q) => { if (n === seq.current) setQuote(q); })
         .catch(() => { if (n === seq.current) setQuote(null); })
         .finally(() => { if (n === seq.current) setChecking(false); });

@@ -32,7 +32,7 @@ function Coins({ n }) {
   );
 }
 
-export default function BudgetStack() {
+export default function BudgetStack({ n = 3 }) {
   const [i, setI] = useState(START);
   const [ref, { seen }] = useInView({ threshold: 0.2 });
   const max = BUDGET_STOPS[i];
@@ -44,7 +44,7 @@ export default function BudgetStack() {
     <section ref={ref} className={s.sec} data-seen={seen || undefined} aria-labelledby="bs-title">
       <div className="container">
         <div className={s.head}>
-          <p className={s.eyebrow}>03 · Your budget</p>
+          <p className={s.eyebrow}>{String(n).padStart(2, '0')} · Your budget</p>
           <h2 id="bs-title" className={s.title}>How much do you want to spend?</h2>
           <p className={s.sub}>Slide to your number. We’ll show the most you can get for it.</p>
         </div>

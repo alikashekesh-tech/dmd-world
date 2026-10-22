@@ -18,7 +18,7 @@ export default function Intro({ chapters, total, videoTotal }) {
     <AbsoluteFill style={{ opacity: fadeOut }}>
       <div style={{ position: 'absolute', left: 120, top: 150, width: 700 }}>
         <div style={{ ...rise(f, 6), display: 'inline-flex', alignItems: 'center', padding: '10px 16px', borderRadius: 14, background: '#fff' }}>
-          <Img src={staticFile('dmd-logo.png')} style={{ height: 54, width: 'auto' }} />
+          <Img src={staticFile('dmd-world-logo.png')} style={{ height: 54, width: 'auto' }} />
         </div>
         <div style={{ ...rise(f, 14), marginTop: 46, display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 20, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.hud }}>
           <span style={{ width: 11, height: 11, borderRadius: 3, background: C.led, boxShadow: `0 0 14px ${C.led}` }} />

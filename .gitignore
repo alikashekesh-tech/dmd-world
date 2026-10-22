@@ -13,6 +13,10 @@ server/.env
 server/dev/LOCAL-TEST-LOGIN.txt
 server/dev/emulator-data.json
 server/dev/outbox/
+# buyer sessions, admin state and any file kept aside after a failed read
+server/data/
+*.corrupt-*
+*.tmp
 
 *.session
 *.log

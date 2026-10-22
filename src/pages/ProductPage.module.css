@@ -6,7 +6,7 @@
 .stage { position: relative; display: grid; place-items: center; width: 100%; max-height: 640px; aspect-ratio: 1; border-radius: var(--radius-xl); background: #fff; border: 1px solid var(--line-soft); overflow: hidden; }
 .stage::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(11, 18, 32, .07) 1px, transparent 1.2px); background-size: 20px 20px; -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, transparent 35%, #000 80%); mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, transparent 35%, #000 80%); pointer-events: none; }
 .stageImg { position: relative; width: 100%; height: 100%; object-fit: contain; padding: 7%; animation: fade-in .5s both; }
-.badge { position: absolute; top: 16px; left: 16px; padding: 6px 10px; border-radius: 8px; background: var(--deal); color: #fff; font: 700 12.5px var(--font-mono); letter-spacing: .02em; text-transform: uppercase; }
+.badge { position: absolute; top: 16px; left: 16px; padding: 6px 10px; border-radius: 8px; background: var(--sale); color: #fff; font: 700 12.5px var(--font-mono); letter-spacing: .02em; text-transform: uppercase; }
 .badge.new { background: var(--accent); }
 .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 0; }
 .thumb { width: 100%; aspect-ratio: 1; padding: 0; border-radius: 14px; border: 1px solid var(--line); background: #fff; overflow: hidden; transition: border-color .15s; }
@@ -24,9 +24,9 @@
 .priceBox { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; padding: 20px 0; border-block: 1px solid var(--line-soft); }
 .drop { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
 .drop strong { font: 800 clamp(34px, 3.6vw, 44px)/1 var(--font-display); letter-spacing: -.04em; font-variant-numeric: tabular-nums; transition: color .3s; }
-.drop strong.landed { color: var(--deal); }
+.drop strong.landed { color: var(--sale); }
 .drop del { font-size: 18px; color: var(--muted); }
-.drop em { padding: 4px 9px; border-radius: 7px; background: var(--deal); color: #fff; font: 700 12px var(--font-mono); font-style: normal; text-transform: uppercase; }
+.drop em { padding: 4px 9px; border-radius: 7px; background: var(--sale); color: #fff; font: 700 12px var(--font-mono); font-style: normal; text-transform: uppercase; }
 .blurb { margin: 20px 0 0; color: var(--text-2); line-height: 1.65; }
 .blurb:empty { display: none; }
 .block { margin-top: 24px; }

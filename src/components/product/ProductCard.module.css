@@ -17,7 +17,7 @@
 
 .badges { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; pointer-events: none; }
 .badge { padding: 4px 8px; border-radius: 6px; font: 700 11px/1.2 var(--font-mono); letter-spacing: 0.02em; text-transform: uppercase; color: #fff; }
-.deal { background: var(--deal); }
+.deal { background: var(--sale); }
 .new { background: var(--accent); }
 
 .wish {

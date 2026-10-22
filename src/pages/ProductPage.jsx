@@ -9,13 +9,15 @@ import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellIcon } from '../components/common/icons.jsx';
-import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew } from '../data/index.js';
+import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import { catUrl, CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
+import { laravelApi } from '../lib/laravelApi.js';
+import { SIGN_IN, authUrl } from '../lib/authRoutes.js';
 import NotFound from './NotFound.jsx';
 import s from './ProductPage.module.css';
 
@@ -40,7 +42,7 @@ function NotifyMe({ p }) {
   const { buyer, hasAlert, toggleAlert, setToast } = useStore();
   const [busy, setBusy] = useState(false);
   const on = hasAlert(p.id);
-  if (!buyer) return <Link to={`/account?next=${encodeURIComponent(`/product/${p.slug}`)}`} className="btn btn--secondary btn--lg btn--block"><BellIcon size={17} />Sign in to get a back-in-stock email</Link>;
+  if (!buyer) return <Link to={authUrl(SIGN_IN, `/product/${p.slug}`)} className="btn btn--secondary btn--lg btn--block"><BellIcon size={17} />Sign in to get a back-in-stock email</Link>;
   const flip = async () => {
     setBusy(true);
     try { const now = await toggleAlert(p.id); setToast(now ? `We’ll email you when ${p.name} is back` : 'Back-in-stock email cancelled'); }
@@ -56,19 +58,36 @@ function NotifyMe({ p }) {
 
 const TABS = [['overview', 'Details'], ['specs', 'Specifications'], ['reviews', 'Reviews']];
 
+/** Laravel's product detail → the details shape this page reads (paragraphs, attributes, size and weight). */
+const detailsFromApi = (d) => ({
+  short: d.short_description || '',
+  description: String(d.description || '').split(/\n{2,}/).map((x) => x.trim()).filter(Boolean),
+  attributes: (d.specifications || []).map((x) => ({ name: x.name, value: x.value })),
+  weight: d.weight_kg ?? null,
+  dimensions: d.dimensions_cm ? `${d.dimensions_cm.join(' × ')} cm` : null,
+});
+
 export default function ProductPage() {
   const { slug } = useParams();
   const version = useCatalog();
   const p = getProduct(slug);
   const nav = useNavigate();
-  const { addToCart, toggleWish, isWished, catalogVersion } = useStore();
+  const { addToCart, toggleWish, isWished, catalogVersion, roomFor } = useStore();
   const [color, setColor] = useState(p?.colors[0]);
   const [view, setView] = useState(0);
   const [qty, setQty] = useState(1);
   const [params] = useSearchParams();
   const wantReview = params.get('review') === '1'; // from "Review" in order history
   const [tab, setTab] = useState(wantReview ? 'reviews' : 'overview');
+  const [details, setDetails] = useState(null); // description and attributes from WooCommerce, loaded per product
   const tabRefs = useRef({});
+  useEffect(() => {
+    let live = true;
+    setDetails(null);
+    const load = laravelApi.get(`/products/${encodeURIComponent(slug)}`).then(({ data: d }) => detailsFromApi(d));
+    load.then((d) => { if (live) setDetails(d); }).catch(() => {});
+    return () => { live = false; };
+  }, [slug]);
   useEffect(() => {
     setColor(p?.colors[0]); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
     if (wantReview) setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 150); else window.scrollTo(0, 0);
@@ -92,14 +111,15 @@ export default function ProductPage() {
   const out = p?.stock === 'out';
   const catNames = (p?.cats || []).map((id) => catName(Number(id)));
   const condition = catNames.includes('Used') ? 'Used' : catNames.includes('New') ? 'New' : null;
+  const blurb = details?.short || p?.blurb || '';
   usePageMeta(p ? {
     title: p.name,
-    description: p.blurb || `${p.name} from ${brand.name} at DMD World: ${money(p.price)}${p.was ? ` (was ${money(p.was)})` : ''}. ${out ? 'Currently out of stock.' : 'In stock, order online and pay on delivery in Lebanon.'}`,
+    description: blurb || `${p.name} from ${brand.name} at DMD World: ${money(p.price)}${p.was ? ` (was ${money(p.was)})` : ''}. ${out ? 'Currently out of stock.' : 'In stock, order online and pay on delivery in Lebanon.'}`,
     image: p.img || undefined,
     type: 'product',
     jsonLd: {
       '@context': 'https://schema.org', '@type': 'Product', name: p.name, sku: p.sku || p.id, image: p.gallery?.length ? p.gallery : undefined,
-      brand: { '@type': 'Brand', name: brand.name }, category: cat.name, description: p.blurb || undefined,
+      brand: { '@type': 'Brand', name: brand.name }, category: cat.name, description: blurb || undefined,
       offers: {
         '@type': 'Offer', priceCurrency: 'USD', price: p.price.toFixed(2), url: `${location.origin}/product/${p.slug}`,
         availability: out ? 'https://schema.org/OutOfStock' : p.stock === 'low' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
@@ -111,15 +131,20 @@ export default function ProductPage() {
   } : { title: 'Product not found', noindex: true });
 
   if (!p) return <NotFound />;
-  const descParas = (p.blurb || `${p.name} from ${brand.name}, available at DMD World.`).split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const descParas = details?.description?.length ? details.description : (blurb || `${p.name} from ${brand.name}, available at DMD World. Ask DMD about compatibility, condition or what's in the box.`).split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const specRows = [...(details?.attributes || []).map((a) => [a.name, a.value]), ...Object.entries(p.specs), ...(details?.dimensions ? [['Dimensions', details.dimensions]] : []), ...(details?.weight ? [['Weight', `${details.weight} kg`]] : [])];
   const platformGroup = ['playstation', 'nintendo-switch', 'xbox'].includes(p.brand) ? brand.name : null;
   const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', out ? 'Out of stock' : p.stock === 'low' ? `Only ${p.stockCount} left` : 'In stock'], ...(p.sku ? [['SKU', p.sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
   const wished = isWished(p.id);
   const bundle = p.bundle?.map(getProduct).filter(Boolean);
-  const maxQty = p.stock === 'low' && p.stockCount ? p.stockCount : 10;
-  const buyNow = () => { addToCart(p.id, qty, color, { open: false }); nav('/checkout'); };
+  // The stock left after what's already in the cart: 18 in stock with 15 in the cart leaves 3 to choose from.
+  const room = roomFor(p.id);
+  const full = !out && room < 1;
+  const maxQty = Math.max(1, room);
+  const addLabel = full ? `All ${purchaseLimit(p)} in your cart` : 'Add to cart';
+  const buyNow = () => { if (!full) addToCart(p.id, Math.min(qty, maxQty), color, { open: false }); nav('/checkout'); };
   const shots = p.img ? p.gallery || [p.img] : ART_VIEWS;
-  const tabs = TABS.filter(([k]) => k !== 'specs' || Object.keys(p.specs).length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
+  const tabs = TABS.filter(([k]) => k !== 'specs' || specRows.length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
   const onTabKey = (e, i) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
     const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : step ? (i + step + tabs.length) % tabs.length : null;
@@ -164,7 +189,7 @@ export default function ProductPage() {
             {p.was ? <DropPrice key={p.id} p={p} /> : <Price price={p.price} size="lg" />}
             <Stock p={p} />
           </div>
-          {p.blurb && <p className={s.blurb}>{p.blurb}</p>}
+          {blurb && <p className={s.blurb}>{blurb}</p>}
 
           {p.colors.length > 1 && (
             <div className={s.block}>
@@ -186,7 +211,7 @@ export default function ProductPage() {
             <>
               <div className={s.actions}>
                 <QtyStepper value={Math.min(qty, maxQty)} onChange={setQty} max={maxQty} label={p.name} />
-                <button type="button" className="btn btn--primary btn--lg" onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>Add to cart</button>
+                <button type="button" className="btn btn--primary btn--lg" disabled={full} onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>{addLabel}</button>
                 <button type="button" className={`${s.heart} ${wished ? s.hearted : ''}`} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><HeartIcon size={20} fill={wished ? 'currentColor' : 'none'} /></button>
               </div>
               <button type="button" className="btn btn--secondary btn--lg btn--block" onClick={buyNow}>Buy now</button>
@@ -243,7 +268,7 @@ export default function ProductPage() {
                 <tr><th>Brand</th><td>{brand.name}</td></tr>
                 <tr><th>Type</th><td>{cat?.name}</td></tr>
                 {p.conn && <tr><th>Connection</th><td>{p.conn}</td></tr>}
-                {Object.entries(p.specs).map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}
+                {specRows.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}
                 <tr><th>Compatibility</th><td><Compat p={p} max={10} /></td></tr>
               </tbody></table>
             </div>
@@ -270,7 +295,7 @@ export default function ProductPage() {
       <div className={s.sticky}>
         <div><b>{p.name}</b><Price price={p.price} was={p.was} size="sm" /></div>
         {out ? <a href="#top" className="btn btn--secondary" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Sold out</a>
-          : <button type="button" className="btn btn--primary" onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>Add to cart</button>}
+          : <button type="button" className="btn btn--primary" disabled={full} onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>{addLabel}</button>}
       </div>
     </div>
   );

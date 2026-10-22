@@ -1,0 +1,1122 @@
+[
+ {
+  "id": 369,
+  "name": "ACTION FIGURE",
+  "slug": "actionfigure",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 0,
+  "count": 11
+ },
+ {
+  "id": 321,
+  "name": "Airpod",
+  "slug": "airpod",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 1,
+  "count": 7
+ },
+ {
+  "id": 319,
+  "name": "Bluetooth Speaker",
+  "slug": "bluetooth-speaker",
+  "parent": 285,
+  "description": "",
+  "image": null,
+  "menu_order": 2,
+  "count": 7
+ },
+ {
+  "id": 348,
+  "name": "Cables",
+  "slug": "cables",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 3,
+  "count": 2
+ },
+ {
+  "id": 365,
+  "name": "CAR TOYS",
+  "slug": "cartoys",
+  "parent": 363,
+  "description": "",
+  "image": null,
+  "menu_order": 4,
+  "count": 0
+ },
+ {
+  "id": 413,
+  "name": "Chair and Table",
+  "slug": "chair-table",
+  "parent": 393,
+  "description": "",
+  "image": null,
+  "menu_order": 5,
+  "count": 11
+ },
+ {
+  "id": 430,
+  "name": "CLEANING PRODUCTS",
+  "slug": "cleaning-products",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 6,
+  "count": 0
+ },
+ {
+  "id": 281,
+  "name": "Computer Accessories",
+  "slug": "computer-accessories",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 2,
+  "count": 5
+ },
+ {
+  "id": 318,
+  "name": "Computer Speaker",
+  "slug": "computerspeaker",
+  "parent": 285,
+  "description": "",
+  "image": null,
+  "menu_order": 8,
+  "count": 1
+ },
+ {
+  "id": 949,
+  "name": "Cudy",
+  "slug": "cudy",
+  "parent": 349,
+  "description": "",
+  "image": null,
+  "menu_order": 9,
+  "count": 0
+ },
+ {
+  "id": 920,
+  "name": "E-Yooso",
+  "slug": "e-yooso",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 3,
+  "count": 7
+ },
+ {
+  "id": 363,
+  "name": "ELECTRONICS TOYS",
+  "slug": "electronicstoys",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 4,
+  "count": 9
+ },
+ {
+  "id": 893,
+  "name": "FANTECH",
+  "slug": "fantech",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 5,
+  "count": 7
+ },
+ {
+  "id": 894,
+  "name": "Fantech Keyboard",
+  "slug": "keyboard-fantech",
+  "parent": 893,
+  "description": "",
+  "image": null,
+  "menu_order": 13,
+  "count": 3
+ },
+ {
+  "id": 897,
+  "name": "Fantech Tables and Chairs",
+  "slug": "fantech-tables-and-chairs",
+  "parent": 893,
+  "description": "",
+  "image": null,
+  "menu_order": 14,
+  "count": 0
+ },
+ {
+  "id": 282,
+  "name": "Gadget",
+  "slug": "gadget",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 6,
+  "count": 8
+ },
+ {
+  "id": 961,
+  "name": "hardisk",
+  "slug": "hardisk",
+  "parent": 924,
+  "description": "",
+  "image": null,
+  "menu_order": 16,
+  "count": 0
+ },
+ {
+  "id": 924,
+  "name": "Hardisk and Flash",
+  "slug": "hardisk-and-flash",
+  "parent": 393,
+  "description": "",
+  "image": null,
+  "menu_order": 17,
+  "count": 0
+ },
+ {
+  "id": 347,
+  "name": "HDMI Cables",
+  "slug": "hdmicables",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 18,
+  "count": 0
+ },
+ {
+  "id": 896,
+  "name": "HEADPHONE",
+  "slug": "headphone-fantech",
+  "parent": 893,
+  "description": "",
+  "image": null,
+  "menu_order": 19,
+  "count": 1
+ },
+ {
+  "id": 600,
+  "name": "HEADPHONE MARVO",
+  "slug": "headphone-marvo",
+  "parent": 547,
+  "description": "",
+  "image": null,
+  "menu_order": 20,
+  "count": 1
+ },
+ {
+  "id": 911,
+  "name": "HyperX",
+  "slug": "hyperx",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 7,
+  "count": 5
+ },
+ {
+  "id": 420,
+  "name": "HyperX Headphone",
+  "slug": "hyper-x-headphone",
+  "parent": 911,
+  "description": "",
+  "image": null,
+  "menu_order": 22,
+  "count": 6
+ },
+ {
+  "id": 436,
+  "name": "HyperX Keyboard",
+  "slug": "hyper-x-keyboard",
+  "parent": 911,
+  "description": "",
+  "image": null,
+  "menu_order": 23,
+  "count": 0
+ },
+ {
+  "id": 912,
+  "name": "HyperX mouse",
+  "slug": "hyperx-mouse",
+  "parent": 911,
+  "description": "",
+  "image": null,
+  "menu_order": 24,
+  "count": 1
+ },
+ {
+  "id": 913,
+  "name": "HyperX Mouse Pad",
+  "slug": "hyperx-mouse-pad",
+  "parent": 911,
+  "description": "",
+  "image": null,
+  "menu_order": 25,
+  "count": 0
+ },
+ {
+  "id": 437,
+  "name": "ICONIX",
+  "slug": "iconix",
+  "parent": 287,
+  "description": "",
+  "image": null,
+  "menu_order": 26,
+  "count": 2
+ },
+ {
+  "id": 415,
+  "name": "LAPTOP",
+  "slug": "laptop",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 8,
+  "count": 4
+ },
+ {
+  "id": 416,
+  "name": "LAPTOP BAGS",
+  "slug": "laptop-bags",
+  "parent": 415,
+  "description": "",
+  "image": null,
+  "menu_order": 28,
+  "count": 0
+ },
+ {
+  "id": 418,
+  "name": "LAPTOP COOLERS",
+  "slug": "laptop-coolers",
+  "parent": 415,
+  "description": "",
+  "image": null,
+  "menu_order": 29,
+  "count": 4
+ },
+ {
+  "id": 423,
+  "name": "LAPTOPS",
+  "slug": "laptops",
+  "parent": 415,
+  "description": "",
+  "image": null,
+  "menu_order": 30,
+  "count": 3
+ },
+ {
+  "id": 1000,
+  "name": "Logitech",
+  "slug": "logi-tech",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 9,
+  "count": 7
+ },
+ {
+  "id": 1004,
+  "name": "Logitech Headset",
+  "slug": "logitech-headset",
+  "parent": 1000,
+  "description": "",
+  "image": null,
+  "menu_order": 32,
+  "count": 3
+ },
+ {
+  "id": 1002,
+  "name": "Logitech Keyboard",
+  "slug": "logitech-keyboard",
+  "parent": 1000,
+  "description": "",
+  "image": null,
+  "menu_order": 33,
+  "count": 1
+ },
+ {
+  "id": 1001,
+  "name": "Logitech mouse",
+  "slug": "logitech-mouse",
+  "parent": 1000,
+  "description": "",
+  "image": null,
+  "menu_order": 34,
+  "count": 0
+ },
+ {
+  "id": 1003,
+  "name": "Logitech Webcam",
+  "slug": "logitech-webcam",
+  "parent": 1000,
+  "description": "",
+  "image": null,
+  "menu_order": 35,
+  "count": 3
+ },
+ {
+  "id": 547,
+  "name": "MARVO",
+  "slug": "marvo",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 10,
+  "count": 16
+ },
+ {
+  "id": 597,
+  "name": "Marvo Chair and Table",
+  "slug": "marvo-chair-and-table",
+  "parent": 547,
+  "description": "",
+  "image": null,
+  "menu_order": 37,
+  "count": 5
+ },
+ {
+  "id": 549,
+  "name": "Marvo Keyboard",
+  "slug": "keyboard-marvo",
+  "parent": 547,
+  "description": "",
+  "image": null,
+  "menu_order": 38,
+  "count": 3
+ },
+ {
+  "id": 774,
+  "name": "Mega Volt",
+  "slug": "mega-volt",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 11,
+  "count": 0
+ },
+ {
+  "id": 987,
+  "name": "Megavolt Chairs",
+  "slug": "megavolt-chairs",
+  "parent": 774,
+  "description": "",
+  "image": null,
+  "menu_order": 40,
+  "count": 5
+ },
+ {
+  "id": 989,
+  "name": "Megavolt Controllers",
+  "slug": "megavolt-controllers",
+  "parent": 774,
+  "description": "",
+  "image": null,
+  "menu_order": 41,
+  "count": 2
+ },
+ {
+  "id": 988,
+  "name": "Megavolt Monitors",
+  "slug": "megavolt-monitors",
+  "parent": 774,
+  "description": "",
+  "image": null,
+  "menu_order": 42,
+  "count": 0
+ },
+ {
+  "id": 991,
+  "name": "Megavolt UPS",
+  "slug": "megavolt-ups",
+  "parent": 774,
+  "description": "",
+  "image": null,
+  "menu_order": 43,
+  "count": 0
+ },
+ {
+  "id": 414,
+  "name": "Microphone and Camera",
+  "slug": "microphone-camera",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 44,
+  "count": 0
+ },
+ {
+  "id": 412,
+  "name": "Monitors",
+  "slug": "monitors",
+  "parent": 393,
+  "description": "",
+  "image": null,
+  "menu_order": 45,
+  "count": 0
+ },
+ {
+  "id": 895,
+  "name": "MOUSE",
+  "slug": "mouse-fantech",
+  "parent": 893,
+  "description": "",
+  "image": null,
+  "menu_order": 46,
+  "count": 3
+ },
+ {
+  "id": 548,
+  "name": "MOUSE MARVO",
+  "slug": "mouse-marvo",
+  "parent": 547,
+  "description": "",
+  "image": null,
+  "menu_order": 47,
+  "count": 1
+ },
+ {
+  "id": 317,
+  "name": "Mouse Pad",
+  "slug": "mousepad",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 48,
+  "count": 3
+ },
+ {
+  "id": 595,
+  "name": "MOUSE PAD MARVO",
+  "slug": "mouse-pad-marvo",
+  "parent": 547,
+  "description": "",
+  "image": null,
+  "menu_order": 49,
+  "count": 1
+ },
+ {
+  "id": 850,
+  "name": "Moxom",
+  "slug": "moxom",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 12,
+  "count": 9
+ },
+ {
+  "id": 856,
+  "name": "Moxom accessories",
+  "slug": "accessories-moxom",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 51,
+  "count": 2
+ },
+ {
+  "id": 857,
+  "name": "Moxom Cables and Adapters",
+  "slug": "moxom-cables-and-adapters",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 52,
+  "count": 2
+ },
+ {
+  "id": 854,
+  "name": "Moxom Headphone",
+  "slug": "headphone-moxom",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 53,
+  "count": 1
+ },
+ {
+  "id": 853,
+  "name": "Moxom Power Bank",
+  "slug": "moxom-power-bank",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 54,
+  "count": 2
+ },
+ {
+  "id": 855,
+  "name": "Moxom Razor Shave",
+  "slug": "moxom-razor-shave",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 55,
+  "count": 0
+ },
+ {
+  "id": 858,
+  "name": "Moxom Socket",
+  "slug": "moxom-socket",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 56,
+  "count": 2
+ },
+ {
+  "id": 852,
+  "name": "Moxom Speakers",
+  "slug": "speakers-moxom",
+  "parent": 850,
+  "description": "",
+  "image": null,
+  "menu_order": 57,
+  "count": 0
+ },
+ {
+  "id": 349,
+  "name": "NETWORK PRODUCTS",
+  "slug": "networkproducts",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 58,
+  "count": 2
+ },
+ {
+  "id": 996,
+  "name": "New Offers",
+  "slug": "new-offers",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 13,
+  "count": 21
+ },
+ {
+  "id": 296,
+  "name": "Nintendo Switch",
+  "slug": "nintendo-switch",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 14,
+  "count": 1
+ },
+ {
+  "id": 298,
+  "name": "Nintendo Switch Accessories",
+  "slug": "nintendo-switch-accessories",
+  "parent": 296,
+  "description": "",
+  "image": null,
+  "menu_order": 61,
+  "count": 4
+ },
+ {
+  "id": 342,
+  "name": "Nintendo Switch Consoles",
+  "slug": "nintendo-switch-consoles",
+  "parent": 296,
+  "description": "",
+  "image": null,
+  "menu_order": 62,
+  "count": 1
+ },
+ {
+  "id": 340,
+  "name": "Nintendo Switch Games",
+  "slug": "nintendo-switch-games-nintendo-switch",
+  "parent": 296,
+  "description": "",
+  "image": null,
+  "menu_order": 63,
+  "count": 2
+ },
+ {
+  "id": 297,
+  "name": "Nintendo Switch New Games",
+  "slug": "nintendo-switch-games",
+  "parent": 340,
+  "description": "",
+  "image": null,
+  "menu_order": 64,
+  "count": 2
+ },
+ {
+  "id": 341,
+  "name": "Nintendo Switch Used Games",
+  "slug": "nintendo-switch-used-games",
+  "parent": 340,
+  "description": "",
+  "image": null,
+  "menu_order": 65,
+  "count": 0
+ },
+ {
+  "id": 860,
+  "name": "Onikuma",
+  "slug": "onikuma",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 15,
+  "count": 7
+ },
+ {
+  "id": 862,
+  "name": "Onikuma Headphone",
+  "slug": "headphone-onikuma",
+  "parent": 860,
+  "description": "",
+  "image": null,
+  "menu_order": 67,
+  "count": 6
+ },
+ {
+  "id": 917,
+  "name": "Onikuma mouse",
+  "slug": "onikuma-mouse",
+  "parent": 860,
+  "description": "",
+  "image": null,
+  "menu_order": 68,
+  "count": 1
+ },
+ {
+  "id": 367,
+  "name": "OTHER TOYS",
+  "slug": "toys",
+  "parent": 363,
+  "description": "",
+  "image": null,
+  "menu_order": 69,
+  "count": 7
+ },
+ {
+  "id": 417,
+  "name": "PAD PC",
+  "slug": "pad-pc",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 70,
+  "count": 0
+ },
+ {
+  "id": 393,
+  "name": "PC PARTS",
+  "slug": "pc-parts",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 16,
+  "count": 7
+ },
+ {
+  "id": 287,
+  "name": "Phones Accessories",
+  "slug": "phonesaccessories",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 17,
+  "count": 7
+ },
+ {
+  "id": 295,
+  "name": "Play Station",
+  "slug": "play-station",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 18,
+  "count": 1
+ },
+ {
+  "id": 352,
+  "name": "PS Cards",
+  "slug": "pscards",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 74,
+  "count": 0
+ },
+ {
+  "id": 289,
+  "name": "PS2",
+  "slug": "ps2",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 75,
+  "count": 0
+ },
+ {
+  "id": 290,
+  "name": "PS3",
+  "slug": "ps3",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 76,
+  "count": 0
+ },
+ {
+  "id": 299,
+  "name": "PS4",
+  "slug": "ps4",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 77,
+  "count": 2
+ },
+ {
+  "id": 292,
+  "name": "PS4 ACC",
+  "slug": "ps4-acc",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 78,
+  "count": 5
+ },
+ {
+  "id": 334,
+  "name": "Ps4 Consoles",
+  "slug": "ps4consoles",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 79,
+  "count": 0
+ },
+ {
+  "id": 336,
+  "name": "PS4 Games",
+  "slug": "ps4-games-play-station",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 80,
+  "count": 12
+ },
+ {
+  "id": 291,
+  "name": "PS4 NewGames",
+  "slug": "ps4-games",
+  "parent": 336,
+  "description": "",
+  "image": null,
+  "menu_order": 81,
+  "count": 17
+ },
+ {
+  "id": 337,
+  "name": "PS4 Used Games",
+  "slug": "ps4-used-games",
+  "parent": 336,
+  "description": "",
+  "image": null,
+  "menu_order": 82,
+  "count": 0
+ },
+ {
+  "id": 300,
+  "name": "PS5",
+  "slug": "ps5",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 83,
+  "count": 0
+ },
+ {
+  "id": 294,
+  "name": "PS5 ACC",
+  "slug": "ps5-acc",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 84,
+  "count": 0
+ },
+ {
+  "id": 304,
+  "name": "PS5 Console",
+  "slug": "psconsole",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 85,
+  "count": 0
+ },
+ {
+  "id": 338,
+  "name": "PS5 GAMES",
+  "slug": "ps5-games-play-station",
+  "parent": 295,
+  "description": "",
+  "image": null,
+  "menu_order": 86,
+  "count": 1
+ },
+ {
+  "id": 293,
+  "name": "PS5 New Games",
+  "slug": "ps5-games",
+  "parent": 338,
+  "description": "",
+  "image": null,
+  "menu_order": 87,
+  "count": 1
+ },
+ {
+  "id": 339,
+  "name": "PS5 Used Games",
+  "slug": "ps5-used-games",
+  "parent": 338,
+  "description": "",
+  "image": null,
+  "menu_order": 88,
+  "count": 0
+ },
+ {
+  "id": 904,
+  "name": "Razer",
+  "slug": "razer",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 19,
+  "count": 3
+ },
+ {
+  "id": 919,
+  "name": "Razer accessories",
+  "slug": "razer-accessories",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 90,
+  "count": 0
+ },
+ {
+  "id": 918,
+  "name": "Razer chair",
+  "slug": "razer-chair",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 91,
+  "count": 1
+ },
+ {
+  "id": 383,
+  "name": "Razer headphone",
+  "slug": "razer-headphone",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 92,
+  "count": 3
+ },
+ {
+  "id": 381,
+  "name": "Razer Keyboard",
+  "slug": "razer-keyboard",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 93,
+  "count": 0
+ },
+ {
+  "id": 382,
+  "name": "Razer Mouse",
+  "slug": "razer-mouse",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 94,
+  "count": 2
+ },
+ {
+  "id": 392,
+  "name": "Razer Mouse Pad",
+  "slug": "razer-mouse-pad",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 95,
+  "count": 1
+ },
+ {
+  "id": 426,
+  "name": "Razer Speaker",
+  "slug": "speaker-razer",
+  "parent": 904,
+  "description": "",
+  "image": null,
+  "menu_order": 96,
+  "count": 0
+ },
+ {
+  "id": 323,
+  "name": "Retro Games & Consoles",
+  "slug": "retrogamesconsoles",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 20,
+  "count": 7
+ },
+ {
+  "id": 322,
+  "name": "Smart Watch",
+  "slug": "smartwatch",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 21,
+  "count": 6
+ },
+ {
+  "id": 596,
+  "name": "SPEAKER & MICROPHONE MARVO",
+  "slug": "speaker-microphone-marvo",
+  "parent": 547,
+  "description": "",
+  "image": null,
+  "menu_order": 99,
+  "count": 1
+ },
+ {
+  "id": 285,
+  "name": "Speakers",
+  "slug": "speakers",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 22,
+  "count": 7
+ },
+ {
+  "id": 947,
+  "name": "Tab Oscal",
+  "slug": "tab-oscal",
+  "parent": 433,
+  "description": "",
+  "image": null,
+  "menu_order": 101,
+  "count": 1
+ },
+ {
+  "id": 960,
+  "name": "Tab Oteeto",
+  "slug": "tab-oteeto",
+  "parent": 433,
+  "description": "",
+  "image": null,
+  "menu_order": 102,
+  "count": 0
+ },
+ {
+  "id": 433,
+  "name": "TABLETS",
+  "slug": "tablets",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 23,
+  "count": 7
+ },
+ {
+  "id": 959,
+  "name": "Tp-link",
+  "slug": "tp-link",
+  "parent": 349,
+  "description": "",
+  "image": null,
+  "menu_order": 104,
+  "count": 0
+ },
+ {
+  "id": 429,
+  "name": "UPS AND BATTEIRES",
+  "slug": "ups-and-batteires",
+  "parent": 281,
+  "description": "",
+  "image": null,
+  "menu_order": 105,
+  "count": 0
+ },
+ {
+  "id": 286,
+  "name": "XBOX",
+  "slug": "xbox",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 24,
+  "count": 3
+ },
+ {
+  "id": 305,
+  "name": "XBOX 360",
+  "slug": "xbox360",
+  "parent": 286,
+  "description": "",
+  "image": null,
+  "menu_order": 107,
+  "count": 2
+ },
+ {
+  "id": 306,
+  "name": "XBOX ONE",
+  "slug": "xboxone",
+  "parent": 286,
+  "description": "",
+  "image": null,
+  "menu_order": 108,
+  "count": 5
+ },
+ {
+  "id": 307,
+  "name": "XBOX SERIES",
+  "slug": "xboxseries",
+  "parent": 286,
+  "description": "",
+  "image": null,
+  "menu_order": 109,
+  "count": 2
+ },
+ {
+  "id": 404,
+  "name": "XBOX SERIES GAMES",
+  "slug": "xboxseriesgames",
+  "parent": 307,
+  "description": "",
+  "image": null,
+  "menu_order": 110,
+  "count": 0
+ },
+ {
+  "id": 946,
+  "name": "XIAOMI",
+  "slug": "xiaomi",
+  "parent": 0,
+  "description": "",
+  "image": null,
+  "menu_order": 25,
+  "count": 7
+ }
+]

@@ -5,8 +5,10 @@ import { ProductImage } from '../components/art/Media.jsx';
 import PixelText from '../components/ui/PixelText.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import { ArrowRight, CheckIcon, PhoneIcon } from '../components/common/icons.jsx';
-import { storeApi, guestOrders, ORDER_STATUS } from '../lib/storeApi.js';
+import { guestOrders, ORDER_STATUS } from '../lib/storeApi.js';
+import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
+import { REGISTER } from '../lib/authRoutes.js';
 import { getProduct, money } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import NotFound from './NotFound.jsx';
@@ -52,8 +54,9 @@ export default function Order() {
   const key = guestOrders.keyFor(id);
   const load = () => {
     setO(null); setMissing(false); setFailed('');
-    const byKey = () => storeApi.get(`/orders/${encodeURIComponent(id)}?key=${encodeURIComponent(key)}`);
-    const req = buyer ? storeApi.get(`/me/orders/${encodeURIComponent(id)}`).catch((e) => (key && e.status === 404 ? byKey() : Promise.reject(e))) : key ? byKey() : Promise.reject(Object.assign(new Error('missing'), { status: 404 }));
+    const byKey = () => orders.get(id, key);
+    const mine = () => orders.get(id);
+    const req = buyer ? mine().catch((e) => (key && e.status === 404 ? byKey() : Promise.reject(e))) : key ? byKey() : Promise.reject(Object.assign(new Error('missing'), { status: 404 }));
     req.then(setO).catch((e) => (e.status === 404 ? setMissing(true) : setFailed(e.message)));
   };
   useEffect(() => { if (!checking) load(); }, [id, buyer, checking]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -74,10 +77,10 @@ export default function Order() {
   const cancel = async () => {
     setCancelling(true);
     try {
-      const next = await storeApi.post(`/orders/${o.id}/cancel`, { key: key || undefined, reason: reason.trim() || undefined });
+      const next = await orders.cancel(o.id, { token: key, reason: reason.trim() });
       setO((x) => ({ ...x, ...next })); updateOrder(next); setConfirmCancel(false);
       setToast(`Order #${o.number} cancelled`);
-    } catch (e) { setToast(e.message); if (e.code === 'not_cancellable') load(); }
+    } catch (e) { setToast(e.message); if (e.code === 'not_cancellable' || e.code === 'NOT_CANCELLABLE') load(); }
     setCancelling(false);
   };
   return (
@@ -151,7 +154,7 @@ export default function Order() {
           {buyer ? <Link to={`/account?tab=messages&order=${o.id}`} className="btn btn--secondary btn--lg">Message DMD</Link>
             : <a href={`tel:${CONTACT.tel}`} className="btn btn--secondary btn--lg"><PhoneIcon size={17} />Call DMD</a>}
         </div>
-        {!buyer && <p className={s.guestNote}>This page stays available on this device for 30 days. <Link to="/account" className="link">Create an account</Link> to keep every order in one place.</p>}
+        {!buyer && <p className={s.guestNote}>This page stays available on this device for 30 days. <Link to={REGISTER} className="link">Create an account</Link> to keep every order in one place.</p>}
       </div>
     </>
   );
