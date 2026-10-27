@@ -6,7 +6,10 @@
     RewriteEngine On
     RewriteBase /
 
-    # 1. Block access to hidden files and sensitive directories
+    # Stop rewrite loop if already pointing to backend index.php
+    RewriteRule ^backend/public/index\.php$ - [L]
+
+    # Block access to hidden files and sensitive directories
     RewriteRule ^\. - [F,L]
     RewriteRule ^backend/(app|bootstrap|config|database|resources|routes|storage|tests|vendor) - [F,L]
     RewriteRule ^backend/\.env - [F,L]
@@ -18,32 +21,30 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # 2. Public uploads & storage symlink
+    # Public uploads & storage symlink
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteCond %{REQUEST_URI} ^/storage/
     RewriteRule ^ - [L]
 
-    # 3. Route API and health endpoints to Laravel backend
+    # Route API and health endpoints to Laravel backend
     RewriteRule ^(api/.*|api|up|robots\.txt|sitemap\.xml)$ backend/public/index.php [L,QSA]
 
-    # 4. Admin Panel SPA (/admin and /admin/*)
-    # Existing static assets inside /admin/ (CSS, JS, images)
+    # Admin Panel SPA (/admin and /admin/*)
     RewriteCond %{REQUEST_URI} ^/admin/
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
 
-    # Admin route fallback to admin/index.html
     RewriteCond %{REQUEST_URI} ^/admin
     RewriteRule ^admin(/.*)?$ admin/index.html [L]
 
-    # 5. Storefront SPA (/ and all storefront routes)
-    # Existing files in root (assets, favicon, manifest, etc.)
+    # Existing static assets in root
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Storefront fallback to root index.html
+    # Storefront SPA fallback (never fallback for API calls)
+    RewriteCond %{REQUEST_URI} !^/(api|up|backend)
     RewriteRule ^ index.html [L]
 </IfModule>
 
