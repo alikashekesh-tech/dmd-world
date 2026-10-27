@@ -15,8 +15,20 @@ return new class extends Migration
         if (DB::getDriverName() !== 'mysql') {
             return;
         }
-        DB::statement('ALTER TABLE offer_targets DROP CHECK offer_targets_type_valid');
-        DB::statement("ALTER TABLE offer_targets ADD CONSTRAINT offer_targets_type_valid CHECK (target_type IN ('product', 'brand', 'category', 'store'))");
+        try {
+            DB::statement('ALTER TABLE offer_targets DROP CONSTRAINT offer_targets_type_valid');
+        } catch (\Throwable) {
+            try {
+                DB::statement('ALTER TABLE offer_targets DROP CHECK offer_targets_type_valid');
+            } catch (\Throwable) {
+                // Constraint might not exist or driver already dropped it
+            }
+        }
+        try {
+            DB::statement("ALTER TABLE offer_targets ADD CONSTRAINT offer_targets_type_valid CHECK (target_type IN ('product', 'brand', 'category', 'store'))");
+        } catch (\Throwable) {
+            // Already added or not supported
+        }
     }
 
     public function down(): void
