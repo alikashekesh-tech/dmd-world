@@ -28,9 +28,8 @@
     RewriteRule ^ - [L]
 
     # Route API and health endpoints to Laravel backend
-    RewriteRule ^api(/.*)?$ api.php [L,QSA]
-    RewriteRule ^up$ api.php [L,QSA]
-    RewriteRule ^(robots\.txt|sitemap\.xml)$ api.php [L,QSA]
+    RewriteCond %{REQUEST_URI} ^/(api|up|robots\.txt|sitemap\.xml)
+    RewriteRule ^.*$ /api.php [L,QSA]
 
     # Admin Panel SPA (/admin and /admin/*)
     RewriteCond %{REQUEST_URI} ^/admin/
@@ -38,7 +37,7 @@
     RewriteRule ^ - [L]
 
     RewriteCond %{REQUEST_URI} ^/admin
-    RewriteRule ^admin(/.*)?$ admin/index.html [L]
+    RewriteRule ^admin(/.*)?$ /admin/index.html [L]
 
     # Existing static assets in root
     RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -47,7 +46,7 @@
 
     # Storefront SPA fallback (never fallback for API calls)
     RewriteCond %{REQUEST_URI} !^/(api|up|backend)
-    RewriteRule ^ index.html [L]
+    RewriteRule ^ /index.html [L]
 </IfModule>
 
 # Caching for content-hashed assets
