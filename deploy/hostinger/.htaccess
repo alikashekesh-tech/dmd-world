@@ -25,8 +25,7 @@
     RewriteRule ^ - [L]
 
     # 3. Route API and health endpoints to Laravel backend
-    RewriteCond %{REQUEST_URI} ^/(api|up|robots\.txt|sitemap\.xml)
-    RewriteRule ^ backend/public/index.php [L,QSA]
+    RewriteRule ^(api/.*|api|up|robots\.txt|sitemap\.xml)$ backend/public/index.php [L,QSA]
 
     # 4. Admin Panel SPA (/admin and /admin/*)
     # Existing static assets inside /admin/ (CSS, JS, images)
