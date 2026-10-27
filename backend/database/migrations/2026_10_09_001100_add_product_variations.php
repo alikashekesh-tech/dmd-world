@@ -17,11 +17,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->string('type', 10)->default('simple')->after('sku'); // simple | variable
-            // The attributes a variable product is sold in, in display order: [{"name": "Colour", "values": ["Black", "White"]}].
-            $table->json('variation_attributes')->nullable()->after('type');
+            if (! Schema::hasColumn('products', 'type')) {
+                $table->string('type', 10)->default('simple')->after('sku'); // simple | variable
+            }
+            if (! Schema::hasColumn('products', 'variation_attributes')) {
+                $table->json('variation_attributes')->nullable()->after('type');
+            }
         });
 
+        Schema::dropIfExists('product_variants');
         Schema::create('product_variants', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
@@ -31,7 +35,7 @@ return new class extends Migration
             // can't be sold twice. Unique among live variants only: a removed variant keeps its row (orders and stock
             // history point at it) without blocking that combination from being added again.
             $table->char('options_key', 40);
-            $table->char('live_options_key', 40)->nullable()->storedAs('IF(deleted_at IS NULL, options_key, NULL)');
+            $table->char('live_options_key', 40)->nullable();
             $table->decimal('regular_price', 10, 2);
             $table->decimal('sale_price', 10, 2)->nullable();
             // Stock works as for a simple product: when tracked, stock_quantity is the one authoritative number and only
@@ -57,14 +61,20 @@ return new class extends Migration
 
         // An order line keeps the variant it was for, and a copy of its options as they were sold ("Colour: Black").
         Schema::table('order_items', function (Blueprint $table) {
-            $table->foreignId('variant_id')->nullable()->after('product_id')->constrained('product_variants')->nullOnDelete();
-            $table->json('variant_options')->nullable()->after('sku'); // [{"name": "Colour", "value": "Black"}]
+            if (! Schema::hasColumn('order_items', 'variant_id')) {
+                $table->foreignId('variant_id')->nullable()->after('product_id')->constrained('product_variants')->nullOnDelete();
+            }
+            if (! Schema::hasColumn('order_items', 'variant_options')) {
+                $table->json('variant_options')->nullable()->after('sku'); // [{"name": "Colour", "value": "Black"}]
+            }
         });
 
         // A variant's stock changes are recorded like a product's, with the variant they were for.
         Schema::table('inventory_movements', function (Blueprint $table) {
-            $table->foreignId('variant_id')->nullable()->after('product_id')->constrained('product_variants')->nullOnDelete();
-            $table->index(['variant_id', 'created_at']);
+            if (! Schema::hasColumn('inventory_movements', 'variant_id')) {
+                $table->foreignId('variant_id')->nullable()->after('product_id')->constrained('product_variants')->nullOnDelete();
+                $table->index(['variant_id', 'created_at']);
+            }
         });
     }
 

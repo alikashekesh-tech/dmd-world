@@ -17,6 +17,21 @@ class ProductVariant extends Model
 {
     use SoftDeletes;
 
+    protected static function booted(): void
+    {
+        static::saving(function (ProductVariant $variant) {
+            $variant->live_options_key = $variant->deleted_at === null ? $variant->options_key : null;
+        });
+        static::deleted(function (ProductVariant $variant) {
+            if (! $variant->isForceDeleting()) {
+                $variant->quietly()->update(['live_options_key' => null]);
+            }
+        });
+        static::restored(function (ProductVariant $variant) {
+            $variant->quietly()->update(['live_options_key' => $variant->options_key]);
+        });
+    }
+
     protected function casts(): array
     {
         return [
