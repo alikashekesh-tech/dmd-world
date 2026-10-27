@@ -1,0 +1,61 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /
+
+    # 1. Block access to hidden files and sensitive directories
+    RewriteRule ^\. - [F,L]
+    RewriteRule ^backend/(app|bootstrap|config|database|resources|routes|storage|tests|vendor) - [F,L]
+    RewriteRule ^backend/\.env - [F,L]
+    RewriteRule ^backend/composer\.(json|lock) - [F,L]
+
+    # Handle Authorization & X-XSRF-Token headers for Laravel Sanctum
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # 2. Public uploads & storage symlink
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteCond %{REQUEST_URI} ^/storage/
+    RewriteRule ^ - [L]
+
+    # 3. Route API and health endpoints to Laravel backend
+    RewriteCond %{REQUEST_URI} ^/(api|up|robots\.txt|sitemap\.xml)
+    RewriteRule ^ backend/public/index.php [L,QSA]
+
+    # 4. Admin Panel SPA (/admin and /admin/*)
+    # Existing static assets inside /admin/ (CSS, JS, images)
+    RewriteCond %{REQUEST_URI} ^/admin/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Admin route fallback to admin/index.html
+    RewriteCond %{REQUEST_URI} ^/admin
+    RewriteRule ^admin(/.*)?$ admin/index.html [L]
+
+    # 5. Storefront SPA (/ and all storefront routes)
+    # Existing files in root (assets, favicon, manifest, etc.)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Storefront fallback to root index.html
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Caching for content-hashed assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
