@@ -45,9 +45,10 @@ echo ">> Publishing Admin Panel..."
 mkdir -p "$ROOT_DIR/admin"
 cp -rf admin/dist/* "$ROOT_DIR/admin/"
 
-# 5. Configure Hostinger Apache .htaccess
-echo ">> Configuring .htaccess..."
+# 5. Configure Hostinger Apache .htaccess and API entry point
+echo ">> Configuring .htaccess and api.php..."
 cp -f deploy/hostinger/.htaccess "$ROOT_DIR/.htaccess"
+cp -f api.php "$ROOT_DIR/api.php"
 
 # 6. Install / update PHP dependencies
 echo ">> Installing backend composer dependencies..."
