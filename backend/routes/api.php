@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\OrderController;
@@ -85,6 +86,10 @@ Route::post('orders', [CheckoutController::class, 'store'])->middleware(['sessio
 Route::get('orders', [OrderController::class, 'index'])->middleware('auth:sanctum')->name('orders.index');
 Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('orders.show');
 Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id')->middleware(['session', 'throttle:cancel'])->name('orders.cancel');
+
+/* ── live chat (guests too: a guest's browser sends its private key as X-Chat-Token) ── */
+Route::get('chat', [ChatController::class, 'show'])->name('chat.show');
+Route::post('chat/messages', [ChatController::class, 'send'])->middleware(['session', 'throttle:chat'])->name('chat.send');
 
 /* ── catalog: what the storefront shows ─────────────────────────────── */
 Route::get('catalog', [ProductController::class, 'catalog'])->name('catalog');

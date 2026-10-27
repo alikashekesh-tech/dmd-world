@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Checkout;
 
 use App\Http\Requests\ApiRequest;
+use App\Models\Order;
 use App\Services\Checkout;
+use Illuminate\Validation\Rule;
 
 /** A cart to price: product ids (with the variant of a variable product) and quantities only. Prices sent by the browser are ignored. */
 class QuoteRequest extends ApiRequest
@@ -17,6 +19,7 @@ class QuoteRequest extends ApiRequest
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.Checkout::MAX_LINE_QTY],
             'coupon' => ['nullable', 'string', 'max:60'],
             'email' => ['nullable', 'string', 'max:254'], // only used for "once per customer" codes
+            'delivery_method' => ['nullable', Rule::in(array_keys(Order::DELIVERY_METHODS))], // prices delivery (default) or pickup
         ];
     }
 

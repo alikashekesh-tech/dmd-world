@@ -43,7 +43,7 @@ export default function Reviews({ query }) {
   return (
     <>
       <PageHeader hud={<><span className={`led ${c.pending ? 'amber pulse' : 'green'}`} />Sales</>} title="Reviews"
-        text={c.pending ? `${num(c.pending)} review${c.pending === 1 ? ' is' : 's are'} pending. They stay hidden from the shop until you approve them.` : 'What buyers say about your products.'} />
+        text={c.pending ? `${num(c.pending)} review${c.pending === 1 ? ' is' : 's are'} pending. They stay hidden from the shop until you approve them.` : 'What customers say about your products.'} />
       <div className="toolbar">
         <Tabs label="Review status" value={status} onChange={(v) => setQuery({ status: v === 'all' ? null : v, page: null })} items={TABS.map(([v, l]) => ({ value: v, label: l, count: v === 'all' ? c.all : c[v], led: v === 'pending' && c.pending ? 'amber' : undefined }))} />
         <SearchBox value={search} onChange={setSearch} placeholder="Search reviews, authors or products" />
@@ -51,7 +51,7 @@ export default function Reviews({ query }) {
       <div className="surface">
         {error && <div style={{ padding: 16 }}><Notice tone="coral" icon="alert">{error.message}</Notice></div>}
         {loading && !data ? <SkeletonRows /> : !data?.items.length ? (
-          <Empty icon="star" title={status === 'pending' ? 'Nothing pending' : 'No reviews here'}>{status === 'pending' ? 'Every review has been dealt with.' : 'Reviews appear here as buyers write them.'}</Empty>
+          <Empty icon="star" title={status === 'pending' ? 'Nothing pending' : 'No reviews here'}>{status === 'pending' ? 'Every review has been dealt with.' : 'Reviews appear here as customers write them.'}</Empty>
         ) : (
           <ul className="ledger">
             {data.items.map((r) => (

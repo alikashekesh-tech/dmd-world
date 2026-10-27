@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Icon, Button } from '../ui/kit.jsx';
+import { Icon, Button, useUi } from '../ui/kit.jsx';
 import { api } from '../lib/api.js';
 import { navigate } from '../lib/router.jsx';
 import { useApi, useDebounced, useHotkey } from '../lib/hooks.js';
@@ -16,17 +16,21 @@ export const NAV = [
   ] },
   { group: 'Sales', items: [
     { to: '/orders', label: 'Orders', icon: 'receipt', badge: (b) => (b.pending ? [b.pending, 'amber'] : null) },
-    { to: '/customers', label: 'Buyers', icon: 'users' },
+    { to: '/customers', label: 'Customers', icon: 'users' },
     { to: '/messages', label: 'Messages', icon: 'chat', badge: (b) => (b.messages ? [b.messages, 'blue'] : null) },
     { to: '/reviews', label: 'Reviews', icon: 'star', badge: (b) => (b.reviews ? [b.reviews, 'amber'] : null) },
   ] },
   { group: 'Site', items: [
     { to: '/homepage', label: 'Homepage', icon: 'home' },
+    { to: '/menu', label: 'Menu', icon: 'menu' },
     { to: '/notifications', label: 'Notifications', icon: 'bell', badge: (b) => (b.notifications ? [b.notifications, 'coral'] : null) },
     { to: '/trash', label: 'Trash', icon: 'trash', badge: (b) => (b.trash ? [b.trash, ''] : null) },
+    { to: '/staff', label: 'Staff', icon: 'lock', ownerOnly: true },
     { to: '/settings', label: 'Settings', icon: 'settings' },
   ] },
 ];
+/** The menu someone sees: staff don't get the owner-only pages. */
+const navFor = (role) => NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.ownerOnly || role === 'owner') }));
 const TITLES = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.to, i.label])));
 
 export const QUICK = [
@@ -38,6 +42,21 @@ export const QUICK = [
   { label: 'Manage homepage', icon: 'home', to: '/homepage', key: 'H' },
 ];
 
+/** A short two-note chime for a new message (no sound file). Browsers allow it once the page has been clicked. */
+function chime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320].forEach((f, i) => {
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.14;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      o.start(t); o.stop(t + 0.32);
+    });
+    setTimeout(() => ctx.close(), 800);
+  } catch { /* no audio: the toast and badge still show */ }
+}
+
 const active = (path, to) => (to === '/' ? path === '/' : path === to || path.startsWith(`${to}/`));
 
 export default function Shell({ session, path, children, onSignOut }) {
@@ -46,24 +65,34 @@ export default function Shell({ session, path, children, onSignOut }) {
   const [quickOpen, setQuick] = useState(false);
   const badges = useApi('/badges');
   const b = badges.data?.data || {};
-  useEffect(() => { const t = setInterval(() => badges.reload(true), 60e3); return () => clearInterval(t); }, [badges.reload]); // eslint-disable-line
+  // Every 15 s, so a new live chat shows up quickly; a new unread message also chimes and pops a toast.
+  useEffect(() => { const t = setInterval(() => badges.reload(true), 15e3); return () => clearInterval(t); }, [badges.reload]); // eslint-disable-line
+  const { toast } = useUi();
+  const seenMessages = useRef(null);
+  useEffect(() => {
+    if (b.messages == null) return;
+    if (seenMessages.current != null && b.messages > seenMessages.current && !path.startsWith('/messages')) {
+      chime();
+      toast('New message or live chat waiting in Messages', { ms: 8000 });
+    }
+    seenMessages.current = b.messages;
+  }, [b.messages]); // eslint-disable-line react-hooks/exhaustive-deps -- only when the count changes
   useEffect(() => { setSide(false); setQuick(false); }, [path]);
   useHotkey(useCallback((e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k', []), useCallback(() => setPalette(true), []));
   useHotkey(useCallback((e) => e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName), []), useCallback(() => setPalette(true), []));
   const owner = session.owner || {};
   const section = '/' + (path.split('/')[1] || '');
-  const title = TITLES[section] || 'Command';
+  const title = TITLES[section] || 'Dashboard';
 
   return (
     <div className="shell">
       {sideOpen && <div className="scrim" style={{ zIndex: 64 }} onClick={() => setSide(false)} />}
       <aside className={`side ${sideOpen ? 'open' : ''}`} aria-label="Admin navigation">
-        <a href="#/" className="brand">
+        <a href="#/" className="brand" aria-label="DMD World">
           <span className="brand-logo"><img src="/images/dmd-world-logo.png" alt="DMD World" width="297" height="107" /></span>
-          <span className="brand-name"><b>DMD World</b><span>Command</span></span>
         </a>
         <nav className="nav">
-          {NAV.map((g) => (
+          {navFor(owner.role).map((g) => (
             <div key={g.group} className="nav-group">
               <div className="nav-label">{g.group}</div>
               {g.items.map((it) => {
@@ -81,7 +110,7 @@ export default function Shell({ session, path, children, onSignOut }) {
         <div className="side-foot">
           <div className="conn" title={owner.email}>
             <span className="led green pulse" />
-            <span>{owner.name || 'Owner'}<small>{owner.email}</small></span>
+            <span>{owner.name || 'Owner'}<small>{owner.role === 'staff' ? `Staff · ${owner.email}` : owner.email}</small></span>
           </div>
         </div>
       </aside>
@@ -116,13 +145,13 @@ export default function Shell({ session, path, children, onSignOut }) {
         <button type="button" onClick={() => setSide(true)}><Icon name="menu" />More</button>
       </nav>
 
-      {paletteOpen && <Palette onClose={() => setPalette(false)} badges={b} />}
+      {paletteOpen && <Palette onClose={() => setPalette(false)} badges={b} role={owner.role} />}
     </div>
   );
 }
 
 /* Command palette: every section, every quick action, and live search across products, orders and buyers. */
-function Palette({ onClose, badges }) {
+function Palette({ onClose, badges, role }) {
   const [q, setQ] = useState('');
   const [i, setI] = useState(0);
   const dq = useDebounced(q, 160);
@@ -139,13 +168,13 @@ function Palette({ onClose, badges }) {
   const items = useMemo(() => {
     const out = [];
     const actions = QUICK.filter((a) => !s || a.label.toLowerCase().includes(s)).map((a) => ({ group: 'Actions', icon: a.icon, label: a.label, to: a.to }));
-    const go = NAV.flatMap((g) => g.items).filter((n) => !s || n.label.toLowerCase().includes(s)).map((n) => ({ group: 'Go to', icon: n.icon, label: n.label, to: n.to, hint: n.badge?.(badges)?.[0] }));
+    const go = navFor(role).flatMap((g) => g.items).filter((n) => !s || n.label.toLowerCase().includes(s)).map((n) => ({ group: 'Go to', icon: n.icon, label: n.label, to: n.to, hint: n.badge?.(badges)?.[0] }));
     out.push(...found.orders.map((o) => ({ group: 'Orders', icon: 'receipt', label: `#${o.number} · ${o.customer}`, to: `/orders/${o.id}`, hint: money(o.total) })));
     out.push(...found.products.map((p) => ({ group: 'Products', icon: 'box', label: p.name, to: `/products/${p.id}`, hint: p.sku || `ID ${p.id}` })));
-    out.push(...found.customers.map((c) => ({ group: 'Buyers', icon: 'users', label: c.name, to: `/customers/${c.id}`, hint: c.email })));
+    out.push(...found.customers.map((c) => ({ group: 'Customers', icon: 'users', label: c.name, to: `/customers/${c.id}`, hint: c.email })));
     out.push(...actions, ...go);
     return out;
-  }, [s, found, badges]);
+  }, [s, found, badges, role]);
   useEffect(() => setI(0), [s, found]);
   const choose = (it) => { if (!it) return; navigate(it.to); onClose(); };
   const onKey = (e) => {
@@ -158,10 +187,10 @@ function Palette({ onClose, badges }) {
   return (
     <>
       <div className="scrim palette-scrim" onClick={onClose} />
-      <div className="palette" role="dialog" aria-modal="true" aria-label="Search and commands">
+      <div className="palette" role="dialog" aria-modal="true" aria-label="Search">
         <div className="palette-input">
           <Icon name="search" />
-          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} placeholder="Search orders, products, buyers… or type a command" aria-label="Search" />
+          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} placeholder="Search orders, products, customers…" aria-label="Search" />
           <kbd>Esc</kbd>
         </div>
         <div className="palette-list" role="listbox">

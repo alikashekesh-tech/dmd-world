@@ -30,13 +30,13 @@ class OrderController extends Controller
         return new OrderResource($this->visible($request, $id)->load(['items', 'history']));
     }
 
-    /** Cancel an order DMD hasn't confirmed yet; its items go back on the shelf. */
+    /** Cancel an order DMD hasn't confirmed yet, within 24 hours of placing it; its items go back on the shelf. */
     public function cancel(Request $request, int $id): OrderResource
     {
         $reason = $request->validate(['reason' => ['nullable', 'string', 'max:300'], 'token' => ['nullable', 'string', 'max:100']])['reason'] ?? null;
         $order = $this->visible($request, $id);
-        if (! $order->cancellableByBuyer()) {
-            throw new ApiException(409, 'NOT_CANCELLABLE', $order->status === 'cancelled' ? 'This order is already cancelled.' : 'DMD has already confirmed this order. Message or call DMD to change it.');
+        if ($refusal = $order->buyerCancelRefusal()) {
+            throw new ApiException(409, 'NOT_CANCELLABLE', $refusal);
         }
         $order = $this->orders->changeStatus($order, 'cancelled', 'buyer', null, $reason ? strip_tags($reason) : 'Cancelled by the buyer', $request->user());
 

@@ -1,6 +1,7 @@
 import { COMPAT, COMPAT_ORDER, CATEGORIES, categoryBySlug, brandBySlug, BRANDS, FILTERS_BY_TYPE, FACET_LABELS } from './meta.js';
 import { catName, fromApi, setCategories } from './dmdProducts.js';
 import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS, CONTACT } from './dmdMenu.js';
+import { MENU_LINKS, DEFAULT_MENU } from './nav.js';
 export * from './meta.js';
 const FALLBACK_BRAND = { slug: 'dmd', name: 'DMD World' };
 export const getBrand = (slug) => (groupBySlug[slug] ? { slug, name: groupBySlug[slug].name } : brandBySlug[slug] || FALLBACK_BRAND);
@@ -30,7 +31,19 @@ export const catalog = {
     `sections` stays null until the first catalog, so the home page shows its built-in order. */
 export const HOMEPAGE = { sections: null, picks: {}, banners: [], announcement: null };
 /** The public store settings (defaults until the first catalog). */
-export const STORE = { name: 'DMD World', couponsEnabled: true, reviewsEnabled: true };
+export const STORE = { name: 'DMD World', couponsEnabled: true, reviewsEnabled: true, deliveryFee: null, menu: DEFAULT_MENU };
+/**
+ * What delivery costs in dollars, as the server charges it: 0 for pickup; for delivery each product's own price or
+ * else the store's, and an order (delivered once) pays the highest. null = no price known: DMD confirms it later.
+ * With no products, the store's price.
+ */
+export const deliveryFee = (method = 'delivery', products = []) => {
+  if (method !== 'delivery') return 0;
+  const fees = products.length ? products.map((p) => p?.deliveryFee ?? STORE.deliveryFee) : [STORE.deliveryFee];
+  const known = fees.filter((f) => f != null);
+  return known.length ? Math.max(...known) : null;
+};
+export const deliveryLabel = (fee) => (fee == null ? 'Confirmed on order' : fee > 0 ? money(fee) : 'Free');
 
 /* Banners carry their end time; one whose end has passed is dropped here, even from an older copy of the catalog, and a
    timer drops the next one to end at its exact moment while the page stays open. */
@@ -62,7 +75,11 @@ function applyStore(home = {}, store = {}) {
   expireBanners();
   if (store.contact_phone) Object.assign(CONTACT, { phone: store.contact_phone, tel: store.contact_phone.replace(/[^\d+]/g, '') });
   if (store.contact_email) CONTACT.email = store.contact_email;
-  Object.assign(STORE, { name: store.store_name || STORE.name, couponsEnabled: store.coupons_enabled !== false, reviewsEnabled: store.reviews_enabled !== false });
+  Object.assign(STORE, {
+    name: store.store_name || STORE.name, couponsEnabled: store.coupons_enabled !== false, reviewsEnabled: store.reviews_enabled !== false,
+    deliveryFee: store.delivery_fee == null || Number.isNaN(Number(store.delivery_fee)) ? null : Number(store.delivery_fee),
+    menu: Array.isArray(store.menu_links) ? store.menu_links.filter((k) => MENU_LINKS[k]) : DEFAULT_MENU,
+  });
 }
 
 /** Swaps in /api/v1/catalog ({ generated_at, products, categories, brands, homepage, store }) from MySQL. */

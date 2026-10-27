@@ -67,7 +67,7 @@
 .be-sec { display: grid; gap: 14px; padding-top: 16px; border-top: 1px solid var(--line); grid-template-columns: minmax(0, 1fr); }
 .be-sec h3 { font-size: 14px; letter-spacing: -0.01em; }
 .be-two { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; align-items: start; }
-.be-count { float: right; margin-left: 8px; font: 500 10.5px var(--mono); letter-spacing: 0; text-transform: none; color: var(--faint); }
+.be-count { float: right; margin-left: 8px; font: 400 12px var(--inter); color: var(--faint); }
 .be-count.warn { color: var(--amber); }
 .field > label:has(.be-count) { display: block; }
 .be-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
@@ -150,9 +150,9 @@
 .dtf-chip:hover { border-color: var(--muted); color: var(--text); }
 .dtf-chip.on { border-color: var(--blue); color: var(--blue); background: color-mix(in srgb, var(--blue) 7%, var(--panel)); }
 .dtf-head { display: flex; align-items: center; justify-content: space-between; }
-.dtf-head b { font: 700 13.5px var(--sora); }
+.dtf-head b { font: 600 13.5px var(--head); }
 .dtf-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.dtf-dow { display: grid; place-items: center; height: 24px; font: 600 10px var(--mono); letter-spacing: .06em; color: var(--muted); }
+.dtf-dow { display: grid; place-items: center; height: 24px; font: 500 11.5px var(--inter); color: var(--muted); }
 .dtf-day { height: 34px; border-radius: 8px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text); }
 .dtf-day:hover:not([disabled]) { background: var(--panel-3); }
 .dtf-day.off { color: var(--faint); opacity: .6; }

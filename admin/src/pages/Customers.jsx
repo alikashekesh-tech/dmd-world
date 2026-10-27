@@ -20,17 +20,17 @@ export function CustomersPage({ query }) {
   const data = useMemo(() => (raw ? paged(raw) : null), [raw]);
   return (
     <>
-      <PageHeader hud={<><span className="led blue" />Sales</>} title="Buyers" text="Everyone who has an account or has ordered as a guest, with what they have bought." />
+      <PageHeader hud={<><span className="led blue" />Sales</>} title="Customers" text="Everyone who has an account or has ordered as a guest, with what they have bought." />
       <div className="toolbar">
-        <Tabs label="Buyer type" value={type} onChange={(v) => setQuery({ type: v === 'registered' ? null : v, page: null })} items={[{ value: 'registered', label: 'With an account' }, { value: 'guest', label: 'Guest checkouts', count: raw?.meta?.guests }]} />
+        <Tabs label="Customer type" value={type} onChange={(v) => setQuery({ type: v === 'registered' ? null : v, page: null })} items={[{ value: 'registered', label: 'With an account' }, { value: 'guest', label: 'Guest checkouts', count: raw?.meta?.guests }]} />
         <SearchBox value={search} onChange={setSearch} placeholder="Name, email or phone" />
       </div>
       <div className="surface">
         {error && <div style={{ padding: 16 }}><Notice tone="coral" icon="alert">{error.message}</Notice></div>}
-        {loading && !data ? <SkeletonRows /> : !data?.items.length ? <Empty icon="users" title="No buyers found">{query.get('q') ? 'Try another search.' : 'Buyers appear here after they sign up or order.'}</Empty> : (
+        {loading && !data ? <SkeletonRows /> : !data?.items.length ? <Empty icon="users" title="No customers found">{query.get('q') ? 'Try another search.' : 'Customers appear here after they sign up or order.'}</Empty> : (
           <div className="table-wrap">
             <table className="table cards">
-              <thead><tr><th>Buyer</th><th>Phone</th>{guest && <th>City</th>}<th className="right">Orders</th><th className="right">Spent</th><th>Last order</th>{!guest && <th>Joined</th>}</tr></thead>
+              <thead><tr><th>Customer</th><th>Phone</th>{guest && <th>City</th>}<th className="right">Orders</th><th className="right">Spent</th><th>Last order</th>{!guest && <th>Joined</th>}</tr></thead>
               <tbody>
                 {data.items.map((c) => (
                   <tr key={c.id || c.email} className="clickable" onClick={() => navigate(profileLink(c, guest))}>
@@ -47,7 +47,7 @@ export function CustomersPage({ query }) {
             </table>
           </div>
         )}
-        {data && <Pager page={data.page} pages={data.pages} total={data.total} noun={guest ? 'guests' : 'buyers'} onPage={(n) => setQuery({ page: n })} />}
+        {data && <Pager page={data.page} pages={data.pages} total={data.total} noun={guest ? 'guests' : 'customers'} onPage={(n) => setQuery({ page: n })} />}
       </div>
       {!guest && <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>“No password yet”: accounts brought over from the old store. They choose a password with “Forgot password” on the sign-in page.</p>}
     </>
@@ -90,7 +90,7 @@ export function CustomerProfile({ params }) {
 
   return (
     <>
-      <PageHeader crumbs={[{ label: 'Buyers', to: guest ? '#/customers?type=guest' : '#/customers' }, { label: guest ? 'Guest' : `#${c.id}` }]} title={name}
+      <PageHeader crumbs={[{ label: 'Customers', to: guest ? '#/customers?type=guest' : '#/customers' }, { label: guest ? 'Guest' : `#${c.id}` }]} title={name}
         text={guest ? 'Ordered without an account. Details come from their latest order.' : `Customer since ${day(c.member_since)}${c.last_login_at ? ` · last signed in ${ago(c.last_login_at)}` : ''}`}
         actions={c.email && <a className="btn" href={`mailto:${c.email}`}><Icon name="mail" />Email</a>} />
       <div className="split">
@@ -111,7 +111,7 @@ export function CustomerProfile({ params }) {
                   ))}
                 </tbody>
               </table>
-            ) : <Empty icon="receipt" title="No orders yet">This buyer has an account but hasn’t ordered.</Empty>}
+            ) : <Empty icon="receipt" title="No orders yet">This customer has an account but hasn’t ordered.</Empty>}
           </section>
 
           {!guest && form && (
@@ -134,14 +134,14 @@ export function CustomerProfile({ params }) {
                       <span className="grow"><b style={{ fontWeight: 600 }}>{a.label || `${a.first_name} ${a.last_name}`}</b> {a.is_default && <Chip tone="blue">Default</Chip>}<small className="muted" style={{ display: 'block', fontSize: 12 }}>{a.summary} · {a.phone}</small></span>
                     </li>
                   ))}
-                  {!c.addresses?.length && <li className="muted" style={{ padding: 14 }}>No saved addresses. Buyers manage these from their account.</li>}
+                  {!c.addresses?.length && <li className="muted" style={{ padding: 14 }}>No saved addresses. Customers manage these from their account.</li>}
                 </ul>
               </section>
               {dirty && (
                 <div className="savebar">
                   <span className="dirty-dot" /><span className="t2">Unsaved changes</span><span className="grow" />
                   <Button variant="quiet" onClick={() => setForm(initial)}>Discard</Button>
-                  <Button variant="primary" icon="check" loading={saving} onClick={save}>Save buyer</Button>
+                  <Button variant="primary" icon="check" loading={saving} onClick={save}>Save customer</Button>
                 </div>
               )}
             </>
@@ -169,7 +169,7 @@ export function CustomerProfile({ params }) {
           </section>
           <Notice icon="lock">{guest
             ? `Guests have no account. ${c.has_account ? 'An account with this email exists now; its own orders are on its profile.' : 'If they sign up with this email, future orders go to that account.'}`
-            : c.has_password ? 'Buyers choose and reset their own passwords. You can correct their name, email and phone here.' : 'This account came from the old store and has no password yet. The buyer sets one with “Forgot password”.'}</Notice>
+            : c.has_password ? 'Customers choose and reset their own passwords. You can correct their name, email and phone here.' : 'This account came from the old store and has no password yet. The customer sets one with “Forgot password”.'}</Notice>
         </aside>
       </div>
     </>

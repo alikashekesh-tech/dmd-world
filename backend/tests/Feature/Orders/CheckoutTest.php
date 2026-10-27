@@ -7,9 +7,11 @@ use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\NewOrderForOwner;
 use App\Notifications\OrderPlaced;
 use App\Services\Catalog;
 use App\Services\Inventory;
+use App\Services\StoreSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
@@ -88,6 +90,75 @@ class CheckoutTest extends TestCase
 
         // The last unit is gone for the next buyer.
         $this->client()->post('/api/v1/orders', $this->order([['product_id' => $b->id, 'quantity' => 1]]))->assertStatus(409)->assertJsonPath('error.code', 'SOLD_OUT');
+    }
+
+    public function test_the_owners_delivery_price_is_charged_on_delivery_orders_only(): void
+    {
+        $p = Product::factory()->create(['regular_price' => '25.00', 'stock_quantity' => 10]);
+        $items = [['product_id' => $p->id, 'quantity' => 2]];
+
+        // Not set yet: DMD confirms the cost after the order, as before.
+        $this->client()->post('/api/v1/cart/quote', ['items' => $items])->assertJsonPath('data.shipping', 0)->assertJsonPath('data.shipping_confirmed_later', true);
+        $this->assertSame('0.00', Order::findOrFail($this->client()->post('/api/v1/orders', $this->order($items))->json('data.id'))->shipping_total);
+
+        StoreSettings::put(['delivery_fee' => 6]);
+        $this->client()->get('/api/v1/checkout/options')->assertJsonPath('data.delivery_methods.0.description', '$6.00 anywhere in Lebanon');
+        $this->client()->post('/api/v1/cart/quote', ['items' => $items, 'total' => 1])->assertJsonPath('data.shipping', 6)->assertJsonPath('data.total', 56)
+            ->assertJsonPath('data.shipping_confirmed_later', false);
+        $this->client()->post('/api/v1/cart/quote', ['items' => $items, 'delivery_method' => 'pickup'])->assertJsonPath('data.shipping', 0)->assertJsonPath('data.total', 50);
+
+        $delivered = $this->client()->post('/api/v1/orders', $this->order($items, ['total' => 50]))->assertCreated()
+            ->assertJsonPath('data.shipping_total', 6)->assertJsonPath('data.total', 56)->json('data.id');
+        $this->assertSame(['6.00', '56.00'], [Order::find($delivered)->shipping_total, Order::find($delivered)->total]);
+        $picked = $this->client()->post('/api/v1/orders', $this->order($items, ['delivery_method' => 'pickup', 'address' => null]))->assertCreated()->json('data.id');
+        $this->assertSame(['0.00', '50.00'], [Order::find($picked)->shipping_total, Order::find($picked)->total]);
+
+        Notification::assertSentTo(new AnonymousNotifiable, OrderPlaced::class, fn ($n, $c, $to) => $n->order->id === $delivered && in_array('Delivery: $6.00', $n->toMail($to)->introLines, true));
+    }
+
+    public function test_a_products_own_delivery_price_wins_and_an_order_pays_the_highest(): void
+    {
+        $tv = Product::factory()->create(['regular_price' => '300.00', 'stock_quantity' => 5, 'delivery_fee' => '15.00']);
+        $game = Product::factory()->create(['regular_price' => '20.00', 'stock_quantity' => 5]);
+        $free = Product::factory()->create(['regular_price' => '10.00', 'stock_quantity' => 5, 'delivery_fee' => '0.00']);
+        $quote = fn (array $products, array $extra = []) => $this->client()->post('/api/v1/cart/quote', ['items' => array_map(fn ($p) => ['product_id' => $p->id, 'quantity' => 1], $products), ...$extra]);
+
+        // No store price yet: a product with its own price is charged it; one without is confirmed later.
+        $quote([$tv])->assertJsonPath('data.shipping', 15)->assertJsonPath('data.shipping_confirmed_later', false);
+        $quote([$game])->assertJsonPath('data.shipping', 0)->assertJsonPath('data.shipping_confirmed_later', true);
+
+        StoreSettings::put(['delivery_fee' => 6]);
+        $quote([$game])->assertJsonPath('data.shipping', 6)->assertJsonPath('data.total', 26);
+        $quote([$free])->assertJsonPath('data.shipping', 0)->assertJsonPath('data.shipping_confirmed_later', false);
+        $quote([$game, $free])->assertJsonPath('data.shipping', 6, 'delivered once: the highest price, not the sum');
+        $quote([$tv, $game, $free])->assertJsonPath('data.shipping', 15)->assertJsonPath('data.total', 345);
+        $quote([$tv, $game], ['delivery_method' => 'pickup'])->assertJsonPath('data.shipping', 0);
+
+        $id = $this->client()->post('/api/v1/orders', $this->order([['product_id' => $tv->id, 'quantity' => 1], ['product_id' => $game->id, 'quantity' => 2]]))
+            ->assertCreated()->assertJsonPath('data.shipping_total', 15)->assertJsonPath('data.total', 355)->json('data.id');
+        $this->assertSame('15.00', Order::find($id)->shipping_total);
+    }
+
+    public function test_the_store_is_emailed_each_new_order_when_an_address_is_set(): void
+    {
+        $p = Product::factory()->create(['name' => 'DualSense Edge', 'regular_price' => '25.00', 'stock_quantity' => 5]);
+
+        $this->client()->post('/api/v1/orders', $this->order([['product_id' => $p->id, 'quantity' => 1]]))->assertCreated();
+        Notification::assertNotSentTo(new AnonymousNotifiable, NewOrderForOwner::class);
+
+        StoreSettings::put(['order_notification_email' => 'orders@example.com']);
+        $id = $this->client()->post('/api/v1/orders', $this->order([['product_id' => $p->id, 'quantity' => 2]]))->assertCreated()->json('data.id');
+
+        Notification::assertSentTo(new AnonymousNotifiable, NewOrderForOwner::class, function ($n, $c, $to) use ($id) {
+            $mail = $n->toMail($to);
+            $text = implode("\n", $mail->introLines);
+
+            return $to->routes['mail'] === 'orders@example.com' && $n->order->id === $id
+                && str_contains($mail->subject, "New order #{$id}") && str_contains($mail->subject, '$50.00')
+                && str_contains($text, 'Rima Haddad') && str_contains($text, '+961 70 123 456') && str_contains($text, '2 × DualSense Edge')
+                && str_ends_with($mail->actionUrl, "/admin/orders/{$id}");
+        });
+        Notification::assertSentTo(new AnonymousNotifiable, OrderPlaced::class, fn ($n, $c, $to) => $to->routes['mail'] === 'rima@example.com');
     }
 
     public function test_problems_are_refused_and_nothing_is_written(): void

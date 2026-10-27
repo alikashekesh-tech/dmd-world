@@ -29,7 +29,7 @@ return [
         ],
         // `php artisan dmd:import-media` copies images only from these hosts: the old store's own host, plus any listed
         // (comma-separated) in IMPORT_MEDIA_HOSTS, e.g. dmdworld.store when IMPORT_WOO_URL points elsewhere.
-        'media_hosts' => array_values(array_unique(array_filter(array_map('strtolower', [
+        'media_hosts' => array_values(array_unique(array_map('strtolower', array_filter([
             parse_url((string) env('IMPORT_WOO_URL'), PHP_URL_HOST) ?: null,
             ...$list(env('IMPORT_MEDIA_HOSTS')),
         ])))),

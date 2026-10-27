@@ -16,14 +16,11 @@ export function Login({ onIn }) {
   return (
     <div className="login">
       <form className="login-card" onSubmit={submit}>
-        <span className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="brand-logo"><img src="/images/dmd-world-logo.png" alt="DMD World" width="297" height="107" /></span>
-          <span className="press">PRESS START</span>
-        </span>
+        <span className="brand-logo" style={{ justifySelf: 'start' }}><img src="/images/dmd-world-logo.png" alt="DMD World" width="297" height="107" /></span>
         <div>
-          <span className="hud"><span className="led green pulse" />Owner access</span>
-          <h1 style={{ marginTop: 10 }}>DMD World Command</h1>
-          <p className="t2" style={{ marginTop: 6 }}>Run the store: orders, stock, offers, buyers and the homepage.</p>
+          <span className="hud"><span className="led green pulse" />Owner &amp; staff access</span>
+          <h1 style={{ marginTop: 10 }}>DMD World</h1>
+          <p className="t2" style={{ marginTop: 6 }}>Run the store: orders, stock, offers, customers and the homepage.</p>
         </div>
         <Field label="Email">
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus autoComplete="username" />
@@ -32,7 +29,7 @@ export function Login({ onIn }) {
           <PasswordInput value={pw} onChange={setPw} autoComplete="current-password" invalid={!!err} />
         </Field>
         <Button variant="primary" size="lg" type="submit" loading={busy} disabled={!email.trim() || !pw} iconRight="arrow">Sign in</Button>
-        <p className="muted" style={{ fontSize: 12 }}>First time? The owner account is created on the server with <span className="mono">php artisan dmd:owner</span>.</p>
+        <p className="muted" style={{ fontSize: 12 }}>Staff: ask the owner for your sign-in (Staff, in the admin). First time setting up? The owner account is created on the server with <span className="mono">php artisan dmd:owner</span>.</p>
       </form>
     </div>
   );

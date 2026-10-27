@@ -2,7 +2,7 @@ import { Link } from '../../router/index.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { ProductImage } from '../art/Media.jsx';
 import { CloseIcon, TrashIcon, PlusIcon, MinusIcon } from '../common/icons.jsx';
-import { money, getBrand, COLORS } from '../../data/index.js';
+import { money, getBrand, COLORS, deliveryFee, deliveryLabel } from '../../data/index.js';
 import { useDialog } from '../../lib/useDialog.js';
 import LineArt from '../art/LineArt.jsx';
 import s from './CartDrawer.module.css';
@@ -47,7 +47,7 @@ export default function CartDrawer() {
         </div>
         {lines.length > 0 && (
           <footer className={s.foot}>
-            <dl><div><dt>Subtotal</dt><dd>{money(subtotal)}</dd></div><div><dt>Delivery</dt><dd>Confirmed on order</dd></div></dl>
+            <dl><div><dt>Subtotal</dt><dd>{money(subtotal)}</dd></div><div><dt>Delivery</dt><dd>{deliveryLabel(deliveryFee('delivery', lines.map((l) => l.product)))}</dd></div></dl>
             <Link to="/checkout" className="btn btn--primary btn--lg btn--block" onClick={close}>Checkout · {money(subtotal)}</Link>
             <Link to="/cart" className="btn btn--secondary btn--block" onClick={close}>View cart</Link>
           </footer>

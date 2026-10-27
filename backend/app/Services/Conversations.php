@@ -13,6 +13,8 @@ use App\Notifications\StoreReplied;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -64,6 +66,39 @@ class Conversations
         return $conversation->refresh();
     }
 
+    /**
+     * The live chat a visitor is in: a signed-in buyer's own chat, or the guest chat whose private key their browser
+     * sent. Null when they haven't started one (or the key is unknown).
+     */
+    public function chatFor(?User $buyer, ?string $token): ?Conversation
+    {
+        if ($buyer) {
+            return Conversation::where('user_id', $buyer->id)->where('channel', Conversation::CHAT)->latest('id')->first();
+        }
+
+        return $token ? Conversation::whereNull('user_id')->where('chat_token_hash', hash('sha256', $token))->first() : null;
+    }
+
+    /**
+     * Starts a live chat with its first message. A guest gives a name (and an email if they'd like replies by email)
+     * and gets back a private key for their browser: the only way back into this chat, so only its hash is kept.
+     *
+     * @return array{conversation: Conversation, token: ?string}
+     */
+    public function startChat(?User $buyer, ?string $name, ?string $email, string $body): array
+    {
+        $token = $buyer ? null : Str::random(48);
+        $conversation = (new Conversation)->forceFill([
+            'user_id' => $buyer?->id, 'channel' => Conversation::CHAT, 'subject' => 'Live chat',
+            'guest_name' => $buyer ? null : $name, 'guest_email' => $buyer ? null : $email,
+            'chat_token_hash' => $token ? hash('sha256', $token) : null,
+        ]);
+        $conversation->save();
+        $this->post($conversation, 'buyer', $body, buyer: $buyer);
+
+        return ['conversation' => $conversation->refresh(), 'token' => $token];
+    }
+
     /** Adds a message. The sender has, by writing, read everything before it. */
     public function post(Conversation $conversation, string $sender, string $body, ?User $buyer = null, ?Admin $admin = null): Message
     {
@@ -86,12 +121,14 @@ class Conversations
         }, 3);
 
         if ($sender === 'buyer') {
-            Activity::record('message.received', "{$buyer?->fullName()} wrote: {$conversation->subject}", $conversation, null, $buyer);
+            Activity::record('message.received', "{$conversation->customerName()} wrote: {$conversation->subject}", $conversation, null, $buyer);
         } elseif ($sender === 'admin') {
-            Activity::record('message.sent', "Replied to {$conversation->user?->fullName()}: {$conversation->subject}", $conversation, $admin);
+            Activity::record('message.sent', "Replied to {$conversation->customerName()}: {$conversation->subject}", $conversation, $admin);
             DB::afterCommit(function () use ($conversation, $message) {
                 try {
-                    $conversation->user?->notify(new StoreReplied($conversation, $message));
+                    // A guest in the chat is emailed only if they left an address.
+                    $to = $conversation->user ?? ($conversation->guest_email ? Notification::route('mail', $conversation->guest_email) : null);
+                    $to?->notify(new StoreReplied($conversation, $message));
                 } catch (Throwable $e) {
                     Log::warning("Reply email for conversation {$conversation->id} failed: {$e->getMessage()}"); // the message itself is saved
                 }

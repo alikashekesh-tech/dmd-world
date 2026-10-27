@@ -26,12 +26,15 @@ const Homepage = lazy(() => import('./pages/Homepage.jsx'));
 const Notifications = lazy(() => import('./pages/Notifications.jsx'));
 const Trash = lazy(() => import('./pages/Trash.jsx'));
 const Settings = lazy(() => import('./pages/Settings.jsx'));
+const Staff = lazy(() => import('./pages/Staff.jsx'));
+const Menu = lazy(() => import('./pages/Menu.jsx'));
+const Invoice = lazy(() => import('./pages/Invoice.jsx'));
 
 const ROUTES = [
   ['/', Dashboard], ['/products', ProductsPage], ['/products/new', ProductEditor], ['/products/:id', ProductEditor],
   ['/categories', Categories], ['/brands', Brands], ['/inventory', Inventory], ['/offers', Offers],
   ['/orders', OrdersPage], ['/orders/:id', OrderDetail], ['/customers', CustomersPage], ['/customers/guest/:email', CustomerProfile], ['/customers/:id', CustomerProfile],
-  ['/messages', Messages], ['/messages/:id', Messages], ['/reviews', Reviews], ['/homepage', Homepage], ['/notifications', Notifications], ['/trash', Trash], ['/settings', Settings],
+  ['/messages', Messages], ['/messages/:id', Messages], ['/reviews', Reviews], ['/homepage', Homepage], ['/menu', Menu], ['/notifications', Notifications], ['/trash', Trash], ['/staff', Staff], ['/settings', Settings],
 ];
 
 export default function App() {
@@ -52,7 +55,10 @@ export default function App() {
   if (error) body = <Offline error={error} retry={load} />;
   else if (!session) body = <Spinner />;
   else if (!session.authed) body = <Login onIn={load} />;
-  else {
+  else if (match('/orders/:id/invoice', route.path)) {
+    // The invoice is a sheet of paper: no menus around it, so it prints as just the invoice.
+    body = <Suspense fallback={<Spinner />}><Invoice params={match('/orders/:id/invoice', route.path)} query={route.query} /></Suspense>;
+  } else {
     let Page = null; let params = {};
     for (const [pattern, C] of ROUTES) { const m = match(pattern, route.path); if (m) { Page = C; params = m; break; } }
     body = (

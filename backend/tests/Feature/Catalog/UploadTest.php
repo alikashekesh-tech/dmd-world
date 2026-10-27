@@ -12,7 +12,7 @@ class UploadTest extends TestCase
     use RefreshDatabase;
 
     /** SpaClient sends JSON; uploads are multipart, so they go through the owner's session cookies directly. */
-    private function upload(UploadedFile $file, bool $asOwner = true)
+    private function upload(UploadedFile $file, bool $asOwner = true, string $path = 'uploads')
     {
         $browser = $asOwner ? $this->owner() : $this->buyer();
         $this->app['auth']->forgetGuards();
@@ -20,7 +20,7 @@ class UploadTest extends TestCase
 
         return $this->withHeaders(['Origin' => self::SPA, 'Referer' => self::SPA.'/', 'Accept' => 'application/json'])
             ->withUnencryptedCookies($browser->cookies)
-            ->post('/api/v1/admin/uploads', ['file' => $file]);
+            ->post("/api/v1/admin/{$path}", ['file' => $file]);
     }
 
     public function test_an_image_is_stored_under_a_random_name_with_its_real_type(): void
@@ -55,6 +55,36 @@ class UploadTest extends TestCase
     {
         Storage::fake('public');
         $this->upload(UploadedFile::fake()->image('a.png'), asOwner: false)->assertUnauthorized();
+        $this->upload($this->mp4(), asOwner: false, path: 'uploads/video')->assertUnauthorized();
         $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_a_video_is_stored_under_a_random_name_with_its_real_type(): void
+    {
+        Storage::fake('public');
+
+        $path = $this->upload($this->mp4('../holiday clip.mp4'), path: 'uploads/video')->assertCreated()->json('data.path');
+
+        $this->assertMatchesRegularExpression('#^uploads/\d{4}/\d{2}/[0-9a-f-]{36}\.mp4$#', $path, 'the browser’s file name is never used');
+        Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_only_mp4_and_webm_videos_up_to_30_mb_are_accepted(): void
+    {
+        Storage::fake('public');
+
+        $this->upload(UploadedFile::fake()->createWithContent('clip.mp4', '<?php system($_GET["c"]); ?>'), path: 'uploads/video')
+            ->assertStatus(422)->assertJsonPath('error.fields.file.0', 'Upload an MP4 or WebM video.');
+        $this->upload(UploadedFile::fake()->image('photo.jpg'), path: 'uploads/video')->assertStatus(422);
+        $this->upload(UploadedFile::fake()->create('long.mp4', 31 * 1024, 'video/mp4'), path: 'uploads/video')
+            ->assertStatus(422)->assertJsonPath('error.fields.file.0', 'Videos can be at most 30 MB. Put longer ones on YouTube and paste the link.');
+
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    /** The smallest file whose content is an MP4 (an ftyp box), whatever it's called. */
+    private function mp4(string $name = 'clip.mp4'): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent($name, "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom".str_repeat("\x00", 64));
     }
 }

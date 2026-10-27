@@ -164,8 +164,12 @@ class CategoryTest extends TestCase
         [$a, $b, $c] = array_map(fn ($n) => $owner->post(self::ADMIN, ['name' => $n])->json('data.id'), ['A', 'B', 'C']);
         $d = $owner->post(self::ADMIN, ['name' => 'D', 'parent_id' => $a])->json('data.id');
 
+        $order = fn () => collect($this->client()->get('/api/v1/catalog')->json('categories'))->whereNull('parent_id')->sortBy('position')->pluck('id')->values()->all();
+        $this->assertSame([$a, $b, $c], $order(), 'the shop’s catalog is cached from here');
+
         $owner->post(self::ADMIN.'/reorder', ['ids' => [$c, $a, $b]])->assertNoContent();
         $this->assertSame([$c, $a, $b], array_values(array_filter(array_column($this->client()->get('/api/v1/categories')->json('data'), 'id'), fn ($id) => $id !== $d)));
+        $this->assertSame([$c, $a, $b], $order(), 'the shop’s menu follows the new order at once');
         $owner->post(self::ADMIN.'/reorder', ['ids' => [$a, $d]])->assertStatus(422)->assertJsonPath('error.code', 'NOT_SIBLINGS');
     }
 

@@ -44,6 +44,7 @@ class OrderResource extends JsonResource
             // Status changes only: when it was placed, confirmed, completed or cancelled.
             'timeline' => $this->whenLoaded('history', fn () => $this->history->whereNotNull('to_status')->map(fn ($h) => ['status' => $h->to_status, 'at' => $h->created_at?->toIso8601String()])->values()),
             'cancellable' => $this->cancellableByBuyer(),
+            'cancellable_until' => $this->status === 'pending' ? $this->buyerCancelDeadline()?->toIso8601String() : null, // 24 h after ordering
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'cancel_reason' => $this->cancel_reason,
         ];

@@ -10,7 +10,7 @@ import { Rating } from '../components/common/bits.jsx';
 import { ArrowRight, RepeatIcon, BellIcon, TrashIcon } from '../components/common/icons.jsx';
 import { PasswordField, PasswordRules, MatchHint, passwordReady } from '../components/account/Password.jsx';
 import { ORDER_STATUS } from '../lib/storeApi.js';
-import { getProduct, money } from '../data/index.js';
+import { getProduct, money, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
 import { CONTACT } from '../data/dmdMenu.js';
@@ -394,8 +394,9 @@ function Security() {
   );
 }
 
-const HELP = [
-  ['Delivery', `Delivery cost and timing are confirmed by DMD after you place your order. Call ${CONTACT.phone} or email ${CONTACT.email}.`],
+/** Built when shown, so it has the store's current phone, email and delivery price. */
+const help = () => [
+  ['Delivery', `${deliveryFee() == null ? 'Delivery cost and timing are confirmed by DMD after you place your order.' : deliveryFee() > 0 ? `Delivery costs ${money(deliveryFee())} anywhere in Lebanon; pickup from the store is free. DMD confirms the timing with you.` : 'Delivery is free anywhere in Lebanon. DMD confirms the timing with you.'} Call ${CONTACT.phone} or email ${CONTACT.email}.`],
   ['Returns & warranty', 'Please contact the store with your order number for returns or warranty questions.'],
   ['Payments', 'Pay cash on delivery or by bank transfer. DMD confirms every order with you before it ships.'],
 ];
@@ -453,7 +454,7 @@ export default function Account({ auth }) {
           {tab === 'profile' && <Profile key={buyer.email} />}
           {tab === 'profile' && <section className={s.form} aria-labelledby="addr-title"><fieldset><legend id="addr-title">Delivery addresses</legend><AddressBook buyer={buyer} /></fieldset></section>}
           {tab === 'security' && <Security />}
-          {tab === 'help' && <div className={s.help}>{HELP.map(([t, b]) => <div key={t}><h3>{t}</h3><p>{b}</p></div>)}</div>}
+          {tab === 'help' && <div className={s.help}>{help().map(([t, b]) => <div key={t}><h3>{t}</h3><p>{b}</p></div>)}</div>}
         </section>
       </div>
     </>

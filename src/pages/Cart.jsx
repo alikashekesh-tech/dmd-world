@@ -7,7 +7,7 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { TrashIcon, PhoneIcon, ArrowRight } from '../components/common/icons.jsx';
-import { money, getBrand, COLORS, PRODUCTS } from '../data/index.js';
+import { money, getBrand, COLORS, PRODUCTS, deliveryFee, deliveryLabel } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import { useQuote } from '../lib/useQuote.js';
 import { usePageMeta } from '../lib/meta.js';
@@ -15,12 +15,13 @@ import s from './Cart.module.css';
 
 /* The summary is an ink "receipt": mono line items, one big total, and the action that moves you forward.
    With a live quote it shows the store's own prices and discount; without one, the catalog's. */
-export function OrderSummary({ children, showItems, quote, checking }) {
+export function OrderSummary({ children, showItems, quote, checking, method = 'delivery' }) {
   const { lines, subtotal: shown, savings, count } = useStore();
   const live = (id) => quote?.lines.find((q) => q.id === Number(id));
   const subtotal = quote ? quote.subtotal : shown;
   const discount = quote?.discount || 0;
-  const total = quote ? quote.total : shown;
+  const fee = quote ? quote.shipping : deliveryFee(method, lines.map((l) => l.product)); // null = confirmed by DMD after the order
+  const total = quote ? quote.total : shown + (fee || 0);
   const changed = quote && lines.some((l) => { const q = live(l.id); return q && !q.problem && Math.abs(q.price - l.product.price) > 0.004; });
   return (
     <aside className={s.summary} aria-label="Order summary" aria-busy={checking || undefined}>
@@ -43,7 +44,7 @@ export function OrderSummary({ children, showItems, quote, checking }) {
         <div><dt>Subtotal</dt><dd>{money(subtotal)}</dd></div>
         {!quote && savings > 0 && <div className={s.save}><dt>You save</dt><dd>−{money(savings)}</dd></div>}
         {discount > 0 && <div className={s.save}><dt>Code {quote.coupon?.code}</dt><dd>−{money(discount)}</dd></div>}
-        <div><dt>Delivery</dt><dd>Confirmed on order</dd></div>
+        <div><dt>{method === 'pickup' ? 'Pick up' : 'Delivery'}</dt><dd>{deliveryLabel(fee)}</dd></div>
         <div className={s.total}><dt>Total</dt><dd>{money(total)}</dd></div>
       </dl>
       {children}

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A placed order. Created only by Checkout (and the import); its money fields are worked out by the server, never
@@ -67,9 +68,29 @@ class Order extends Model
     }
 
     /** Buyers may cancel only while DMD hasn't confirmed the order yet. */
+    /** How long after ordering a buyer may still cancel (and only while DMD hasn't confirmed it). */
+    public const BUYER_CANCEL_HOURS = 24;
+
+    /** Until when the buyer could cancel: 24 hours after the order was placed. */
+    public function buyerCancelDeadline(): ?Carbon
+    {
+        return ($this->placed_at ?? $this->created_at)?->copy()->addHours(self::BUYER_CANCEL_HOURS);
+    }
+
     public function cancellableByBuyer(): bool
     {
-        return $this->status === 'pending';
+        return $this->status === 'pending' && $this->buyerCancelDeadline()?->isFuture() === true;
+    }
+
+    /** Why the buyer can't cancel (shown to them), or null when they can. */
+    public function buyerCancelRefusal(): ?string
+    {
+        return match (true) {
+            $this->cancellableByBuyer() => null,
+            $this->status === 'cancelled' => 'This order is already cancelled.',
+            $this->status !== 'pending' => 'DMD has already confirmed this order. Message or call DMD to change it.',
+            default => 'Orders can only be cancelled within '.self::BUYER_CANCEL_HOURS.' hours of ordering. Message or call DMD to change it.',
+        };
     }
 
     public function customerName(): string

@@ -46,8 +46,10 @@ class StoreSettingsTest extends TestCase
 
         $now = $catalog();
         $this->assertSame('low_stock', collect($now['products'])->firstWhere('id', $p->id)['availability']);
-        $this->assertSame(['store_name' => 'DMD World', 'contact_phone' => '+961 70 903 900', 'contact_email' => 'hello@dmdworld.store', 'reviews_enabled' => true, 'coupons_enabled' => true], $now['store']);
+        $this->assertSame(['store_name' => 'DMD World', 'contact_phone' => '+961 70 903 900', 'contact_email' => 'hello@dmdworld.store', 'reviews_enabled' => true, 'coupons_enabled' => true,
+            'menu_links' => ['home', 'shop', 'categories', 'offers', 'brands', 'about', 'contact'], 'delivery_fee' => null], $now['store']);
         $this->assertArrayNotHasKey('daily_revenue_target', $now['store'], 'owner-only settings stay private');
+        $this->assertArrayNotHasKey('order_notification_email', $now['store'], 'where orders are emailed stays private');
 
         $this->assertSame(['cod'], array_column($this->client()->get('/api/v1/checkout/options')->json('data.payment_methods'), 'id'));
         $this->client()->post('/api/v1/orders', [
@@ -55,6 +57,17 @@ class StoreSettingsTest extends TestCase
             'contact' => ['first_name' => 'Nadim', 'last_name' => 'Saad', 'email' => 'nadim@example.com', 'phone' => '+961 3 222 333'],
             'delivery_method' => 'pickup', 'payment_method' => 'bank_transfer',
         ])->assertStatus(422)->assertJsonValidationErrors('payment_method', 'error.fields');
+    }
+
+    public function test_the_owner_orders_and_hides_the_top_menu_links(): void
+    {
+        $owner = $this->owner();
+        $owner->put('/api/v1/admin/settings', ['menu_links' => ['shop', 'offers', 'categories', 'contact']])->assertOk();
+        $this->assertSame(['shop', 'offers', 'categories', 'contact'], $this->client()->get('/api/v1/catalog')->json('store.menu_links'));
+
+        $owner->put('/api/v1/admin/settings', ['menu_links' => []])->assertStatus(422);
+        $owner->put('/api/v1/admin/settings', ['menu_links' => ['shop', 'shop']])->assertStatus(422);
+        $owner->put('/api/v1/admin/settings', ['menu_links' => ['shop', 'blog']])->assertStatus(422);
     }
 
     public function test_reviews_can_require_a_purchase_or_be_switched_off(): void

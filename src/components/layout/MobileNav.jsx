@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import { MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
 import { useCatalog } from '../../data/live.js';
+import { STORE } from '../../data/index.js';
+import { MENU_LINKS } from '../../data/nav.js';
 import { CloseIcon, ChevronDown, UserIcon, HeartIcon, ArrowRight } from '../common/icons.jsx';
 import Logo from './Logo.jsx';
 import SearchBox from './SearchBox.jsx';
@@ -44,20 +46,25 @@ export default function MobileNav({ open, onClose }) {
         <div className={s.search}>{open && <SearchBox onDone={onClose} />}</div>
         <div className={s.scroll}>
           <Link to="/categories" className={s.primary} onClick={onClose}>All Categories <ArrowRight size={16} /></Link>
-          {[['Home', '/'], ['Shop', '/shop'], ['New Offers', '/product-category/new-offers']].map(([l, to]) => <Link key={to} to={to} className={s.row} onClick={onClose}>{l}</Link>)}
-          {MENU_SECTIONS.map((sec, i) => (
-            <Acc key={sec.label} title={SECTION_TITLES[i]} open={section === i} onToggle={() => toggle(i)}>
-              {i === 1 && <div className={s.group}><h5><Link to="/brands" onClick={onClose}>All brands</Link></h5></div>}
-              {sec.slugs.filter((sl) => groupBySlug[sl]).map((sl) => { const g = groupBySlug[sl]; return (
-                <div key={sl} className={s.group}>
-                  <h5><Link to={catUrl(sl)} onClick={onClose}>{g.name}</Link></h5>
-                  {g.children?.length > 0 && <ul>{g.children.map((c) => <li key={c.slug}><Link to={catUrl(sl, c.slug)} onClick={onClose}>{c.name}</Link>
-                    {c.children?.length > 0 && <span className={s.sub}>{c.children.map((d) => <Link key={d.slug} to={catUrl(sl, c.slug, d.slug)} onClick={onClose}>{d.name}</Link>)}</span>}</li>)}</ul>}
-                </div>
-              ); })}
-            </Acc>
-          ))}
-          <Link to="/contact" className={s.row} onClick={onClose}>Contact Us</Link>
+          {/* Same links and order as the header (Admin › Settings › Top menu); categories and brands open here. */}
+          {STORE.menu.map((key) => {
+            if (key !== 'categories' && key !== 'brands') return <Link key={key} to={MENU_LINKS[key].to} className={s.row} onClick={onClose}>{MENU_LINKS[key].label}</Link>;
+            const i = key === 'categories' ? 0 : 1; // MENU_SECTIONS: categories, then brands
+            const sec = MENU_SECTIONS[i];
+            if (!sec) return null;
+            return (
+              <Acc key={key} title={SECTION_TITLES[i]} open={section === i} onToggle={() => toggle(i)}>
+                {i === 1 && <div className={s.group}><h5><Link to="/brands" onClick={onClose}>All brands</Link></h5></div>}
+                {sec.slugs.filter((sl) => groupBySlug[sl]).map((sl) => { const g = groupBySlug[sl]; return (
+                  <div key={sl} className={s.group}>
+                    <h5><Link to={catUrl(sl)} onClick={onClose}>{g.name}</Link></h5>
+                    {g.children?.length > 0 && <ul>{g.children.map((c) => <li key={c.slug}><Link to={catUrl(sl, c.slug)} onClick={onClose}>{c.name}</Link>
+                      {c.children?.length > 0 && <span className={s.sub}>{c.children.map((d) => <Link key={d.slug} to={catUrl(sl, c.slug, d.slug)} onClick={onClose}>{d.name}</Link>)}</span>}</li>)}</ul>}
+                  </div>
+                ); })}
+              </Acc>
+            );
+          })}
         </div>
         <div className={s.foot}>
           <Link to={user ? '/account' : SIGN_IN} onClick={onClose} className="btn btn--dark btn--sm"><UserIcon size={17} />{user ? 'My account' : 'Sign in'}</Link>

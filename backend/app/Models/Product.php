@@ -21,8 +21,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * them (kept by Inventory::syncSummary), so every listing, filter and alert reads it like any other product.
  */
 #[Fillable([
-    'brand_id', 'name', 'slug', 'sku', 'short_description', 'description', 'regular_price', 'sale_price',
-    'sale_starts_at', 'sale_ends_at', 'status', 'is_featured', 'track_stock', 'low_stock_threshold', 'stock_status',
+    'brand_id', 'name', 'slug', 'sku', 'short_description', 'description', 'video_url', 'regular_price', 'sale_price',
+    'sale_starts_at', 'sale_ends_at', 'delivery_fee', 'status', 'is_featured', 'track_stock', 'low_stock_threshold', 'stock_status',
     'weight_kg', 'length_cm', 'width_cm', 'height_cm',
 ])]
 class Product extends Model
@@ -38,6 +38,7 @@ class Product extends Model
         return [
             'regular_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
+            'delivery_fee' => 'decimal:2',
             'sale_starts_at' => 'datetime',
             'sale_ends_at' => 'datetime',
             'is_featured' => 'boolean',

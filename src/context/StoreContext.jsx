@@ -181,7 +181,7 @@ export function StoreProvider({ children }) {
   const count = lines.reduce((a, l) => a + l.qty, 0);
   const subtotal = lines.reduce((a, l) => a + l.qty * l.product.price, 0);
   const savings = lines.reduce((a, l) => a + (l.product.was ? l.qty * (l.product.was - l.product.price) : 0), 0);
-  const shipping = 0; // delivery cost is confirmed by DMD after the order
+  const shipping = 0; // the delivery price is added by the live quote and at checkout (deliveryFee in data/index.js)
 
   const value = useMemo(() => ({
     ...state, lines, count, subtotal, savings, shipping, drawer, setDrawer, toast, setToast,

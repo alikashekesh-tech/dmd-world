@@ -91,6 +91,23 @@ class AdminOrderTest extends TestCase
         $this->assertSame('Wants evening delivery', collect($owner->get("/api/v1/admin/orders/{$id}")->json('data.history'))->last()['note']);
     }
 
+    public function test_the_owner_sets_an_orders_delivery_price_and_the_total_follows(): void
+    {
+        $pickup = $this->place(Product::factory()->create(['regular_price' => '20.00']));
+        $id = $this->place(Product::factory()->create(['regular_price' => '20.00']));
+        Order::whereKey($id)->update(['delivery_method' => 'delivery']); // an older order: delivery, cost still to agree
+        $owner = $this->owner();
+
+        $owner->put("/api/v1/admin/orders/{$id}/delivery", ['shipping_total' => 7.5])->assertOk()
+            ->assertJsonPath('data.shipping_total', 7.5)->assertJsonPath('data.total', 27.5);
+        $this->assertSame(['7.50', '27.50'], [Order::find($id)->shipping_total, Order::find($id)->total]);
+        $this->assertSame('Delivery price set to $7.50 (was $0.00). New total $27.50.', collect($owner->get("/api/v1/admin/orders/{$id}")->json('data.history'))->last()['note']);
+
+        $owner->put("/api/v1/admin/orders/{$id}/delivery", ['shipping_total' => -1])->assertStatus(422);
+        $owner->put("/api/v1/admin/orders/{$pickup}/delivery", ['shipping_total' => 5])->assertStatus(422)->assertJsonPath('error.code', 'PICKUP_ORDER');
+        $this->client()->put("/api/v1/admin/orders/{$id}/delivery", ['shipping_total' => 0])->assertUnauthorized();
+    }
+
     public function test_customers_registered_and_guests_with_their_spending(): void
     {
         $p = Product::factory()->create(['regular_price' => '10.00', 'stock_quantity' => 50]);

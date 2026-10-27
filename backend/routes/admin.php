@@ -14,13 +14,14 @@ use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReviewController;
 use App\Http\Controllers\Api\V1\Admin\SettingsController;
+use App\Http\Controllers\Api\V1\Admin\StaffController;
 use App\Http\Controllers\Api\V1\Admin\StockAlertController;
 use App\Http\Controllers\Api\V1\Admin\TrashController;
 use App\Http\Controllers\Api\V1\Admin\UploadController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| The owner's API, served at /api/v1/admin (see bootstrap/app.php). Everything except signing in requires the
+| The admin API (the owner and their staff), served at /api/v1/admin (see bootstrap/app.php). Everything except signing in requires the
 | `admin` guard: a buyer's session is never accepted here, whatever the buyer sends.
 | `auth.session` signs out other devices as soon as the owner's password changes.
 */
@@ -64,12 +65,14 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::get('inventory/{product}/movements', [InventoryController::class, 'movements'])->whereNumber('product')->name('inventory.movements');
 
     Route::post('uploads', [UploadController::class, 'store'])->name('uploads.store');
+    Route::post('uploads/video', [UploadController::class, 'video'])->name('uploads.video');
 
     // Orders: every order in the store; status changes go through OrderService (stock follows cancellations).
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
     Route::put('orders/{order}/status', [OrderController::class, 'status'])->whereNumber('order')->name('orders.status');
     Route::put('orders/{order}/payment', [OrderController::class, 'payment'])->whereNumber('order')->name('orders.payment');
+    Route::put('orders/{order}/delivery', [OrderController::class, 'delivery'])->whereNumber('order')->name('orders.delivery');
     Route::post('orders/{order}/notes', [OrderController::class, 'note'])->whereNumber('order')->name('orders.notes');
 
     // Customers: registered buyers and guests, with what they ordered.
@@ -113,6 +116,14 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
 
     Route::get('trash', [TrashController::class, 'index'])->name('trash.index');
 
-    Route::get('settings', [SettingsController::class, 'show'])->name('settings.show');
-    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::get('settings', [SettingsController::class, 'show'])->name('settings.show'); // staff read them too (stock alert level)
+
+    // Owner only: changing the store settings, and who else can sign in here.
+    Route::middleware('owner')->group(function () {
+        Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::put('staff/{staff}/password', [StaffController::class, 'password'])->whereNumber('staff')->name('staff.password');
+        Route::delete('staff/{staff}', [StaffController::class, 'destroy'])->whereNumber('staff')->name('staff.destroy');
+    });
 });

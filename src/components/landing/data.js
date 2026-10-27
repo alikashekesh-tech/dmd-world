@@ -32,7 +32,7 @@ function categoryPath(id) {
   };
   return walk(DMD_GROUPS, []);
 }
-export const BUDGET_STOPS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 250];
+export const BUDGET_STOPS = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 250, 500, 750, 1000];
 function build() {
   const LIVE = PRODUCTS.filter((p) => p.stock !== 'out');
 

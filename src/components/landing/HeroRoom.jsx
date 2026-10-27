@@ -139,8 +139,8 @@ export default function HeroRoom() {
           <div ref={stage} className={s.stage} onPointerMove={onMove} onPointerLeave={onLeave}>
             <svg className={s.scene} viewBox={`0 ${VB_TOP} 960 ${VB_H}`} data-focus={active ? '' : undefined} role="group" aria-label="A gaming desk at night. Each item on it links to where it is sold in the shop.">
               <defs>
-                <radialGradient id="h-glow"><stop offset="0" stopColor="#4f8dff" stopOpacity=".42" /><stop offset=".55" stopColor="#2f5fd0" stopOpacity=".1" /><stop offset="1" stopColor="#2f5fd0" stopOpacity="0" /></radialGradient>
-                <radialGradient id="h-floor"><stop offset="0" stopColor="#4f8dff" stopOpacity=".5" /><stop offset="1" stopColor="#4f8dff" stopOpacity="0" /></radialGradient>
+                <radialGradient id="h-glow"><stop offset="0" stopColor="#a0d0f0" stopOpacity=".55" /><stop offset=".55" stopColor="#50b0e0" stopOpacity=".12" /><stop offset="1" stopColor="#50b0e0" stopOpacity="0" /></radialGradient>
+                <radialGradient id="h-floor"><stop offset="0" stopColor="#3090d0" stopOpacity=".28" /><stop offset="1" stopColor="#3090d0" stopOpacity="0" /></radialGradient>
                 <linearGradient id="h-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0a1330" /><stop offset="1" stopColor="#25427f" /></linearGradient>
                 <linearGradient id="h-glare" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".09" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /></linearGradient>
                 <clipPath id="h-screen"><rect x="382" y="160" width="356" height="196" rx="3" /></clipPath>
@@ -353,12 +353,6 @@ export default function HeroRoom() {
             )}
           </div>
           <p className={s.hint} aria-hidden="true"><span className={s.hintMouse}>Everything on that desk is for sale. Point at it.</span><span className={s.hintTouch}>Everything on that desk is for sale.</span></p>
-
-          <ul className={s.chips} aria-label="Shop the desk">
-            {HOTSPOTS.map((h) => (
-              <li key={h.id}><Link to={h.to}>{h.label}{h.from ? <small>from {usd(h.from)}</small> : null}</Link></li>
-            ))}
-          </ul>
         </div>
       </div>
 

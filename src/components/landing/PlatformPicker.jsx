@@ -36,7 +36,7 @@ export default function PlatformPicker({ n = 1 }) {
   };
 
   return (
-    <section id="platform" ref={ref} className={s.sec} style={{ '--acc': p.accent }} data-paused={!live || undefined} aria-labelledby="pp-title">
+    <section id="platform" ref={ref} className={`${s.sec} ${p.products.length > 0 ? s.withBand : ''}`} style={{ '--acc': p.accent }} data-paused={!live || undefined} aria-labelledby="pp-title">
       <div className={s.glow} aria-hidden="true" />
       <div className="container">
         <div className={s.head}>
@@ -86,15 +86,18 @@ export default function PlatformPicker({ n = 1 }) {
           </div>
         </div>
 
-        {p.products.length > 0 && (
-          <div className={s.railWrap}>
+      </div>
+      {/* The products sit on a light band, white cards like the rest of the shop. */}
+      {p.products.length > 0 && (
+        <div className={s.band}>
+          <div className="container">
             <div className={s.railHead}><span>In stock now</span><Link to={p.to}>See all <ArrowRight size={14} /></Link></div>
             <div className={s.rail} key={id}>
-              {p.products.map((x, i) => <MiniCard key={x.id} product={x} tone="dark" style={{ '--i': i }} />)}
+              {p.products.map((x, i) => <MiniCard key={x.id} product={x} style={{ '--i': i }} />)}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

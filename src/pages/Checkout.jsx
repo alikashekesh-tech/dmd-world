@@ -11,7 +11,7 @@ import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
 import { useQuote } from '../lib/useQuote.js';
 import { SIGN_IN, authUrl } from '../lib/authRoutes.js';
-import { money } from '../data/index.js';
+import { money, deliveryFee, deliveryLabel } from '../data/index.js';
 import s from './Checkout.module.css';
 
 /* Checkout as three levels: the cart is already cleared, you're on details, the order screen is the finish. */
@@ -28,10 +28,14 @@ function Levels({ at }) {
   );
 }
 
-const METHODS = [
-  { id: 'delivery', label: 'Delivery', note: 'Cost and timing confirmed by DMD after you order', tag: 'TBC' },
-  { id: 'pickup', label: 'Pick up', note: 'Collect from the store', tag: 'Free' },
-];
+/** The two ways to get an order; delivery shows the owner's one price for Lebanon (or "TBC" while it isn't set). */
+const methods = (products) => {
+  const fee = deliveryFee('delivery', products);
+  return [
+    { id: 'delivery', label: 'Delivery', note: fee == null ? 'Cost and timing confirmed by DMD after you order' : 'Anywhere in Lebanon', tag: fee == null ? 'TBC' : deliveryLabel(fee) },
+    { id: 'pickup', label: 'Pick up', note: 'Collect from the store', tag: 'Free' },
+  ];
+};
 const FALLBACK_PAYMENTS = [{ id: 'cod', title: 'Cash on delivery', description: 'Pay when your order arrives.' }];
 const DRAFT = 'dmd:checkout-draft';
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`);
@@ -71,7 +75,7 @@ export default function Checkout() {
   // Laravel: a signed-in buyer delivers to one of their saved addresses (the default is preselected) or a new one.
   const [saved, setSaved] = useState([]);
   const [addressId, setAddressId] = useState('new');
-  const [quote, checking] = useQuote(lines, coupon, f.email);
+  const [quote, checking] = useQuote(lines, coupon, f.email, method);
 
   const set = (e) => { setF((x) => ({ ...x, [e.target.name]: e.target.value })); setErrors((x) => ({ ...x, [e.target.name]: undefined })); };
   // A refresh or a trip back to the cart doesn't wipe what was typed (kept for this tab only, never the account).
@@ -105,7 +109,7 @@ export default function Checkout() {
   );
 
   const stale = quote?.lines.filter((q) => q.problem) || [];
-  const total = quote ? quote.total : lines.reduce((a, l) => a + l.qty * l.product.price, 0);
+  const total = quote ? quote.total : lines.reduce((a, l) => a + l.qty * l.product.price, 0) + (deliveryFee(method, lines.map((l) => l.product)) || 0);
   const applyCoupon = (e) => { e.preventDefault(); const c = codeInput.trim(); if (c) setCoupon(c); };
   const dropCoupon = () => { setCoupon(''); setCodeInput(''); };
   const fix = (q) => {
@@ -170,7 +174,7 @@ export default function Checkout() {
           <section className={s.card} aria-labelledby="co-method">
             <h2 id="co-method"><b>02</b>Delivery method</h2>
             <div className={s.methods} role="radiogroup" aria-labelledby="co-method">
-              {METHODS.map((m) => (
+              {methods(lines.map((l) => l.product)).map((m) => (
                 <label key={m.id} className={`${s.method} ${method === m.id ? s.on : ''}`}>
                   <input type="radio" name="method" checked={method === m.id} onChange={() => setMethod(m.id)} />
                   <span><b>{m.label}</b><small>{m.note}</small></span>
@@ -225,7 +229,7 @@ export default function Checkout() {
             </div>
           </section>
         </div>
-        <OrderSummary showItems quote={quote} checking={checking}>
+        <OrderSummary showItems quote={quote} checking={checking} method={method}>
           {stale.length > 0 && (
             <ul className={s.stale} role="alert">
               {stale.map((q) => (

@@ -20,6 +20,7 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const Wishlist = lazy(() => import('./pages/Wishlist.jsx'));
 const ProductCategory = lazy(() => import('./pages/ProductCategory.jsx'));
 const Contact = lazy(() => import('./pages/Contact.jsx'));
+const About = lazy(() => import('./pages/About.jsx'));
 
 const routes = [
   { path: '/', element: <Home /> },
@@ -39,6 +40,7 @@ const routes = [
   { path: '/wishlist', element: <Wishlist /> },
   { path: '/product-category/*', element: <ProductCategory /> },
   { path: '/contact', element: <Contact /> },
+  { path: '/about', element: <About /> },
 ];
 
 /** Shown for the moment a page's code is downloading: keeps the layout steady instead of flashing empty. */

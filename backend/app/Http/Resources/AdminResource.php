@@ -13,6 +13,7 @@ class AdminResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            'role' => $this->isOwner() ? 'owner' : 'staff', // staff can't change store settings or manage staff
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             // The store's time zone: the admin shows and picks schedule times in it (stored in UTC).
             'store_timezone' => config('dmd.timezone'),

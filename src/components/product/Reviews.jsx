@@ -100,7 +100,7 @@ export default function Reviews({ product, open }) {
         {checking ? null : !buyer ? (
           <div className={s.prompt}>
             <b>Share your thoughts</b>
-            <p>Sign in to review this product. Reviews from buyers are marked Verified purchase.</p>
+            <p>Sign in to review this product. Reviews from customers are marked Verified purchase.</p>
             <Link to={signInUrl} className="btn btn--secondary btn--block">Sign in to write a review</Link>
           </div>
         ) : mine === null ? null : mine ? (

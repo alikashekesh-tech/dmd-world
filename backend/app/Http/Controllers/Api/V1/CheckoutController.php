@@ -19,7 +19,13 @@ class CheckoutController extends Controller
     /** What checkout offers, as the owner set it up (payment and delivery methods, whether codes can be used). */
     public function options(): JsonResponse
     {
-        $delivery = ['delivery' => ['Delivery', 'Cost and timing confirmed by DMD after you order'], 'pickup' => ['Pick up', 'Collect from the store']];
+        $fee = StoreSettings::get('delivery_fee');
+        $note = match (true) {
+            $fee === null => 'Cost and timing confirmed by DMD after you order',
+            Money::cents($fee) === 0 => 'Free delivery anywhere in Lebanon',
+            default => '$'.Money::decimal(Money::cents($fee)).' anywhere in Lebanon',
+        };
+        $delivery = ['delivery' => ['Delivery', $note], 'pickup' => ['Pick up', 'Collect from the store']];
 
         return response()->json(['data' => [
             'payment_methods' => collect(StoreSettings::paymentMethods())->map(fn ($title, $id) => ['id' => $id, 'title' => $title,
@@ -33,6 +39,10 @@ class CheckoutController extends Controller
     public function quote(QuoteRequest $request): JsonResponse
     {
         $priced = $this->checkout->quote($request->validated('items'), $request->validated('coupon'), $request->user(), $request->validated('email'));
+        // The cart doesn't know the method yet: it's priced as delivery, the default at checkout.
+        $method = $request->validated('delivery_method') ?? 'delivery';
+        $fee = $this->checkout->deliveryFee($method, $priced['lines']);
+        $shipping = $fee['cents'];
         $lines = collect($priced['lines'])->map(fn ($l) => [
             'product_id' => $l['product_id'], 'variant_id' => $l['variant_id'], 'options' => $l['options'], 'sku' => $l['sku'],
             'quantity' => $l['quantity'], 'name' => $l['name'],
@@ -44,8 +54,9 @@ class CheckoutController extends Controller
             'lines' => $lines->values(),
             'subtotal' => Money::json($priced['subtotal']),
             'discount' => Money::json($priced['discount']),
-            'shipping' => 0,
-            'total' => Money::json($priced['subtotal'] - $priced['discount']),
+            'shipping' => Money::json($shipping),
+            'shipping_confirmed_later' => $fee['later'], // a product with no delivery price, and none in Settings
+            'total' => Money::json($priced['subtotal'] - $priced['discount'] + $shipping),
             'coupon' => $priced['coupon'] ? ['discount' => Money::json($priced['coupon']['discount'])] + $priced['coupon'] : null,
             'ok' => $priced['ok'],
         ]]);

@@ -33,7 +33,7 @@ class ReviewService
         }
         $verified = $this->boughtIt($user, $product->id);
         if (! $verified && StoreSettings::get('reviews_require_purchase')) {
-            throw new ApiException(403, 'NOT_VERIFIED', 'Only buyers who received this product can review it.');
+            throw new ApiException(403, 'NOT_VERIFIED', 'Only customers who received this product can review it.');
         }
 
         try {

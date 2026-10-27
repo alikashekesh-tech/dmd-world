@@ -72,6 +72,7 @@ final class BrandService
                 Brand::whereKey($id)->update(['position' => $position]);
             }
         });
+        Catalog::bust(); // a query update skips the model's own refresh: the shop's menus follow the new order at once
         Activity::record('brand.reordered', 'Reordered '.count($ids).' brands', null, $by);
     }
 

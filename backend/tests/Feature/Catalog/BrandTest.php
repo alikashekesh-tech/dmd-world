@@ -69,9 +69,12 @@ class BrandTest extends TestCase
     {
         $owner = $this->owner();
         [$a, $b] = Brand::factory()->count(2)->create()->pluck('id')->all();
+        $order = fn () => collect($this->client()->get('/api/v1/catalog')->json('brands'))->sortBy('position')->pluck('id')->values()->all();
+        $order(); // the shop's catalog is cached from here
         $owner->post(self::ADMIN.'/reorder', ['ids' => [$b, $a]])->assertNoContent();
 
         $this->assertSame([$b, $a], array_column($this->client()->get('/api/v1/brands')->json('data'), 'id'));
+        $this->assertSame([$b, $a], $order(), 'the shop’s menu follows the new order at once');
     }
 
     public function test_only_the_owner_can_change_brands(): void

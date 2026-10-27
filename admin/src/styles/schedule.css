@@ -9,7 +9,7 @@
 .sp-trigger .sp-ic { flex: none; color: var(--muted); }
 .sp-trigger .sp-caret { flex: none; color: var(--muted); margin-left: auto; }
 .sp-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sp-zone { flex: none; padding: 2px 6px; border-radius: 6px; background: var(--panel-3); color: var(--text-2); font: 600 10.5px var(--mono); letter-spacing: .02em; }
+.sp-zone { flex: none; padding: 2px 6px; border-radius: 6px; background: var(--panel-3); color: var(--text-2); font: 500 11.5px var(--inter); }
 .sp-control:has(.sp-clear) .sp-trigger { padding-right: 60px; }
 .sp-control:has(.sp-clear) .sp-caret { display: none; }
 .sp-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; color: var(--muted); }
@@ -45,14 +45,14 @@
 }
 .sp-pop .rdp-month_caption { height: 34px; padding-left: 2px; }
 .sp-pop .rdp-dropdown_root { position: relative; display: inline-flex; align-items: center; }
-.sp-pop .rdp-caption_label { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line-2); font: 700 13px var(--sora); color: var(--text); background: var(--panel); }
+.sp-pop .rdp-caption_label { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line-2); font: 600 13px var(--head); color: var(--text); background: var(--panel); }
 .sp-pop .rdp-dropdown_root:hover .rdp-caption_label { border-color: var(--muted); }
 .sp-pop .rdp-dropdown_root:focus-within .rdp-caption_label { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 18%, transparent); }
 .sp-pop .rdp-caption_label .rdp-chevron { width: 12px; height: 12px; fill: var(--muted); }
 .sp-pop .rdp-button_previous, .sp-pop .rdp-button_next { border-radius: 8px; }
 .sp-pop .rdp-button_previous:hover:not(:disabled), .sp-pop .rdp-button_next:hover:not(:disabled) { background: var(--panel-3); }
 .sp-pop .rdp-nav .rdp-chevron { fill: var(--text-2); width: 16px; height: 16px; }
-.sp-pop .rdp-weekday { font: 600 10.5px var(--mono); letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+.sp-pop .rdp-weekday { font: 500 11.5px var(--inter); color: var(--muted); }
 .sp-pop .rdp-day_button { font-variant-numeric: tabular-nums; color: var(--text); transition: background .12s; }
 .sp-pop .rdp-day:not(.rdp-disabled):not(.rdp-selected) .rdp-day_button:hover { background: var(--panel-3); }
 .sp-pop .rdp-day_button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
@@ -62,10 +62,10 @@
 .sp-pop .rdp-disabled .rdp-day_button { cursor: not-allowed; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 
 .sp-time { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--line); }
-.sp-time-label { display: inline-flex; align-items: center; gap: 6px; font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.sp-time-label { display: inline-flex; align-items: center; gap: 6px; font: 500 13px var(--inter); color: var(--text-2); }
 .sp-hm { display: inline-flex; align-items: center; gap: 4px; }
 .sp-hm b { color: var(--muted); font-weight: 700; }
-.sp-num { width: 46px; height: 34px; border-radius: 9px; border: 1px solid var(--field-line); background: var(--panel); color: var(--text); text-align: center; font: 600 15px var(--mono); }
+.sp-num { width: 46px; height: 34px; border-radius: 9px; border: 1px solid var(--field-line); background: var(--panel); color: var(--text); text-align: center; font: 500 15px var(--inter); font-variant-numeric: tabular-nums; }
 .sp-num:hover { border-color: var(--muted); }
 .sp-num:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 18%, transparent); }
 .sp-zone-line { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-2); white-space: nowrap; }

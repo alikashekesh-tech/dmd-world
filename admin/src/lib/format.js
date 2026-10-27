@@ -46,7 +46,7 @@ export const STATUS = {
   processing: { label: 'Processing', tone: 'blue', hint: 'Paid or confirmed, being prepared' },
   on_hold: { label: 'On hold', tone: 'violet', hint: 'Waiting on something before processing' },
   completed: { label: 'Completed', tone: 'green', hint: 'Delivered' },
-  cancelled: { label: 'Cancelled', tone: 'coral', hint: 'Cancelled by you or the buyer' },
+  cancelled: { label: 'Cancelled', tone: 'coral', hint: 'Cancelled by you or the customer' },
   refunded: { label: 'Refunded', tone: 'muted', hint: '' },
   failed: { label: 'Failed', tone: 'coral', hint: 'Payment failed' },
 };

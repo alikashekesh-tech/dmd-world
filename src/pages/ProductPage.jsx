@@ -9,7 +9,7 @@ import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellIcon } from '../components/common/icons.jsx';
-import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit } from '../data/index.js';
+import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import { catUrl, CONTACT } from '../data/dmdMenu.js';
@@ -65,7 +65,16 @@ const detailsFromApi = (d) => ({
   attributes: (d.specifications || []).map((x) => ({ name: x.name, value: x.value })),
   weight: d.weight_kg ?? null,
   dimensions: d.dimensions_cm ? `${d.dimensions_cm.join(' × ')} cm` : null,
+  video: d.video?.type === 'file' || d.video?.type === 'youtube' ? d.video : null, // {type: file, url} or {type: youtube, id}
 });
+
+/** The product's video on the stage: its own file, or YouTube's privacy-enhanced player (no cookies until played). */
+function ProductVideo({ video, name }) {
+  if (video.type === 'youtube') {
+    return <iframe className={s.stageVideo} src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.id)}?rel=0`} title={`${name}, video`} allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />;
+  }
+  return <video className={s.stageVideo} src={video.url} controls playsInline preload="metadata" aria-label={`${name}, video`} />;
+}
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -109,6 +118,7 @@ export default function ProductPage() {
   const brand = p ? getBrand(p.brand) : null;
   const cat = p ? { slug: p.brand, name: catName(Number(p.cat)) } : null;
   const out = p?.stock === 'out';
+  const fee = p ? deliveryFee('delivery', [p]) : null; // its own delivery price, or the store's
   const catNames = (p?.cats || []).map((id) => catName(Number(id)));
   const condition = catNames.includes('Used') ? 'Used' : catNames.includes('New') ? 'New' : null;
   const blurb = details?.short || p?.blurb || '';
@@ -144,6 +154,8 @@ export default function ProductPage() {
   const addLabel = full ? `All ${purchaseLimit(p)} in your cart` : 'Add to cart';
   const buyNow = () => { if (!full) addToCart(p.id, Math.min(qty, maxQty), color, { open: false }); nav('/checkout'); };
   const shots = p.img ? p.gallery || [p.img] : ART_VIEWS;
+  const video = details?.video || null; // shown after the photos, as the last thumbnail
+  const onVideo = !!video && view === shots.length;
   const tabs = TABS.filter(([k]) => k !== 'specs' || specRows.length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
   const onTabKey = (e, i) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
@@ -163,15 +175,23 @@ export default function ProductPage() {
       <div className={s.top}>
         <div className={s.gallery}>
           <div className={s.stage}>
-            <ProductImage product={p} color={color} view={view} eager className={s.stageImg} />
-            {p.discount > 0 && <span className={s.badge}>{dealBadge(p)}</span>}
-            {isNew(p) && !p.discount && <span className={`${s.badge} ${s.new}`}>New</span>}
+            {onVideo ? <ProductVideo video={video} name={p.name} /> : <ProductImage product={p} color={color} view={view} eager className={s.stageImg} />}
+            {!onVideo && p.discount > 0 && <span className={s.badge}>{dealBadge(p)}</span>}
+            {!onVideo && isNew(p) && !p.discount && <span className={`${s.badge} ${s.new}`}>New</span>}
           </div>
-          {shots.length > 1 && (
-            <ul className={s.thumbs} aria-label="Product photos">
+          {(shots.length > 1 || video) && (
+            <ul className={s.thumbs} aria-label="Product photos and video">
               {shots.map((v, i) => (
                 <li key={typeof v === 'string' ? v : i}><button type="button" className={`${s.thumb} ${view === i ? s.on : ''}`} onClick={() => setView(i)} aria-label={p.img ? `Photo ${i + 1} of ${shots.length}` : `${v} view`} aria-pressed={view === i}><ProductImage product={p} color={color} view={i} className={s.thumbImg} /></button></li>
               ))}
+              {video && (
+                <li><button type="button" className={`${s.thumb} ${s.videoThumb} ${onVideo ? s.on : ''}`} onClick={() => setView(shots.length)} aria-label="Play video" aria-pressed={onVideo}>
+                  {video.type === 'youtube'
+                    ? <img className={s.thumbCover} src={`https://i.ytimg.com/vi/${encodeURIComponent(video.id)}/mqdefault.jpg`} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                    : <video className={s.thumbCover} src={`${video.url}#t=0.5`} muted playsInline preload="metadata" aria-hidden tabIndex={-1} />}
+                  <span className={s.play} aria-hidden />
+                </button></li>
+              )}
             </ul>
           )}
         </div>
@@ -218,7 +238,7 @@ export default function ProductPage() {
             </>
           )}
 
-          <p className={s.deliveryNote}><TruckIcon size={17} />{out ? 'Out of stock right now. Ask DMD when more is expected.' : 'Delivery is arranged by DMD. Cost and timing are confirmed with you after you order.'}</p>
+          <p className={s.deliveryNote}><TruckIcon size={17} />{out ? 'Out of stock right now. Ask DMD when more is expected.' : fee == null ? 'Delivery is arranged by DMD. Cost and timing are confirmed with you after you order.' : `${fee > 0 ? `Delivery ${money(fee)}` : 'Free delivery'} anywhere in Lebanon, or pick it up from the store for free.`}</p>
           <div className={s.ask}>
             <p className={s.askHud}>Ask before you buy</p>
             <p className={s.askText}>Compatibility, condition or stock: a person at DMD World will answer.</p>

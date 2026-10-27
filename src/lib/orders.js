@@ -17,7 +17,7 @@ export const orderFromApi = (o) => ({
     ? { address_1: o.address.street || '', address_2: [o.address.building && `Building ${o.address.building}`, o.address.floor && `Floor ${o.address.floor}`].filter(Boolean).join(', '), city: [o.address.area, o.address.city].filter(Boolean).join(', ') }
     : { address_1: '', address_2: '', city: '' },
   items: o.items.map((i) => ({ productId: i.product_id, name: i.name, qty: i.quantity, total: i.line_total, subtotal: i.line_subtotal, image: i.image_url })),
-  updates: [], cancellable: !!o.cancellable,
+  updates: [], cancellable: !!o.cancellable, cancellableUntil: o.cancellable_until || null, // 24 h after ordering
 });
 
 const rethrowFields = (e) => {
@@ -27,11 +27,12 @@ const rethrowFields = (e) => {
 
 export const orders = {
   /** The live price check for the cart (and an optional code): same shape as the legacy quote. */
-  async quote(items, coupon, email) {
-    const { data } = await laravelApi.post('/cart/quote', { items: items.map((l) => ({ product_id: l.id, quantity: l.qty })), coupon: coupon || undefined, email: email || undefined });
+  async quote(items, coupon, email, method = 'delivery') {
+    const { data } = await laravelApi.post('/cart/quote', { items: items.map((l) => ({ product_id: l.id, quantity: l.qty })), coupon: coupon || undefined, email: email || undefined, delivery_method: method });
     return {
       lines: data.lines.map((l) => ({ id: l.product_id, qty: l.quantity, name: l.name, price: l.unit_price, regular: l.regular_price, problem: l.problem, code: CODES[l.code] || null, max: l.max_quantity })),
       subtotal: data.subtotal, discount: data.discount, total: data.total, ok: data.ok,
+      shipping: data.shipping_confirmed_later ? null : data.shipping ?? 0, // null = DMD confirms delivery after the order
       coupon: data.coupon ? { code: data.coupon.code, ok: data.coupon.ok, discount: data.coupon.discount, label: data.coupon.label, message: data.coupon.message } : null,
     };
   },

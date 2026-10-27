@@ -1,0 +1,128 @@
+/* One contact button, bottom-right on every page. It opens a small choice above it (Live chat or WhatsApp); the chat
+   panel opens beside it, from the bottom of the screen, so even a short laptop window gives it room, and never
+   reaches the site header. On phones the panel is a sheet across the bottom. Above the page, under the menu and cart
+   drawers (120+). */
+.launcher {
+  --gap: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: var(--gap);
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.bubble {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 28px -8px rgba(47, 107, 255, 0.7), 0 2px 6px rgba(11, 18, 32, 0.18);
+  transition: transform 0.2s, background-color 0.2s;
+}
+.bubble:hover { transform: translateY(-3px); background: #2560f0; }
+.bubble:active { transform: scale(0.95); }
+.bubble:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.dot { position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--sale); box-shadow: 0 0 0 2px #fff; }
+
+/* the choice: a label pill next to a round icon, like the button itself */
+.choices { display: grid; gap: 10px; justify-items: end; animation: pop 0.18s both var(--ease); transform-origin: bottom right; }
+.choice { display: flex; align-items: center; gap: 10px; color: var(--text); text-align: right; }
+.choice span { display: grid; padding: 8px 14px; border-radius: 14px; background: var(--surface); box-shadow: 0 10px 24px -10px rgba(11, 18, 32, 0.4), 0 1px 3px rgba(11, 18, 32, 0.12); font-weight: 650; font-size: 14.5px; line-height: 1.2; }
+.choice small { font-weight: 400; font-size: 11.5px; color: var(--muted); }
+.choice i { display: grid; place-items: center; width: 50px; height: 50px; margin-right: 4px; border-radius: 50%; color: #fff; box-shadow: 0 8px 20px -8px rgba(11, 18, 32, 0.5); transition: transform 0.15s; }
+.chatIcon { background: var(--accent); }
+.waIcon { background: #25d366; }
+.choice:hover i, .choice:focus-visible i { transform: scale(1.06); }
+.choice:hover span { color: var(--accent); }
+.choice:focus-visible { outline: none; }
+.choice:focus-visible span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.panel {
+  --gap: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+  position: fixed;
+  right: calc(max(16px, env(safe-area-inset-right)) + 58px + 14px); /* beside the contact button */
+  bottom: var(--gap);
+  z-index: 62;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100vh - var(--gap) - 112px); /* never under the site header (top bar + header) */
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 30px 60px -20px rgba(11, 18, 32, 0.45), 0 4px 14px rgba(11, 18, 32, 0.08);
+  overflow: hidden;
+  transform-origin: bottom right;
+  animation: pop 0.22s both var(--ease);
+}
+.panel[data-started] { height: min(540px, calc(100vh - var(--gap) - 112px)); }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+
+/* header: the store, online, and when it answers */
+.head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 12px 14px 16px; background: var(--ink); color: #fff; }
+.avatar { position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #fff; }
+.avatar img { width: 36px; height: 36px; object-fit: contain; } /* the logo's square icon (same as the browser tab's) */
+.avatar i { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; background: #3ccf6e; box-shadow: 0 0 0 2px var(--ink); }
+.title { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.title b { font-size: 15px; }
+.title small { color: var(--ink-muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.close { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #fff; }
+.close:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* before the first message: hello + one form */
+.start { display: grid; gap: 10px; padding: 14px 16px 16px; overflow-y: auto; }
+.hello { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--bg); color: var(--text-2); font-size: 13.5px; line-height: 1.45; }
+.hello b { color: var(--text); font-size: 15px; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field span { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.field em { font-style: normal; font-weight: 400; color: var(--muted); }
+.field input, .field textarea, .compose textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field textarea { resize: none; min-height: 60px; }
+.field input:focus, .field textarea:focus, .compose textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15); }
+.startBtn { width: 100%; height: 44px; margin-top: 2px; }
+
+/* the conversation */
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 16px; overflow-y: auto; background: var(--bg); }
+.msg { max-width: 85%; display: grid; gap: 4px; }
+.msg p { padding: 10px 13px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg small { font: 500 10.5px var(--font-mono); letter-spacing: 0.04em; color: var(--muted); }
+.you { align-self: flex-end; justify-items: end; }
+.you p { background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
+.store { align-self: flex-start; }
+.store p { background: var(--surface); border: 1px solid var(--line-soft); border-bottom-left-radius: 5px; }
+.wait { align-self: center; max-width: 90%; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* replying: one line that grows, and a round send button */
+.compose { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--line-soft); background: var(--surface); }
+.compose textarea { flex: 1; min-width: 0; resize: none; min-height: 42px; max-height: 120px; field-sizing: content; }
+.send { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: #fff; transition: background-color 0.15s, opacity 0.15s; }
+.send:hover:not(:disabled) { background: #2560f0; }
+.send:disabled { opacity: 0.4; cursor: default; }
+.compose .error { flex-basis: 100%; }
+.error { color: var(--sale); font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  .bubble { width: 54px; height: 54px; }
+  /* product pages have a buy bar along the bottom on phones: sit above it */
+  .launcher[data-raised] { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .panel, .panel[data-raised] { right: 8px; left: 8px; bottom: 8px; width: auto; max-height: calc(100vh - 80px); z-index: 125; border-radius: 18px; }
+  .panel[data-started] { height: min(80vh, 620px); }
+}
+@media (prefers-reduced-motion: reduce) { .bubble, .bubble:hover { transition: none; transform: none; } .panel, .choices { animation: none; } }

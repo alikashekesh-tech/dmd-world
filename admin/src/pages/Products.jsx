@@ -134,13 +134,17 @@ export function ProductsPage({ query }) {
 }
 
 /* ── editor ──────────────────────────────────────────────────────────── */
-const EMPTY = { name: '', status: 'draft', is_featured: false, description: '', short_description: '', sku: '', regular_price: '', sale_price: '', sale_starts_at: '', sale_ends_at: '', track_stock: true, stock_quantity: 0, low_stock_threshold: '', stock_status: 'in_stock', brand_id: '', category_ids: [], images: [] };
+const EMPTY = { name: '', status: 'draft', is_featured: false, description: '', short_description: '', sku: '', regular_price: '', sale_price: '', sale_starts_at: '', sale_ends_at: '', track_stock: true, stock_quantity: 0, low_stock_threshold: '', stock_status: 'in_stock', brand_id: '', category_ids: [], images: [], video_url: '', delivery_fee: '' };
+const MAX_IMAGES = 12;
+/** The YouTube video id in a watch, youtu.be, shorts or embed link (the server checks the link again). */
+const youtubeId = (url) => /^https:\/\/(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/.exec(url || '')?.[1] || null;
 const fromProduct = (p) => ({
   name: p.name, status: p.status, is_featured: !!p.is_featured, description: p.description || '', short_description: p.short_description || '', sku: p.sku || '',
   regular_price: p.regular_price != null ? String(p.regular_price) : '', sale_price: p.sale_price != null ? String(p.sale_price) : '',
   sale_starts_at: toInputDate(p.sale_starts_at), sale_ends_at: toInputDate(p.sale_ends_at),
   track_stock: !!p.track_stock, stock_quantity: p.stock_quantity ?? 0, low_stock_threshold: p.low_stock_threshold ?? '', stock_status: p.stock_status || 'in_stock',
-  brand_id: p.brand?.id ?? '', category_ids: (p.categories || []).map((c) => c.id), images: (p.images || []).map((i) => ({ url: i.url, alt: i.alt || '' })),
+  brand_id: p.brand?.id ?? '', category_ids: (p.categories || []).map((c) => c.id), images: (p.images || []).map((i) => ({ url: i.url, alt: i.alt || '' })), video_url: p.video_url || '',
+  delivery_fee: p.delivery_fee != null ? String(p.delivery_fee) : '',
 });
 /** The form → what the API takes (empty strings become null; the stock count is only sent when it changed). */
 const toBody = (f, initial) => ({
@@ -150,7 +154,8 @@ const toBody = (f, initial) => ({
   track_stock: f.track_stock, low_stock_threshold: f.low_stock_threshold === '' ? null : Number(f.low_stock_threshold), stock_status: f.stock_status,
   ...(f.track_stock && String(f.stock_quantity) !== String(initial.stock_quantity) ? { stock_quantity: Number(f.stock_quantity) } : {}),
   brand_id: f.brand_id === '' ? null : Number(f.brand_id), category_ids: f.category_ids, primary_category_id: f.category_ids[0] ?? null,
-  images: f.images.map((i) => ({ url: i.url, alt: i.alt || null })),
+  images: f.images.map((i) => ({ url: i.url, alt: i.alt || null })), video_url: f.video_url || null,
+  delivery_fee: f.delivery_fee === '' ? null : Number(f.delivery_fee),
 });
 
 export function ProductEditor({ params }) {
@@ -165,6 +170,9 @@ export function ProductEditor({ params }) {
   const [imgUrl, setImgUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+  const [videoLink, setVideoLink] = useState('');
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const videoRef = useRef(null);
   const loaded = (p) => { setProduct(p); const f = fromProduct(p); setForm(f); setInitial(f); };
 
   useEffect(() => {
@@ -205,12 +213,33 @@ export function ProductEditor({ params }) {
   };
   const restore = async () => { try { const { data: p } = await api.post(`/products/${params.id}/restore`); loaded(p); changed('products'); toast('Restored'); } catch (e) { fail(e); } };
   const addUrl = () => { const url = imgUrl.trim(); if (!/^https:\/\//.test(url)) return fail(new Error('Paste a full image address starting with https://')); setForm((f) => ({ ...f, images: [...f.images, { url, alt: '' }] })); setImgUrl(''); };
-  const upload = async (file) => {
-    if (!file) return;
+  /** Several photos at once, uploaded one after another in the order chosen; stops at the gallery limit. */
+  const upload = async (files) => {
+    const room = MAX_IMAGES - form.images.length;
+    const picked = [...(files || [])];
+    if (!picked.length) return;
+    if (room < 1) return fail(new Error(`A product can have at most ${MAX_IMAGES} images. Remove one first.`));
+    if (picked.length > room) fail(new Error(`Only the first ${room} added: a product can have at most ${MAX_IMAGES} images.`));
     setUploading(true);
-    try { const r = await api.upload(file); setForm((f) => ({ ...f, images: [...f.images, { url: r.url, alt: '' }] })); } catch (e) { fail(e); }
+    for (const file of picked.slice(0, room)) {
+      try { const r = await api.upload(file); setForm((f) => ({ ...f, images: [...f.images, { url: r.url, alt: '' }] })); } catch (e) { fail(e); }
+    }
     setUploading(false);
   };
+  const uploadVideo = async (file) => {
+    if (!file) return;
+    if (file.size > 30 * 1024 * 1024) return fail(new Error('Videos can be at most 30 MB. Put longer ones on YouTube and paste the link.'));
+    setUploadingVideo(true);
+    try { const r = await api.uploadVideo(file); setForm((f) => ({ ...f, video_url: r.url })); } catch (e) { fail(e); }
+    setUploadingVideo(false);
+  };
+  const addVideoLink = () => {
+    const url = videoLink.trim();
+    if (!youtubeId(url)) return fail(new Error('Paste a YouTube link, like https://www.youtube.com/watch?v=… or https://youtu.be/…'));
+    setForm((f) => ({ ...f, video_url: url }));
+    setVideoLink('');
+  };
+  const ytId = youtubeId(form?.video_url);
   const moveImg = (i, d) => setForm((f) => { const a = [...f.images]; const j = i + d; if (j < 0 || j >= a.length) return f; [a[i], a[j]] = [a[j], a[i]]; return { ...f, images: a }; });
 
   if (err) return <Notice tone="coral" icon="alert">{err.message}</Notice>;
@@ -230,7 +259,7 @@ export function ProductEditor({ params }) {
           </section>
 
           <section className="surface">
-            <div className="surface-head"><h3>Images</h3><span className="hud">{form.images.length ? 'First image is the main one' : 'No images yet'}</span></div>
+            <div className="surface-head"><h3>Images</h3><span className="hud">{form.images.length ? `${form.images.length} of ${MAX_IMAGES} · first image is the main one` : 'No images yet'}</span></div>
             <div className="surface-body stack">
               {form.images.length > 0 && (
                 <ul className="row wrap" style={{ gap: 10 }}>
@@ -248,9 +277,33 @@ export function ProductEditor({ params }) {
               <div className="row wrap">
                 <input className="input grow" style={{ minWidth: 220 }} value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUrl())} placeholder="Paste an image URL (https://…)" />
                 <Button icon="link" onClick={addUrl} disabled={!imgUrl.trim()}>Add URL</Button>
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(e) => upload(e.target.files?.[0])} />
-                <Button icon="upload" loading={uploading} onClick={() => fileRef.current?.click()}>Upload</Button>
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
+                <Button icon="upload" loading={uploading} disabled={form.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()}>Upload images</Button>
               </div>
+            </div>
+          </section>
+
+          <section className="surface">
+            <div className="surface-head"><h3>Video</h3><span className="hud">{form.video_url ? 'Shown after the photos on the product page' : 'No video yet'}</span></div>
+            <div className="surface-body stack">
+              {form.video_url && (
+                <div className="row wrap" style={{ alignItems: 'flex-start', gap: 12 }}>
+                  {ytId
+                    ? <a className="thumb" style={{ width: 240, height: 135 }} href={`https://www.youtube.com/watch?v=${ytId}`} target="_blank" rel="noopener noreferrer"><img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="YouTube video" referrerPolicy="no-referrer" /></a>
+                    : <video src={form.video_url} controls preload="metadata" style={{ width: 240, maxHeight: 180, borderRadius: 10, background: '#000' }} />}
+                  <div className="stack" style={{ gap: 6 }}>
+                    <Chip tone="blue">{ytId ? 'YouTube' : 'Uploaded video'}</Chip>
+                    <Button size="sm" variant="quiet" icon="close" onClick={() => setForm((f) => ({ ...f, video_url: '' }))}>Remove video</Button>
+                  </div>
+                </div>
+              )}
+              <div className="row wrap">
+                <input className="input grow" style={{ minWidth: 220 }} value={videoLink} onChange={(e) => setVideoLink(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addVideoLink())} placeholder="Paste a YouTube link (https://youtu.be/…)" />
+                <Button icon="link" onClick={addVideoLink} disabled={!videoLink.trim()}>{form.video_url ? 'Replace with link' : 'Add link'}</Button>
+                <input ref={videoRef} type="file" accept="video/mp4,video/webm" hidden onChange={(e) => { uploadVideo(e.target.files?.[0]); e.target.value = ''; }} />
+                <Button icon="upload" loading={uploadingVideo} onClick={() => videoRef.current?.click()}>{form.video_url ? 'Replace with upload' : 'Upload video'}</Button>
+              </div>
+              <span className="muted" style={{ fontSize: 12.5 }}>MP4 or WebM up to 30 MB. For longer videos, upload them to YouTube and paste the link.</span>
             </div>
           </section>
 
@@ -267,6 +320,9 @@ export function ProductEditor({ params }) {
                   <Field label="Sale ends" hint="Empty = until you remove it"><input className="input" type="datetime-local" value={form.sale_ends_at} onChange={set('sale_ends_at')} /></Field>
                 </div>
               )}
+              <Field label="Delivery price" hint="Empty = the store’s delivery price from Settings. An order pays the highest delivery price among its products.">
+                <span className="input-affix" style={{ maxWidth: 220 }}><span>$</span><input className="input mono" inputMode="decimal" value={form.delivery_fee} onChange={set('delivery_fee')} placeholder="Store default" /></span>
+              </Field>
               {product?.on_sale && product.price < (form.sale_price === '' ? product.regular_price : Number(form.sale_price)) && <Notice icon="percent">A store-wide offer currently sells it for {money(product.price)}.</Notice>}
             </div>
           </section>

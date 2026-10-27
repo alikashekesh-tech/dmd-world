@@ -75,6 +75,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(6)->by('burst:'.$request->user()?->getAuthIdentifier())->response($tooMany('You’re sending messages quickly. Please wait a moment.')),
             Limit::perHour(30)->by('user:'.$request->user()?->getAuthIdentifier())->response($tooMany('You’ve sent a lot of messages. Please wait a little.')),
         ]);
+        // Live chat: guests too, so by account or else by address.
+        RateLimiter::for('chat', fn (Request $request) => [
+            Limit::perMinute(8)->by('chat-burst:'.($request->user()?->getAuthIdentifier() ?: $request->ip()))->response($tooMany('You’re sending messages quickly. Please wait a moment.')),
+            Limit::perHour(60)->by('chat:'.($request->user()?->getAuthIdentifier() ?: $request->ip()))->response($tooMany('You’ve sent a lot of messages. Please wait a little.')),
+        ]);
         RateLimiter::for('stock-alerts', fn (Request $request) => Limit::perHour(40)->by('user:'.$request->user()?->getAuthIdentifier())
             ->response($tooMany('Too many requests. Please wait a little.')));
     }

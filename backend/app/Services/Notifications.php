@@ -36,7 +36,7 @@ final class Notifications
                 $o->placed_at?->copy()->addDay(), ['type' => 'order', 'id' => $o->id]);
         }
         foreach (Conversation::query()->unreadForAdmin()->with(['user:id,first_name,last_name,email', 'latestMessage'])->orderByDesc('last_message_at')->limit(self::CAP)->get() as $c) {
-            $items[] = $this->item("msg-{$c->id}-{$c->last_buyer_message_id}", 'message', 'info', ($c->user?->fullName() ?: 'A buyer')." wrote about {$c->subject}",
+            $items[] = $this->item("msg-{$c->id}-{$c->last_buyer_message_id}", 'message', 'info', ($c->channel === 'chat' ? "{$c->customerName()} is chatting" : ($c->user?->fullName() ?: 'A customer')." wrote about {$c->subject}"),
                 $c->latestMessage ? Str::limit($c->latestMessage->body, 120) : null, $c->last_message_at, ['type' => 'conversation', 'id' => $c->id]);
         }
         foreach (['out' => 'danger', 'low' => 'warn'] as $level => $tone) {

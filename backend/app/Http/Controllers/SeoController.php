@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class SeoController extends Controller
 {
-    private const PAGES = ['/', '/shop', '/categories', '/brands', '/contact', '/product-category/new-offers'];
+    private const PAGES = ['/', '/shop', '/categories', '/brands', '/about', '/contact', '/product-category/new-offers'];
 
     public function robots(): Response
     {

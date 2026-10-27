@@ -20,6 +20,7 @@ final class StoreSettings
         'store_name' => 'DMD World',
         'contact_phone' => '+961 70 903 900',
         'contact_email' => 'info@dmdworld.store',
+        'order_notification_email' => null, // private: where each new order is emailed (empty = no email)
         'low_stock_threshold' => 2,
         'reviews_enabled' => true,
         'reviews_require_purchase' => false, // when true, only buyers with a paid order for the product can review it
@@ -27,11 +28,17 @@ final class StoreSettings
         'payment_methods' => ['cod', 'bank_transfer'],
         'delivery_methods' => ['delivery', 'pickup'],
         'bank_transfer_note' => 'DMD sends the bank details when confirming your order.',
+        // The top menu (header and phone menu): the links shown, in order. One left out is hidden.
+        'menu_links' => self::MENU_LINKS,
+        'delivery_fee' => null, // dollars, one price anywhere in Lebanon; null = DMD confirms the cost after the order, 0 = free
         'daily_revenue_target' => null, // dollars; the dashboard shows progress towards it when set
     ];
 
+    /** Every link the top menu can show (the storefront knows their names and addresses). */
+    public const MENU_LINKS = ['home', 'shop', 'categories', 'offers', 'brands', 'about', 'contact'];
+
     /** Shown to everyone (in the storefront catalog); the rest are for the owner only. */
-    public const PUBLIC = ['store_name', 'contact_phone', 'contact_email', 'reviews_enabled', 'coupons_enabled'];
+    public const PUBLIC = ['store_name', 'contact_phone', 'contact_email', 'reviews_enabled', 'coupons_enabled', 'delivery_fee', 'menu_links'];
 
     /** Validation for each key, used by the owner's settings screen. */
     public static function rules(): array
@@ -40,6 +47,7 @@ final class StoreSettings
             'store_name' => ['string', 'min:2', 'max:80'],
             'contact_phone' => ['string', 'max:30', 'regex:/^\+?[0-9][0-9\s().\-]{5,28}$/'],
             'contact_email' => ['string', 'email', 'max:254'],
+            'order_notification_email' => ['nullable', 'string', 'email', 'max:254'],
             'low_stock_threshold' => ['integer', 'min:0', 'max:10000'],
             'reviews_enabled' => ['boolean'],
             'reviews_require_purchase' => ['boolean'],
@@ -49,6 +57,9 @@ final class StoreSettings
             'delivery_methods' => ['array', 'min:1'],
             'delivery_methods.*' => ['distinct', Rule::in(array_keys(Order::DELIVERY_METHODS))],
             'bank_transfer_note' => ['nullable', 'string', 'max:300'],
+            'menu_links' => ['array', 'min:1', 'max:'.count(self::MENU_LINKS)],
+            'menu_links.*' => ['distinct', Rule::in(self::MENU_LINKS)],
+            'delivery_fee' => ['nullable', 'numeric', 'min:0', 'max:1000', 'decimal:0,2'],
             'daily_revenue_target' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
         ];
     }

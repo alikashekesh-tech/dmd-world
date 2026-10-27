@@ -1,6 +1,6 @@
 import { Link, useLocation } from '../../router/index.jsx';
 import { FOOTER_COLS } from '../../data/nav.js';
-import { CONTACT, MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
+import { CONTACT, STORE_LOCATION, MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
 import { useCatalog } from '../../data/live.js';
 import Logo from './Logo.jsx';
 import LineArt from '../art/LineArt.jsx';
@@ -43,11 +43,12 @@ export default function Footer() {
       )}
       <div className={`container ${s.top}`}>
         <div className={s.brand}>
-          <Logo light />
+          <Logo />
           <p>Consoles, games, gaming gear and electronics, from PlayStation, Nintendo, Xbox, Razer, HyperX, Logitech and more.</p>
           <ul className={s.contact}>
             <li><a href={`tel:${CONTACT.tel}`}>{CONTACT.phone}</a></li>
             <li><a href={`mailto:${CONTACT.email.toLowerCase()}`}>{CONTACT.email.toLowerCase()}</a></li>
+            <li><a href={STORE_LOCATION.map} target="_blank" rel="noopener noreferrer">{STORE_LOCATION.short}</a></li>
           </ul>
         </div>
         {columns().map((c, i) => (

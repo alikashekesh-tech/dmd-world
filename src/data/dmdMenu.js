@@ -88,3 +88,12 @@ export function resolvePath(path) {
   return out;
 }
 export const CONTACT = { phone: '+961 70 903 900', tel: '+96170903900', email: 'INFO@DMDWORLD.STORE' };
+/* The shop in Saida. `map` is the owner's Google Maps link (opens directions); `embed` shows the same pin in a page. */
+const PIN = '33.5620537,35.3807755';
+export const STORE_LOCATION = {
+  address: 'Illiya Intersection, Jad Center, next to Morjen Pharmacy, Saida, Lebanon',
+  short: 'Jad Center, Illiya Intersection, Saida',
+  hours: 'Open daily: 9:00 AM – 10:00 PM',
+  map: 'https://maps.app.goo.gl/8C6mF5AUDYerroPz7',
+  embed: `https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1s${PIN}!6i17`, // the direct embed address (no redirect)
+};

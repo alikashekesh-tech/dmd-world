@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * A conversation between one buyer and the store, optionally about one of the buyer's orders. A buyer only ever
  * reaches conversations through their own account ($user->conversations()); the owner sees all of them.
+ * Live chat (`channel` = 'chat') uses the same conversations; a guest's chat has no user, only the name they gave
+ * and the hash of the private key their browser keeps (see Conversations::chatFor()).
  */
 class Conversation extends Model
 {
@@ -29,6 +31,19 @@ class Conversation extends Model
             'buyer_read_at' => 'datetime',
             'admin_read_at' => 'datetime',
         ];
+    }
+
+    public const CHAT = 'chat';
+
+    /** Who the store is talking to: the account's name, or the name a guest gave in the chat. */
+    public function customerName(): string
+    {
+        return $this->user?->fullName() ?: ($this->guest_name ?: 'A visitor');
+    }
+
+    public function isGuest(): bool
+    {
+        return $this->user_id === null;
     }
 
     public function user(): BelongsTo

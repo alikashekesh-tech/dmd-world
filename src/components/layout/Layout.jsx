@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Header from './Header.jsx';
 import Footer from './Footer.jsx';
 import CartDrawer from './CartDrawer.jsx';
+import LiveChat from './LiveChat.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { useLocation } from '../../router/index.jsx';
 import s from './Layout.module.css';
@@ -23,6 +24,7 @@ export default function Layout({ children }) {
       <main id="main" className={s.main} tabIndex={-1}>{children}</main>
       <Footer />
       <CartDrawer />
+      <LiveChat />
       <div className={`${s.toast} ${t ? s.show : ''}`} role="status" aria-live="polite">
         {t?.text}
         {t?.undo && <button type="button" className={s.undo} onClick={() => { t.undo(); setToast(null); }}>Undo</button>}

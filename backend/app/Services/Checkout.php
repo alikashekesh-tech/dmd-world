@@ -11,6 +11,7 @@ use App\Models\OrderStatusEvent;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Notifications\NewOrderForOwner;
 use App\Notifications\OrderPlaced;
 use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -108,6 +109,24 @@ final class Checkout
     }
 
     /**
+     * What delivery costs for these lines. Pickup is free. For delivery each product has its own price or, when it has
+     * none, the store's (Settings); the order is delivered once, so it pays the highest of them. `later` is true when a
+     * product has no price at all (neither its own nor the store's): DMD confirms that cost with the buyer.
+     *
+     * @return array{cents: int, later: bool}
+     */
+    public function deliveryFee(string $method, array $lines): array
+    {
+        if ($method !== 'delivery') {
+            return ['cents' => 0, 'later' => false];
+        }
+        $store = StoreSettings::get('delivery_fee');
+        $fees = collect($lines)->where('problem', null)->map(fn ($l) => $l['product']?->delivery_fee ?? $store); // what's actually bought
+
+        return ['cents' => (int) $fees->filter(fn ($f) => $f !== null)->map(fn ($f) => Money::cents($f))->max(), 'later' => $fees->contains(null)];
+    }
+
+    /**
      * A quote with an optional discount code. A code that can't be used is reported, never silently dropped.
      *
      * @return array{lines: list<array>, subtotal: int, ok: bool, discount: int, coupon: ?array}
@@ -155,6 +174,10 @@ final class Checkout
 
         Activity::record('order.placed', "{$order->customerName()} placed order #{$order->number} · $".Money::decimal(Money::cents($order->total)), $order, null, $user);
         Notification::route('mail', $order->email)->notify(new OrderPlaced($order));
+        // The store hears about it too; a mail problem here is logged, never turned into a failed checkout.
+        if ($owner = StoreSettings::get('order_notification_email')) {
+            rescue(fn () => Notification::route('mail', $owner)->notify(new NewOrderForOwner($order)));
+        }
 
         return ['order' => $order, 'guest_token' => $user ? null : $this->guestToken($order, $key), 'replayed' => false];
     }
@@ -174,7 +197,7 @@ final class Checkout
         // so its last allowed use can't be taken by two orders at once.
         $coupon = ! empty($data['coupon']) ? $this->coupons->apply($data['coupon'], $priced['lines'], $user, $contact['email'], lock: true) : null;
         $discount = $coupon['discount'] ?? 0;
-        $shipping = 0; // delivery cost is confirmed by DMD with the buyer after the order
+        $shipping = $this->deliveryFee($delivery, $priced['lines'])['cents'];
         $subtotal = $priced['subtotal'];
 
         $order = new Order;
@@ -208,7 +231,7 @@ final class Checkout
             $lineDiscount = $coupon['lines'][$line['key']] ?? 0;
             $order->items()->forceCreate([
                 'product_id' => $p->id, 'variant_id' => $v?->id, 'product_name' => $p->name, 'sku' => $line['sku'], 'variant_options' => $line['options'],
-                'image_url' => $p->images->first()?->url,
+                'image_url' => $v?->image_url ?? $p->images->first()?->url,
                 'unit_price' => Money::decimal($line['unit']), 'regular_price' => Money::decimal($line['regular']), 'quantity' => $line['quantity'],
                 'stock_held' => $tracked ? $line['quantity'] : 0, // what cancelling or refunding may give back
                 'line_subtotal' => Money::decimal($line['subtotal']), 'line_discount' => Money::decimal($lineDiscount), 'line_total' => Money::decimal($line['subtotal'] - $lineDiscount),

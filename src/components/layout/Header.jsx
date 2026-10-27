@@ -8,7 +8,8 @@ import SearchBox from './SearchBox.jsx';
 import MegaMenu from './MegaMenu.jsx';
 import MobileNav from './MobileNav.jsx';
 import { SearchIcon, UserIcon, HeartIcon, BagIcon, MenuIcon, ChevronDown, CloseIcon, PhoneIcon, MailIcon } from '../common/icons.jsx';
-import { money, HOMEPAGE } from '../../data/index.js';
+import { money, HOMEPAGE, STORE } from '../../data/index.js';
+import { MENU_LINKS } from '../../data/nav.js';
 import { CONTACT } from '../../data/dmdMenu.js';
 import s from './Header.module.css';
 
@@ -63,14 +64,13 @@ export default function Header() {
           <button type="button" className={`${s.iconBtn} ${s.burger}`} aria-label="Open menu" onClick={() => setMobile(true)}><MenuIcon /></button>
           <div className={s.logo}><Logo /></div>
           <nav className={s.nav} aria-label="Primary">
-            <NavLink to="/" end className={s.link} onMouseEnter={() => setMenu(false)}>Home</NavLink>
-            <NavLink to="/shop" className={s.link} onMouseEnter={() => setMenu(false)}>Shop</NavLink>
-            <div className={s.item} onMouseEnter={open}>
-              <button type="button" className={`${s.link} ${menu ? s.on : ''}`} aria-expanded={menu} onClick={() => setMenu(!menu)}>Categories<ChevronDown size={14} /></button>
-            </div>
-            <NavLink to="/product-category/new-offers" className={`${s.link} ${s.offers}`} onMouseEnter={() => setMenu(false)}>New Offers</NavLink>
-            <NavLink to="/brands" className={s.link} onMouseEnter={() => setMenu(false)}>Brands</NavLink>
-            <NavLink to="/contact" className={s.link} onMouseEnter={() => setMenu(false)}>Contact Us</NavLink>
+            {STORE.menu.map((key) => (key === 'categories' ? (
+              <div key={key} className={s.item} onMouseEnter={open}>
+                <button type="button" className={`${s.link} ${menu ? s.on : ''}`} aria-expanded={menu} onClick={() => setMenu(!menu)}>Categories<ChevronDown size={14} /></button>
+              </div>
+            ) : (
+              <NavLink key={key} to={MENU_LINKS[key].to} end={key === 'home'} className={`${s.link} ${key === 'offers' ? s.offers : ''}`} onMouseEnter={() => setMenu(false)}>{MENU_LINKS[key].label}</NavLink>
+            )))}
           </nav>
           <div className={s.search}><SearchBox placeholder="Search products, brands, categories..." /></div>
           <div className={s.actions}>

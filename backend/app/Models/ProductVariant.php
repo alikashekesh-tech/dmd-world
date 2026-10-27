@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Prices come from Pricing::forVariant, availability from Inventory; stock_quantity only changes through Inventory.
  * Removing a variant soft-deletes it: past orders and the stock history keep pointing at it.
  */
-#[Fillable(['sku', 'options', 'regular_price', 'sale_price', 'track_stock', 'stock_status', 'is_active', 'position'])]
+#[Fillable(['sku', 'options', 'image_url', 'regular_price', 'sale_price', 'track_stock', 'stock_status', 'is_active', 'position'])]
 class ProductVariant extends Model
 {
     use SoftDeletes;

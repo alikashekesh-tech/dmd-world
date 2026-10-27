@@ -16,4 +16,10 @@ a.card:hover em svg { transform: translateX(3px); }
 .ready ul { display: grid; gap: 12px; margin-top: 12px; }
 .ready li { display: flex; gap: 12px; color: var(--text-2); font-size: 14.5px; line-height: 1.45; }
 .ready li span { flex: none; font: 600 12px var(--font-mono); color: var(--accent); }
-@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+/* the shop in Saida: address and hours beside the map */
+.store { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 24px; animation-delay: .18s; }
+.storeInfo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.storeInfo p { color: var(--text-2); font-size: 14.5px; line-height: 1.5; }
+.storeInfo a em:hover svg { transform: translateX(3px); }
+.map { width: 100%; height: clamp(240px, 28vw, 340px); border: 0; border-radius: 14px; background: var(--surface-2); }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .store { grid-template-columns: 1fr; } }

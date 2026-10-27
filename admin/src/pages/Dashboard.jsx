@@ -59,7 +59,7 @@ function Briefing({ d, range, onRefresh, refreshing }) {
   const hello = h < 5 ? 'Working late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   const bits = [];
   if (a.pending.count) bits.push(<><b>{pl(a.pending.count, 'order is', 'orders are')}</b> waiting for you</>);
-  if (a.messages) bits.push(<><b>{pl(a.messages, 'buyer message is', 'buyer messages are')}</b> unread</>);
+  if (a.messages) bits.push(<><b>{pl(a.messages, 'customer message is', 'customer messages are')}</b> unread</>);
   if (a.outOfStock.count) bits.push(<><b>{pl(a.outOfStock.count, 'product is', 'products are')}</b> out of stock</>);
   if (a.reviews) bits.push(<><b>{pl(a.reviews, 'review needs', 'reviews need')}</b> approval</>);
   const ratio = d.target.value ? d.target.today / d.target.value : 0;
@@ -67,7 +67,7 @@ function Briefing({ d, range, onRefresh, refreshing }) {
   return (
     <header className="cc-brief">
       <div style={{ minWidth: 0 }}>
-        <span className="hud"><span className="led green pulse" />Command center · {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+        <span className="hud"><span className="led green pulse" />Dashboard · {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         <h1>{hello}.</h1>
         <p>
           {bits.length ? <>{joinWords(bits)}.</> : <>Nothing needs you right now.</>}{' '}
@@ -115,7 +115,7 @@ function RevenuePanel({ d, range }) {
           ['Orders', num(k.orders), k.orders, k.prevOrders, '#/orders'],
           ['Avg. order', money(k.aov), k.aov, k.prevAov, '#/orders?status=completed'],
           ['Items sold', num(k.items), k.items, k.prevItems, '#/products?sort=sales'],
-          ['New buyers', num(k.newBuyers), k.newBuyers, k.prevNewBuyers, '#/customers'],
+          ['New customers', num(k.newBuyers), k.newBuyers, k.prevNewBuyers, '#/customers'],
         ].map(([label, shown, now, prev, to]) => (
           <a key={label} className="kpi" href={to}>
             <span className="label">{label}</span>
@@ -240,12 +240,12 @@ function NeedsYou({ a }) {
   const items = [
     { key: 'pending', n: a.pending.count, tone: 'amber', icon: 'receipt', label: 'Orders waiting', text: a.pending.oldest ? `Oldest placed ${ago(a.pending.oldest)}` : 'Confirm or cancel them', to: '/orders?status=pending', urgent: a.pending.oldest && Date.now() - new Date(a.pending.oldest).getTime() > 864e5 },
     { key: 'out', n: a.outOfStock.count, tone: 'coral', icon: 'layers', label: 'Out of stock', text: a.outOfStock.sample.join(' · ') || 'Restock or hide them', to: '/inventory?level=out', urgent: a.outOfStock.count > 0 },
-    { key: 'messages', n: a.messages, tone: 'blue', icon: 'chat', label: 'Unread messages', text: 'Buyers waiting on a reply', to: '/messages?filter=unread' },
+    { key: 'messages', n: a.messages, tone: 'blue', icon: 'chat', label: 'Unread messages', text: 'Customers waiting on a reply', to: '/messages?filter=unread' },
     { key: 'low', n: a.lowStock.count, tone: 'amber', icon: 'layers', label: 'Running low', text: a.lowStock.sample.join(' · '), to: '/inventory?level=low' },
     { key: 'reviews', n: a.reviews, tone: 'violet', icon: 'star', label: 'Reviews to approve', text: 'Hidden until you approve them', to: '/reviews?status=pending' },
     { key: 'hold', n: a.onHold, tone: 'violet', icon: 'clock', label: 'Orders on hold', text: 'Waiting on payment or stock', to: '/orders?status=on_hold' },
     { key: 'ending', n: a.ending, tone: 'blue', icon: 'percent', label: 'Offers ending soon', text: 'Within the next 3 days', to: '/offers' },
-    { key: 'waiting', n: a.stockAlerts, tone: 'blue', icon: 'bell', label: 'Buyers waiting on stock', text: 'Restocking emails them', to: '/inventory?level=out' },
+    { key: 'waiting', n: a.stockAlerts, tone: 'blue', icon: 'bell', label: 'Customers waiting on stock', text: 'Restocking emails them', to: '/inventory?level=out' },
   ];
   const open = items.filter((i) => i.n > 0);
   const clear = items.filter((i) => !i.n);
@@ -257,7 +257,7 @@ function NeedsYou({ a }) {
           <span className="hud"><span className={`led ${open.length ? 'amber pulse' : 'green'}`} />Needs you</span>
           <p className="t2" style={{ marginTop: 6, fontSize: 13 }}>{open.length ? `${pl(open.length, 'kind of task', 'kinds of task')} open` : 'All clear. Nice work.'}</p>
         </div>
-        <span className="queue-n num" style={{ color: open.length ? 'var(--text)' : 'var(--green)' }}>{num(total)}</span>
+        <span className="queue-n num" style={{ color: open.length ? 'var(--text)' : 'var(--muted)' }}>{num(total)}</span>
       </div>
       <ul>
         {open.map((i) => (
@@ -545,7 +545,7 @@ function RevenueMix({ categories, brands, range }) {
 function RecentBuyers({ list }) {
   return (
     <section className="surface span-4 solo-md" aria-label="Recent customers">
-      <div className="surface-head"><h2>New customers</h2><a className="btn sm quiet" href="#/customers">All buyers<Icon name="arrow" /></a></div>
+      <div className="surface-head"><h2>New customers</h2><a className="btn sm quiet" href="#/customers">All customers<Icon name="arrow" /></a></div>
       <ul className="ledger">
         {list.map((c) => (
           <li key={c.id}>

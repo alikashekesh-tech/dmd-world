@@ -65,6 +65,6 @@ class Review extends Model
         $first = trim((string) $user->first_name);
         $last = trim((string) $user->last_name);
 
-        return mb_substr(($first !== '' ? $first : 'DMD buyer').($last !== '' ? ' '.mb_substr($last, 0, 1).'.' : ''), 0, 80);
+        return mb_substr(($first !== '' ? $first : 'DMD customer').($last !== '' ? ' '.mb_substr($last, 0, 1).'.' : ''), 0, 80);
     }
 }

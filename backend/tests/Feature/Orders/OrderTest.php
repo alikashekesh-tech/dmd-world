@@ -89,6 +89,26 @@ class OrderTest extends TestCase
         $browser->post("/api/v1/orders/{$id}/cancel")->assertStatus(409)->assertJsonPath('error.code', 'NOT_CANCELLABLE');
     }
 
+    public function test_a_buyer_can_cancel_only_within_24_hours_of_ordering(): void
+    {
+        $p = Product::factory()->create(['stock_quantity' => 5]);
+        $browser = $this->buyer();
+        $placed = $this->place($browser, $p);
+        $id = $placed['data']['id'];
+        $deadline = Order::find($id)->placed_at->copy()->addHours(24);
+        $this->assertSame($deadline->toIso8601String(), $placed['data']['cancellable_until']);
+
+        $this->travelTo($deadline->copy()->subMinute());
+        $browser->get("/api/v1/orders/{$id}")->assertJsonPath('data.cancellable', true);
+
+        $this->travelTo($deadline->copy()->addMinute());
+        $browser->get("/api/v1/orders/{$id}")->assertJsonPath('data.cancellable', false);
+        $browser->post("/api/v1/orders/{$id}/cancel")->assertStatus(409)->assertJsonPath('error.code', 'NOT_CANCELLABLE')
+            ->assertJsonPath('error.message', 'Orders can only be cancelled within 24 hours of ordering. Message or call DMD to change it.');
+        $this->assertSame('pending', Order::find($id)->status, 'still waiting for DMD');
+        $this->assertSame(4, $p->fresh()->stock_quantity);
+    }
+
     public function test_a_guest_cancels_with_their_token(): void
     {
         $p = Product::factory()->create(['stock_quantity' => 2]);

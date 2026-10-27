@@ -14,7 +14,7 @@ The files are in `deploy/`: `Caddyfile`, the scheduler timer (`dmd-world-schedul
 
 ## 1. Server
 
-- **PHP 8.4** with php-fpm and the extensions `pdo_mysql`, `mbstring`, `intl`, `bcmath`, `fileinfo`, `gd` (or `imagick`), `sodium`, `openssl`, `zip`, `curl`, `xml`. Composer. In `php.ini`: `expose_php = Off`.
+- **PHP 8.4** with php-fpm and the extensions `pdo_mysql`, `mbstring`, `intl`, `bcmath`, `fileinfo`, `gd` (or `imagick`), `sodium`, `openssl`, `zip`, `curl`, `xml`. Composer. In `php.ini`: `expose_php = Off`, and `upload_max_filesize = 32M` with `post_max_size = 32M` (product videos can be up to 30 MB).
 - **MySQL 8.0+** (CHECK constraints are enforced from 8.0.16).
 - **Caddy 2** (automatic HTTPS).
 - **Node 20+** only to build the two React apps (it can run on the build machine instead).

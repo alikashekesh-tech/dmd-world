@@ -51,6 +51,9 @@ export default function Order() {
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // Buyers can cancel for 24 hours after ordering: the button goes when that passes, even with the page left open.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60e3); return () => clearInterval(t); }, []);
   const key = guestOrders.keyFor(id);
   const load = () => {
     setO(null); setMissing(false); setFailed('');
@@ -69,6 +72,7 @@ export default function Order() {
     </div>
   );
   if (!o) return <div className="container" style={{ paddingBlock: '80px' }}><p role="status" style={{ color: 'var(--muted)' }}>Loading your order…</p></div>;
+  const canCancel = o.cancellable && (!o.cancellableUntil || new Date(o.cancellableUntil).getTime() > now);
   const items = o.items.reduce((a, i) => a + i.qty, 0);
   const st = ORDER_STATUS[o.status] || { label: o.status, hint: '' };
   const fresh = Date.now() - new Date(o.date).getTime() < 30 * 60e3 && o.status === 'pending';
@@ -106,7 +110,7 @@ export default function Order() {
           <ul className={s.items}>
             {o.items.map((i) => {
               const p = getProduct(String(i.productId));
-              return (
+  return (
                 <li key={`${i.productId}-${i.name}`}>
                   <span className={s.th}>{p ? <ProductImage product={p} /> : i.image ? <img src={i.image} alt="" referrerPolicy="no-referrer" /> : null}</span>
                   <span><small>Qty {i.qty}</small>{p ? <Link to={`/product/${p.slug}`}>{i.name}</Link> : <b>{i.name}</b>}</span>
@@ -131,10 +135,11 @@ export default function Order() {
               <ul>{o.updates.map((u) => <li key={u.at}><small>{when(u.at)}</small>{u.text}</li>)}</ul>
             </div>
           )}
-          {o.cancellable && (
+          {canCancel && (
             <div className={s.cancel}>
               {!confirmCancel ? (
-                <button type="button" className={s.cancelLink} onClick={() => setConfirmCancel(true)}>Cancel this order</button>
+                <><button type="button" className={s.cancelLink} onClick={() => setConfirmCancel(true)}>Cancel this order</button>
+                  {o.cancellableUntil && <small className={s.cancelUntil}>You can cancel until {when(o.cancellableUntil)}</small>}</>
               ) : (
                 <div className={s.cancelBox} role="group" aria-label="Cancel order">
                   <p><b>Cancel order #{o.number}?</b> DMD hasn’t confirmed it yet, so nothing has been charged or sent.</p>

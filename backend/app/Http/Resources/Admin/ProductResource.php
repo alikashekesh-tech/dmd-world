@@ -36,6 +36,7 @@ class ProductResource extends JsonResource
             'sale_price' => $this->sale_price !== null ? Money::json(Money::cents($this->sale_price)) : null,
             'sale_starts_at' => $this->sale_starts_at?->toIso8601String(),
             'sale_ends_at' => $this->sale_ends_at?->toIso8601String(),
+            'delivery_fee' => $this->delivery_fee !== null ? Money::json(Money::cents($this->delivery_fee)) : null, // null = the store's
             'price' => Money::json($price['price']),
             'on_sale' => $price['on_sale'],
             'offer' => $price['offer'] ? ['id' => $price['offer']['id'], 'name' => $price['offer']['name']] : null, // the store-wide offer behind the price, if any
@@ -49,6 +50,7 @@ class ProductResource extends JsonResource
             'waiting' => $this->when(array_key_exists('waiting', $this->getAttributes()), fn () => (int) $this->getAttributes()['waiting']), // buyers waiting for it
             'image' => $this->relationLoaded('images') ? $this->images->first()?->url : null,
             'images' => $this->relationLoaded('images') ? $this->images->map(fn ($i) => ['id' => $i->id, 'url' => $i->url, 'alt' => $i->alt, 'position' => $i->position])->values() : [],
+            'video_url' => $this->video_url,
             'specifications' => $detail ? $this->specifications->map(fn ($s) => ['name' => $s->name, 'value' => $s->value])->values() : null,
             'short_description' => $this->when($detail, $this->short_description),
             'description' => $this->when($detail, $this->description),
@@ -64,7 +66,7 @@ class ProductResource extends JsonResource
                 $p = Pricing::forVariant($this->resource, $v);
 
                 return [
-                    'id' => $v->id, 'sku' => $v->sku, 'options' => (object) ($v->options ?? []), 'label' => $v->label($this->variation_attributes),
+                    'id' => $v->id, 'sku' => $v->sku, 'options' => (object) ($v->options ?? []), 'label' => $v->label($this->variation_attributes), 'image_url' => $v->image_url,
                     'regular_price' => Money::json(Money::cents($v->regular_price)), 'sale_price' => $v->sale_price !== null ? Money::json(Money::cents($v->sale_price)) : null,
                     'price' => Money::json($p['price']), 'on_sale' => $p['on_sale'],
                     'track_stock' => $v->track_stock, 'stock_quantity' => $v->stock_quantity, 'stock_status' => $v->stock_status, 'is_active' => $v->is_active,

@@ -6,9 +6,9 @@ import { ago, dateTime, day, money, num, STATUS, OWNER_STATUSES } from '../lib/f
 import { Avatar, Button, Chip, Empty, Icon, Notice, PageHeader, Pager, SearchBox, SkeletonRows, StatusChip, StatusSelect, Tabs, Thumb, Toggle, useUi } from '../ui/kit.jsx';
 
 const TABS = ['any', 'pending', 'processing', 'on_hold', 'completed', 'cancelled', 'refunded', 'failed'];
-const nameOf = (o) => o.customer_name || `${o.contact?.first_name || ''} ${o.contact?.last_name || ''}`.trim() || o.contact?.email || 'Guest';
-const addressLines = (o) => (o.address ? [nameOf(o), o.address.street, [o.address.building && `Building ${o.address.building}`, o.address.floor && `Floor ${o.address.floor}`].filter(Boolean).join(', '), [o.address.area, o.address.city].filter(Boolean).join(', '), o.address.country, o.address.notes].filter(Boolean) : []);
-const HISTORY_LABEL = { buyer: 'Buyer', admin: 'You', system: 'Store' };
+export const nameOf = (o) => o.customer_name || `${o.contact?.first_name || ''} ${o.contact?.last_name || ''}`.trim() || o.contact?.email || 'Guest';
+export const addressLines = (o) => (o.address ? [nameOf(o), o.address.street, [o.address.building && `Building ${o.address.building}`, o.address.floor && `Floor ${o.address.floor}`].filter(Boolean).join(', '), [o.address.area, o.address.city].filter(Boolean).join(', '), o.address.country, o.address.notes].filter(Boolean) : []);
+const HISTORY_LABEL = { buyer: 'Customer', admin: 'You', system: 'Store' };
 
 /** Change an order's status with a confirmation for cancelling and an undo where the move can be reversed. */
 export function useOrderStatus() {
@@ -63,7 +63,7 @@ export function OrdersPage({ query }) {
       </div>
       <div className="toolbar">
         <SearchBox value={search} onChange={setSearch} placeholder="Order number, name, email or phone" />
-        {query.get('customer') && <Chip tone="blue">Buyer #{query.get('customer')} <button type="button" aria-label="Clear buyer filter" onClick={() => setQuery({ customer: null, page: null })}><Icon name="close" size={12} /></button></Chip>}
+        {query.get('customer') && <Chip tone="blue">Customer #{query.get('customer')} <button type="button" aria-label="Clear customer filter" onClick={() => setQuery({ customer: null, page: null })}><Icon name="close" size={12} /></button></Chip>}
         {query.get('email') && <Chip tone="blue">{query.get('email')} <button type="button" aria-label="Clear guest filter" onClick={() => setQuery({ email: null, page: null })}><Icon name="close" size={12} /></button></Chip>}
       </div>
       <div className="surface">
@@ -143,7 +143,7 @@ export function OrderDetail({ params }) {
     <>
       <PageHeader crumbs={[{ label: 'Orders', to: '#/orders' }, { label: `#${o.number}` }]} title={`Order #${o.number}`}
         text={`Placed ${dateTime(o.placed_at)}${o.cancelled_at ? ` · cancelled ${day(o.cancelled_at)}` : ''}`}
-        actions={<StatusSelect status={o.status} busy={busy} onChange={change} />} />
+        actions={<><a className="btn" href={`#/orders/${o.id}/invoice`} target="_blank" rel="noopener"><Icon name="receipt" />Print invoice</a><StatusSelect status={o.status} busy={busy} onChange={change} /></>} />
       {o.status === 'pending' && <div style={{ marginBottom: 14 }}><Notice tone="amber" icon="clock">Waiting for confirmation since {ago(o.placed_at)}. Move it to <b>Processing</b> once it is confirmed, or <b>Cancelled</b> if it is not going ahead.</Notice></div>}
 
       <div className="split">
@@ -152,7 +152,7 @@ export function OrderDetail({ params }) {
             <section className="surface buyer-note">
               <div className="surface-body row" style={{ alignItems: 'flex-start' }}>
                 <Icon name="chat" />
-                <div className="grow"><span className="label">Note from {o.contact.first_name || 'the buyer'}</span><p style={{ marginTop: 6, fontSize: 14.5 }}>“{o.customer_note}”</p></div>
+                <div className="grow"><span className="label">Note from {o.contact.first_name || 'the customer'}</span><p style={{ marginTop: 6, fontSize: 14.5 }}>“{o.customer_note}”</p></div>
                 {o.user_id && <Button size="sm" onClick={() => setToBuyer(true)}>Reply</Button>}
               </div>
             </section>
@@ -164,7 +164,11 @@ export function OrderDetail({ params }) {
               <tbody>
                 {o.items.map((l, i) => (
                   <tr key={`${l.product_id}-${i}`}>
-                    <td><div className="cell-main"><Thumb src={l.image_url} /><div style={{ minWidth: 0 }}><b>{l.product_id ? <a href={`#/products/${l.product_id}`}>{l.name}</a> : l.name}</b><small>{l.sku ? `SKU ${l.sku}` : l.product_id ? `Product ${l.product_id}` : 'No longer in the catalog'}{l.unit_price < l.regular_price ? ` · was ${money(l.regular_price)}` : ''}</small></div></div></td>
+                    <td>{(() => {
+                      const inner = <><Thumb src={l.image_url} /><div style={{ minWidth: 0 }}><b>{l.name}</b><small>{l.sku ? `SKU ${l.sku}` : l.product_id ? `Product ${l.product_id}` : 'No longer in the catalog'}{l.unit_price < l.regular_price ? ` · was ${money(l.regular_price)}` : ''}</small></div></>;
+                      // The whole cell (picture, name, SKU) shows the product as customers see it, in the shop (new tab).
+                      return l.product_id ? <a className="cell-main cell-link" href={`/product/${l.product_id}`} target="_blank" rel="noopener noreferrer" title="View this product in the shop">{inner}</a> : <div className="cell-main">{inner}</div>;
+                    })()}</td>
                     <td className="right mono" data-label="Price">{money(l.unit_price)}</td>
                     <td className="right mono" data-label="Qty">×{l.quantity}</td>
                     <td className="right" data-label="Total"><b className="num">{money(l.line_total)}</b>{l.line_discount > 0 && <del className="muted mono" style={{ display: 'block', fontSize: 11 }}>{money(l.line_subtotal)}</del>}</td>
@@ -175,7 +179,7 @@ export function OrderDetail({ params }) {
             <dl className="totals">
               <dt>Subtotal</dt><dd>{money(o.subtotal)}</dd>
               {o.discount_total > 0 && <Fragment><dt>{o.coupon_code ? <>Coupon <span className="coupon-code">{o.coupon_code}</span></> : 'Discount'}</dt><dd style={{ color: 'var(--coral)' }}>−{money(o.discount_total)}</dd></Fragment>}
-              <dt>{o.delivery_method_label}</dt><dd>{o.shipping_total > 0 ? money(o.shipping_total) : o.delivery_method === 'pickup' ? 'Free' : 'Confirmed with the buyer'}</dd>
+              <dt>{o.delivery_method_label}</dt><dd>{o.delivery_method === 'pickup' ? 'Free' : <DeliveryPrice o={o} onSaved={setO} />}</dd>
               <dt className="grand">Total</dt><dd className="grand">{money(o.total)}</dd>
             </dl>
           </section>
@@ -183,12 +187,12 @@ export function OrderDetail({ params }) {
           <section className="surface">
             <div className="surface-head"><h3>Notes & history</h3><span className="hud">{num(o.history?.length || 0)}</span></div>
             <form className="surface-body stack" onSubmit={addNote} style={{ borderBottom: '1px solid var(--line)', gap: 10 }}>
-              <textarea className="textarea" style={{ minHeight: 72 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder={toBuyer ? `Message to ${o.contact.first_name || 'the buyer'}…` : 'Private note (only you see it)…'} aria-label="Note" maxLength={toBuyer ? 2000 : 500} />
+              <textarea className="textarea" style={{ minHeight: 72 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder={toBuyer ? `Message to ${o.contact.first_name || 'the customer'}…` : 'Private note (only you see it)…'} aria-label="Note" maxLength={toBuyer ? 2000 : 500} />
               <div className="row wrap">
-                {o.user_id ? <Toggle checked={toBuyer} onChange={setToBuyer} label={toBuyer ? `Message ${o.contact.email} (email + their account)` : 'Send to the buyer'} />
+                {o.user_id ? <Toggle checked={toBuyer} onChange={setToBuyer} label={toBuyer ? `Message ${o.contact.email} (email + their account)` : 'Send to the customer'} />
                   : <span className="muted" style={{ fontSize: 12 }}>Guest checkout: reach them by phone or email.</span>}
                 <span className="grow" />
-                <Button type="submit" variant={toBuyer ? 'primary' : ''} icon={toBuyer ? 'send' : 'plus'} loading={busy} disabled={!note.trim()}>{toBuyer ? 'Send to buyer' : 'Add note'}</Button>
+                <Button type="submit" variant={toBuyer ? 'primary' : ''} icon={toBuyer ? 'send' : 'plus'} loading={busy} disabled={!note.trim()}>{toBuyer ? 'Send to customer' : 'Add note'}</Button>
               </div>
             </form>
             <ul className="notes">
@@ -203,14 +207,14 @@ export function OrderDetail({ params }) {
               ))}
               {!o.history?.length && <li className="muted">No notes yet.</li>}
             </ul>
-            {o.user_id && <div className="surface-body"><a className="linkish" href="#/messages">Conversations with buyers are in Messages</a></div>}
+            {o.user_id && <div className="surface-body"><a className="linkish" href="#/messages">Conversations with customers are in Messages</a></div>}
           </section>
         </div>
 
         <aside className="stack sticky-col">
           <section className="surface">
             <div className="surface-body stack" style={{ gap: 12 }}>
-              <div className="row"><Avatar name={name} size="lg" /><div style={{ minWidth: 0 }}><h3 style={{ fontSize: 17 }}>{name}</h3><span className="muted" style={{ fontSize: 12.5 }}>{o.user_id ? 'Registered buyer' : 'Guest checkout'}</span></div></div>
+              <div className="row"><Avatar name={name} size="lg" /><div style={{ minWidth: 0 }}><h3 style={{ fontSize: 17 }}>{name}</h3><span className="muted" style={{ fontSize: 12.5 }}>{o.user_id ? 'Registered customer' : 'Guest checkout'}</span></div></div>
               <div className="stack" style={{ gap: 6, fontSize: 13.5 }}>
                 {o.contact.email && <a className="row" style={{ gap: 8 }} href={`mailto:${o.contact.email}`}><Icon name="mail" size={15} className="muted" /><span className="clamp1">{o.contact.email}</span></a>}
                 {o.contact.phone && <a className="row" style={{ gap: 8 }} href={`tel:${o.contact.phone}`}><Icon name="phone" size={15} className="muted" />{o.contact.phone}</a>}
@@ -222,7 +226,7 @@ export function OrderDetail({ params }) {
                   <div><b className="num" style={{ fontSize: 14 }}>{buyer.first_order_at ? new Date(buyer.first_order_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '—'}</b><span className="label">Since</span></div>
                 </div>
               )}
-              <a className="btn sm" href={profile}>Buyer profile<Icon name="arrow" /></a>
+              <a className="btn sm" href={profile}>Customer profile<Icon name="arrow" /></a>
             </div>
           </section>
           <section className="surface">
@@ -242,5 +246,39 @@ export function OrderDetail({ params }) {
         </aside>
       </div>
     </>
+  );
+}
+
+/** The order's delivery price, editable: for an order whose cost DMD agreed with the customer, or one placed before
+   the store had a delivery price. Saving updates the total (and the invoice) and notes it in the history. */
+function DeliveryPrice({ o, onSaved }) {
+  const { toast, fail } = useUi();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const start = () => { setValue(o.shipping_total > 0 ? String(o.shipping_total) : ''); setEditing(true); };
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { data } = await api.put(`/orders/${o.id}/delivery`, { shipping_total: value === '' ? 0 : Number(value) });
+      onSaved(data); changed('orders'); setEditing(false); toast(`Delivery price saved. New total ${money(data.total)}`);
+    } catch (x) { fail(x); }
+    setBusy(false);
+  };
+  if (!editing) {
+    return (
+      <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+        {o.shipping_total > 0 ? money(o.shipping_total) : <span className="muted">Not set</span>}
+        <button type="button" className="linkish" onClick={start} style={{ fontSize: 12 }}>{o.shipping_total > 0 ? 'Edit' : 'Set price'}</button>
+      </span>
+    );
+  }
+  return (
+    <form className="row" style={{ gap: 6, justifyContent: 'flex-end' }} onSubmit={save}>
+      <span className="input-affix" style={{ width: 110 }}><span>$</span><input className="input mono" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} autoFocus aria-label="Delivery price" /></span>
+      <Button type="submit" size="sm" variant="primary" loading={busy}>Save</Button>
+      <Button size="sm" variant="quiet" onClick={() => setEditing(false)}>Cancel</Button>
+    </form>
   );
 }

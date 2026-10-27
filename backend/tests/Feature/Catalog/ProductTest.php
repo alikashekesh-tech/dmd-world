@@ -94,6 +94,19 @@ class ProductTest extends TestCase
         $this->assertNull(Product::withTrashed()->find($id));
     }
 
+    public function test_the_owner_sets_or_clears_a_products_delivery_price(): void
+    {
+        $owner = $this->owner();
+        $id = $owner->post(self::ADMIN, $this->form(['delivery_fee' => 12.5]))->assertCreated()->assertJsonPath('data.delivery_fee', 12.5)->json('data.id');
+        $this->client()->get("/api/v1/products/{$id}")->assertJsonPath('data.delivery_fee', 12.5);
+
+        $owner->put(self::ADMIN."/{$id}", ['delivery_fee' => null])->assertOk()->assertJsonPath('data.delivery_fee', null);
+        $this->client()->get("/api/v1/products/{$id}")->assertJsonPath('data.delivery_fee', null, 'back to the store’s price');
+
+        $owner->put(self::ADMIN."/{$id}", ['delivery_fee' => -1])->assertStatus(422);
+        $owner->put(self::ADMIN."/{$id}", ['delivery_fee' => 2.555])->assertStatus(422)->assertJsonPath('error.fields.delivery_fee.0', 'Use at most two decimals (cents).');
+    }
+
     public function test_prices_are_validated_on_the_server(): void
     {
         $owner = $this->owner();
@@ -107,6 +120,31 @@ class ProductTest extends TestCase
         // Lowering the price below the existing sale price would make the "sale" a markup.
         $owner->put(self::ADMIN."/{$id}", ['regular_price' => 70])->assertStatus(422)->assertJsonPath('error.code', 'SALE_NOT_LOWER');
         $this->assertSame('100.00', Product::find($id)->regular_price);
+    }
+
+    public function test_a_product_shows_an_uploaded_video_or_a_youtube_link(): void
+    {
+        $owner = $this->owner();
+        $file = '/storage/uploads/2026/10/0f8fad5b-d9cb-469f-a165-70867728950e.mp4';
+
+        $id = $owner->post(self::ADMIN, $this->form(['video_url' => $file]))->assertCreated()->assertJsonPath('data.video_url', $file)->json('data.id');
+        $this->client()->get("/api/v1/products/{$id}")->assertOk()->assertJsonPath('data.video', ['type' => 'file', 'url' => $file]);
+
+        $owner->put(self::ADMIN."/{$id}", ['video_url' => 'https://youtu.be/dQw4w9WgXcQ?si=abc'])->assertOk();
+        $this->client()->get("/api/v1/products/{$id}")->assertJsonPath('data.video', ['type' => 'youtube', 'id' => 'dQw4w9WgXcQ', 'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
+
+        $owner->put(self::ADMIN."/{$id}", ['video_url' => null])->assertOk();
+        $this->client()->get("/api/v1/products/{$id}")->assertJsonPath('data.video', null);
+    }
+
+    public function test_only_uploaded_videos_and_youtube_links_are_accepted(): void
+    {
+        $owner = $this->owner();
+        foreach (['https://evil.example.com/clip.mp4', 'javascript:alert(1)', '/storage/uploads/2026/10/../../.env', 'https://www.youtube.com.evil.com/watch?v=dQw4w9WgXcQ', '/storage/uploads/2026/10/x.png'] as $bad) {
+            $owner->post(self::ADMIN, $this->form(['video_url' => $bad]))->assertStatus(422)
+                ->assertJsonPath('error.fields.video_url.0', 'Upload an MP4 or WebM video here, or paste a YouTube link.');
+        }
+        $this->assertSame(0, Product::count());
     }
 
     public function test_skus_and_slugs_are_unique(): void

@@ -14,6 +14,8 @@ use App\Services\Import\TaxonomyImporter;
 use App\Services\Import\WooCommerceSource;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -21,6 +23,7 @@ use Throwable;
  *
  *   php artisan dmd:import                     everything, in dependency order
  *   php artisan dmd:import --only=taxonomy     just categories and brands
+ *   php artisan dmd:import --fixtures          import from local test fixtures
  *
  * Each part runs in its own transaction and updates the same rows when run again (WooCommerce ids are kept).
  * After go-live MySQL is the source of truth, so the command refuses to run in production without --force.
@@ -29,6 +32,7 @@ class ImportFromWooCommerce extends Command
 {
     protected $signature = 'dmd:import
         {--only=* : Limit to some parts: settings, taxonomy, products, customers, orders, reviews, notes, coupons}
+        {--fixtures : Load from tests/Fixtures/woocommerce instead of remote store}
         {--force : Allow running with APP_ENV=production (only before go-live)}';
 
     protected $description = 'Import the old WooCommerce store into MySQL (categories, brands, …), keeping legacy ids';
@@ -47,6 +51,29 @@ class ImportFromWooCommerce extends Command
             $this->error('Unknown part(s): '.implode(', ', $unknown).'. Choose from: '.implode(', ', self::PARTS).'.');
 
             return self::FAILURE;
+        }
+
+        if ($this->option('fixtures')) {
+            config(['dmd.import.woocommerce' => ['url' => 'https://fixtures.local', 'key' => 'ck_test', 'secret' => 'cs_test']]);
+            $base = 'fixtures.local/wp-json/wc/v3/';
+            $fixture = fn (string $name) => json_decode(file_get_contents(base_path("tests/Fixtures/woocommerce/{$name}.json")), true);
+            $list = fn (string $name) => Http::response($fixture($name), 200, ['X-WP-TotalPages' => '1']);
+            $settings = $fixture('settings');
+            $coupons = collect($fixture('coupons'));
+            $notes = $fixture('order-notes');
+
+            Http::fake([
+                $base.'products/categories*' => $list('categories'),
+                $base.'products/reviews*' => $list('reviews'),
+                $base.'products*' => $list('products'),
+                $base.'customers*' => $list('customers'),
+                $base.'orders/*/notes*' => fn ($r) => Http::response($notes[Str::between($r->url(), '/orders/', '/notes')] ?? []),
+                $base.'orders*' => $list('orders'),
+                $base.'coupons*' => fn ($r) => Http::response(str_contains($r->url(), 'status=trash')
+                    ? $coupons->where('status', 'trash')->values()->all()
+                    : $coupons->where('status', '!=', 'trash')->values()->all(), 200, ['X-WP-TotalPages' => '1']),
+                $base.'settings/*' => fn ($r) => Http::response($settings[Str::afterLast(Str::before($r->url(), '?'), '/')] ?? [], 200),
+            ]);
         }
 
         try {

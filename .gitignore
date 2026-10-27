@@ -22,6 +22,9 @@ server/data/
 *.log
 
 .idea/
+.DS_Store
+*.tar.gz
+*.zip
 video/public/seq/
 video/public/shots/
 video/public/music.wav

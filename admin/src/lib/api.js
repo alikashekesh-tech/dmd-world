@@ -65,6 +65,8 @@ export const api = {
   del: (p) => call('DELETE', p),
   /** An image for products, categories, brands or banners: checked and stored by the server; returns { url }. */
   upload: async (file) => { const f = new FormData(); f.append('file', file); return (await call('POST', '/uploads', f)).data; },
+  /** A product video (MP4 or WebM, up to 30 MB): checked and stored by the server; returns { url }. */
+  uploadVideo: async (file) => { const f = new FormData(); f.append('file', file); return (await call('POST', '/uploads/video', f)).data; },
 };
 
 /** A paginated Laravel list → { items, page, pages, total } (the shape the screens' Pager uses). */

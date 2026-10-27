@@ -33,7 +33,7 @@ class ConversationController extends Controller
         if (! empty($v['q'])) {
             $term = trim(ltrim($v['q'], '#'));
             $like = '%'.addcslashes($term, '%_\\').'%';
-            $q->where(fn ($w) => $w->where('subject', 'like', $like)
+            $q->where(fn ($w) => $w->where('subject', 'like', $like)->orWhere('guest_name', 'like', $like)->orWhere('guest_email', 'like', $like)
                 ->orWhereHas('order', fn ($o) => $o->where('number', $term))
                 ->orWhereHas('user', fn ($u) => $u->where('email', 'like', $like)->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$like])));
         }

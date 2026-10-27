@@ -13,7 +13,7 @@ function Coins({ n }) {
   const first = useRef(n); // coins present on first paint drop in sequence; later ones drop alone
   const RX = 40; const RY = 11; const H = 9; const BASE = 232;
   return (
-    <svg className={s.coins} viewBox="0 100 120 160" aria-hidden="true">
+    <svg className={s.coins} viewBox="0 70 120 190" aria-hidden="true">
       <ellipse cx="60" cy={BASE + 12} rx="52" ry="9" className={s.coinShadow} />
       {Array.from({ length: n }, (_, i) => {
         const y = BASE - i * H;
@@ -73,7 +73,7 @@ export default function BudgetStack({ n = 3 }) {
               style={{ '--p': `${pct}%` }}
             />
             <div className={s.ticks} aria-hidden="true">
-              {BUDGET_STOPS.map((v, k) => <button type="button" tabIndex={-1} key={v} className={k === i ? s.tickOn : undefined} onClick={() => setI(k)} style={{ left: `${(k / (BUDGET_STOPS.length - 1)) * 100}%` }}>{[0, 3, 7, 9, 11].includes(k) ? `$${v}` : ''}</button>)}
+              {BUDGET_STOPS.map((v, k) => <button type="button" tabIndex={-1} key={v} className={k === i ? s.tickOn : undefined} onClick={() => setI(k)} style={{ left: `${(k / (BUDGET_STOPS.length - 1)) * 100}%` }}>{[5, 20, 50, 100, 250, 1000].includes(v) ? `$${v}` : ''}</button>)}
             </div>
 
             <Link to={`/shop?price=0-${max}`} className={s.cta}>See all {count} <ArrowRight size={17} /></Link>

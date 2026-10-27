@@ -19,7 +19,7 @@ const ensureCsrf = (force = false) => {
   return csrfReady;
 };
 
-async function call(method, path, body, { timeout = TIMEOUT, retried = false } = {}) {
+async function call(method, path, body, { timeout = TIMEOUT, retried = false, headers = {} } = {}) {
   const writes = method !== 'GET';
   if (writes) await ensureCsrf();
   let res;
@@ -27,7 +27,7 @@ async function call(method, path, body, { timeout = TIMEOUT, retried = false } =
     res = await fetch(BASE + path, {
       method,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(writes && xsrf() ? { 'X-XSRF-TOKEN': xsrf() } : {}) },
+      headers: { Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(writes && xsrf() ? { 'X-XSRF-TOKEN': xsrf() } : {}), ...headers },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(timeout),
     });
@@ -37,7 +37,7 @@ async function call(method, path, body, { timeout = TIMEOUT, retried = false } =
   // An expired CSRF token (a long-open tab): fetch a fresh one and try once more.
   if (res.status === 419 && writes && !retried) {
     await ensureCsrf(true);
-    return call(method, path, body, { timeout, retried: true });
+    return call(method, path, body, { timeout, retried: true, headers });
   }
   if (res.status === 204) return null;
   if (!/application\/json/i.test(res.headers.get('content-type') || '')) throw new StoreApiError(OFFLINE, res.status || 0, 'offline');

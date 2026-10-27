@@ -27,3 +27,5 @@ export const PhoneIcon = I(<path d="M5 4h4l2 5-2.500 1.500a11 11 0 0 0 5 5L15 13
 export const MailIcon = I(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>);
 export const BellIcon = I(<><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>);
 export const RepeatIcon = I(<><path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3" /><path d="M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3" /></>);
+export const PinIcon = I(<><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11Z" /><circle cx="12" cy="10" r="2.5" /></>);
+export const ClockIcon = I(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>);

@@ -12,7 +12,7 @@
 .of-sec { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); padding: 20px 24px 22px; }
 .of-sec + .of-sec { border-top: 1px solid var(--line); }
 .of-h { display: flex; align-items: center; gap: 10px; font-size: 15px; letter-spacing: -0.01em; }
-.of-h span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: color-mix(in srgb, var(--blue) 10%, transparent); color: var(--blue); font: 700 11.5px var(--mono); }
+.of-h span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: color-mix(in srgb, var(--blue) 10%, transparent); color: var(--blue); font: 600 12px var(--inter); }
 .of-sub { margin-top: -6px; font-size: 13px; color: var(--text-2); }
 .of-side { padding: 20px; border-left: 1px solid var(--line); background: var(--bg-2); }
 .of-side > .pv { position: sticky; top: 20px; } /* stays beside the form while it scrolls */
@@ -88,7 +88,7 @@
 .pv-warn { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.45; background: color-mix(in srgb, var(--amber) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent); color: var(--amber); }
 .pv-warn svg { flex: none; margin-top: 1px; }
 .pv-sample { display: grid; gap: 6px; }
-.pv-sample h4 { font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.pv-sample h4 { font: 500 12.5px var(--inter); color: var(--muted); }
 .pv-sample ul { border-radius: 12px; border: 1px solid var(--line); background: var(--panel); overflow: hidden; }
 .pv-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
 .pv-row + .pv-row { border-top: 1px solid var(--line); }

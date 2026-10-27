@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
 
-/** A conversation for the owner's inbox. */
+/** A conversation for the owner's inbox: a buyer's messages or a live chat (a guest's too). */
 class ConversationResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -18,7 +18,10 @@ class ConversationResource extends JsonResource
         return [
             'id' => $this->id,
             'subject' => $this->subject,
-            'customer' => $user ? ['id' => $user->id, 'name' => $user->fullName(), 'email' => $user->email, 'phone' => $user->phone] : null,
+            // A guest in the live chat has no account: just the name (and optional email) they gave.
+            'customer' => $user ? ['id' => $user->id, 'name' => $user->fullName(), 'email' => $user->email, 'phone' => $user->phone, 'guest' => false]
+                : ($this->user_id === null ? ['id' => null, 'name' => $this->guest_name ?: 'Visitor', 'email' => $this->guest_email, 'phone' => null, 'guest' => true] : null),
+            'channel' => $this->channel ?? 'message', // message | chat (the live chat bubble on the shop)
             'order' => $order ? [
                 'id' => $order->id, 'number' => $order->number, 'status' => $order->status, 'total' => Money::json(Money::cents($order->total)),
                 'placed_at' => $order->placed_at?->toIso8601String(), 'customer_note' => $order->customer_note,

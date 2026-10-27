@@ -38,6 +38,7 @@ class ProductResource extends JsonResource
             'on_sale' => $price['on_sale'],
             'discount_percent' => $price['on_sale'] ? (int) round(100 - $price['price'] * 100 / max(1, $price['regular'])) : 0,
             'sale_ends_at' => $price['sale_ends_at']?->toIso8601String(),
+            'delivery_fee' => $this->delivery_fee !== null ? Money::json(Money::cents($this->delivery_fee)) : null, // its own; null = the store's
             'offer' => $price['offer'] ? ['id' => $price['offer']['id'], 'label' => $price['offer']['label'] ?: $price['offer']['name']] : null,
             'availability' => $availability,
             'stock_left' => $availability === Inventory::LOW_STOCK ? $this->stock_quantity : null,
@@ -60,7 +61,7 @@ class ProductResource extends JsonResource
                 $level = Inventory::variantAvailability($v, $this->resource);
 
                 return [
-                    'id' => $v->id, 'sku' => $v->sku, 'options' => (object) ($v->options ?? []),
+                    'id' => $v->id, 'sku' => $v->sku, 'options' => (object) ($v->options ?? []), 'image' => $v->image_url,
                     'price' => Money::json($p['price']), 'regular_price' => Money::json($p['regular']), 'on_sale' => $p['on_sale'],
                     'discount_percent' => $p['on_sale'] ? (int) round(100 - $p['price'] * 100 / max(1, $p['regular'])) : 0,
                     'availability' => $level, 'stock_left' => $level === Inventory::LOW_STOCK ? $v->stock_quantity : null,

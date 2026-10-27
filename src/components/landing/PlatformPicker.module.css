@@ -126,10 +126,18 @@
 .cta:hover svg { transform: translateX(3px); }
 .cta:active { transform: translateY(1px); }
 
-.railWrap { margin-top: 36px; }
-.railHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font: 500 12px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: #8191b0; }
-.railHead a { display: inline-flex; align-items: center; gap: 6px; color: #dfe7f7; letter-spacing: 0.08em; }
-.railHead a:hover { color: var(--acc); }
+/* "In stock now": a full-width light band at the foot of the section, white product cards on the page's light gray,
+   running straight on into the light section after it. */
+.withBand { padding-bottom: 0; }
+.band {
+  margin-top: clamp(40px, 5vw, 64px);
+  padding: clamp(36px, 4vw, 56px) 0 clamp(28px, 4vw, 48px);
+  color: var(--text);
+  background: #edf1f7; /* the light gray of the price drops that follow */
+}
+.railHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font: 500 12px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.railHead a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); letter-spacing: 0.08em; }
+.railHead a:hover { color: var(--accent); }
 .rail {
   display: grid;
   grid-auto-flow: column;
@@ -139,7 +147,7 @@
   scroll-snap-type: x mandatory;
   padding-bottom: 10px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(159, 178, 214, 0.25) transparent;
+  scrollbar-color: rgba(11, 18, 32, 0.2) transparent;
 }
 .rail > * { scroll-snap-align: start; animation: rise 0.6s calc(var(--i) * 55ms) both cubic-bezier(.2, .7, .2, 1); }
 

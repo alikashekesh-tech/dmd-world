@@ -26,9 +26,13 @@ class OrderPlaced extends Notification
         $mail = (new MailMessage)
             ->subject("DMD World order #{$o->number} received")
             ->greeting("Thanks, {$o->first_name}!")
-            ->line("We’ve received your order #{$o->number}. DMD will call or message you to confirm it.");
+            ->line("We’ve received your order #{$o->number} and it will be processed shortly. DMD will call or message you to confirm it.");
         foreach ($o->items as $item) {
             $mail->line("{$item->quantity} × {$item->displayName()}: $".Money::decimal(Money::cents($item->line_total)));
+        }
+
+        if (Money::cents($o->shipping_total) > 0) {
+            $mail->line('Delivery: $'.Money::decimal(Money::cents($o->shipping_total)));
         }
 
         return $mail->line('Total: $'.Money::decimal(Money::cents($o->total)).' ('.(Order::PAYMENT_METHODS[$o->payment_method] ?? $o->payment_method).')')

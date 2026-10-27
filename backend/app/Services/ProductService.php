@@ -28,7 +28,7 @@ final class ProductService
 
     public const MAX_VARIANTS = 100;
 
-    private const FIELDS = ['brand_id', 'name', 'short_description', 'description', 'regular_price', 'sale_price', 'sale_starts_at',
+    private const FIELDS = ['brand_id', 'name', 'short_description', 'description', 'video_url', 'delivery_fee', 'regular_price', 'sale_price', 'sale_starts_at',
         'sale_ends_at', 'is_featured', 'track_stock', 'low_stock_threshold', 'stock_status', 'weight_kg', 'length_cm', 'width_cm', 'height_cm'];
 
     public function __construct(private Inventory $inventory) {}
@@ -198,6 +198,11 @@ final class ProductService
 
         if ($plan) {
             $this->saveVariants($product, $plan, $by);
+            if (array_key_exists('images', $data)) {
+                // A variant image that left the gallery (variants not sent this time) is dropped, not left pointing at nothing.
+                ProductVariant::withTrashed()->where('product_id', $product->id)->whereNotNull('image_url')
+                    ->whereNotIn('image_url', $product->images()->pluck('url')->all() ?: [''])->update(['image_url' => null]);
+            }
         } elseif ($wasVariable) {
             // Back to a simple product: its variants are removed (kept for past orders and the stock history).
             ProductVariant::where('product_id', $product->id)->get()->each(fn (ProductVariant $v) => $this->removeVariant($v));
@@ -215,7 +220,7 @@ final class ProductService
         if (! array_key_exists('attributes', $data) && ! array_key_exists('variants', $data) && $wasVariable) {
             // Nothing about the variants was sent: keep them as they are.
             return ['attributes' => $product->variation_attributes ?? [], 'rows' => $product->variants()->get()->map(fn (ProductVariant $v) => [
-                'model' => $v, 'options' => $v->options, 'key' => $v->options_key, 'sku' => $v->sku, 'regular_price' => $v->regular_price, 'sale_price' => $v->sale_price,
+                'model' => $v, 'options' => $v->options, 'key' => $v->options_key, 'sku' => $v->sku, 'image_url' => $v->image_url, 'regular_price' => $v->regular_price, 'sale_price' => $v->sale_price,
                 'own' => min(array_filter([Money::cents($v->regular_price), $v->sale_price !== null ? Money::cents($v->sale_price) : null], fn ($c) => $c !== null)),
                 'track_stock' => $v->track_stock, 'stock_quantity' => null, 'stock_status' => $v->stock_status, 'is_active' => $v->is_active, 'keep' => true,
             ])->all()];
@@ -261,6 +266,8 @@ final class ProductService
             throw $this->field('variants', 'VARIANTS_MAX', 'A product can have at most '.self::MAX_VARIANTS.' variants.');
         }
 
+        // A variant's image is one of the product's own images: the ones being saved, or the ones it has.
+        $gallery = array_key_exists('images', $data) ? array_column(array_values($data['images'] ?? []), 'url') : ($product->exists ? $product->images()->pluck('url')->all() : []);
         $existing = $product->exists ? ProductVariant::withTrashed()->where('product_id', $product->id)->get() : collect();
         $rows = [];
         $keys = [];
@@ -322,8 +329,12 @@ final class ProductService
                 throw $this->field("variants.{$i}.sale_price", 'SALE_NOT_LOWER', "The {$label} sale price has to be lower than its regular price.");
             }
             $tracked = (bool) ($v['track_stock'] ?? true);
+            $image = isset($v['image_url']) && trim((string) $v['image_url']) !== '' ? trim((string) $v['image_url']) : null;
+            if ($image !== null && ! in_array($image, $gallery, true)) {
+                throw $this->field("variants.{$i}.image_url", 'VARIANT_IMAGE', "The {$label} image has to be one of the product’s images.");
+            }
 
-            $rows[] = ['model' => $model, 'options' => $options, 'key' => $key, 'sku' => $sku, 'label' => $label,
+            $rows[] = ['model' => $model, 'options' => $options, 'key' => $key, 'sku' => $sku, 'label' => $label, 'image_url' => $image,
                 'regular_price' => Money::decimal($regular), 'sale_price' => $sale !== null ? Money::decimal($sale) : null, 'own' => $sale ?? $regular,
                 'track_stock' => $tracked, 'stock_quantity' => array_key_exists('stock_quantity', $v) && $v['stock_quantity'] !== null ? (int) $v['stock_quantity'] : null,
                 'stock_status' => $v['stock_status'] ?? 'in_stock', 'is_active' => (bool) ($v['is_active'] ?? true), 'keep' => false];
@@ -376,7 +387,7 @@ final class ProductService
                 $m->restore();
             }
             $m->forceFill([
-                'product_id' => $product->id, 'options' => $r['options'], 'options_key' => $r['key'], 'sku' => $r['sku'],
+                'product_id' => $product->id, 'options' => $r['options'], 'options_key' => $r['key'], 'sku' => $r['sku'], 'image_url' => $r['image_url'],
                 'regular_price' => $r['regular_price'], 'sale_price' => $r['sale_price'], 'track_stock' => $r['track_stock'],
                 'stock_status' => $r['track_stock'] ? 'in_stock' : $r['stock_status'], 'is_active' => $r['is_active'], 'position' => $position,
             ])->save();

@@ -10,6 +10,7 @@ use App\Models\OrderStatusEvent;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -36,10 +37,10 @@ final class OrderService
             if (! in_array($to, Order::TRANSITIONS[$from] ?? [], true)) {
                 throw new ApiException(409, 'STATUS_NOT_ALLOWED', "An order that is {$this->label($from)} can’t be marked {$this->label($to)}.");
             }
-            // A buyer may only cancel an order DMD hasn't confirmed. Checked again here, under the lock: the owner may have
-            // confirmed it between the buyer's page loading and this request.
-            if ($actor === 'buyer' && ! $locked->cancellableByBuyer()) {
-                throw new ApiException(409, 'NOT_CANCELLABLE', 'DMD has already confirmed this order. Message or call DMD to change it.');
+            // A buyer may only cancel an order DMD hasn't confirmed, within 24 hours. Checked again here, under the lock: the
+            // owner may have confirmed it between the buyer's page loading and this request.
+            if ($actor === 'buyer' && ($refusal = $locked->buyerCancelRefusal())) {
+                throw new ApiException(409, 'NOT_CANCELLABLE', $refusal);
             }
 
             $changes = ['status' => $to];
@@ -85,6 +86,29 @@ final class OrderService
         $order->forceFill(['payment_status' => $status])->save();
         (new OrderStatusEvent)->forceFill(['order_id' => $order->id, 'actor' => 'admin', 'admin_id' => $admin->id, 'note' => "Payment marked {$status}"])->save();
         Activity::record('order.payment', "Marked order #{$order->number} as {$status}", $order, $admin);
+
+        return $order;
+    }
+
+    /**
+     * Sets what delivery costs on this order (agreed with the customer, or for an order placed before the store had a
+     * delivery price). The total follows: subtotal − discount + delivery. Noted in the order's history.
+     */
+    public function setDeliveryPrice(Order $order, int $cents, Admin $admin): Order
+    {
+        $before = Money::cents($order->shipping_total);
+        if ($before === $cents) {
+            return $order;
+        }
+        DB::transaction(function () use ($order, $cents, $before, $admin) {
+            $locked = Order::lockForUpdate()->findOrFail($order->id);
+            $total = Money::cents($locked->subtotal) - Money::cents($locked->discount_total) + $cents;
+            $locked->forceFill(['shipping_total' => Money::decimal($cents), 'total' => Money::decimal($total)])->save();
+            (new OrderStatusEvent)->forceFill(['order_id' => $locked->id, 'actor' => 'admin', 'admin_id' => $admin->id,
+                'note' => 'Delivery price set to $'.Money::decimal($cents).' (was $'.Money::decimal($before).'). New total $'.Money::decimal($total).'.'])->save();
+            $order->setRawAttributes($locked->getAttributes(), true);
+        });
+        Activity::record('order.delivery', "Set the delivery price of order #{$order->number} to $".Money::decimal($cents), $order, $admin);
 
         return $order;
     }

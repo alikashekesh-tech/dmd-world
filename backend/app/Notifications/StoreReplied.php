@@ -25,11 +25,13 @@ class StoreReplied extends Notification
     {
         $c = $this->conversation;
         $about = $c->order_id ? "your order #{$c->order?->number}" : "“{$c->subject}”";
-        $link = config('dmd.frontend_url').'/account?tab=messages'.($c->order_id ? "&order={$c->order_id}" : "&conversation={$c->id}");
+        // A guest's chat lives in the chat bubble on the shop (in the browser they used), not in an account.
+        $link = $c->isGuest() ? config('dmd.frontend_url').'/?chat=1'
+            : config('dmd.frontend_url').'/account?tab=messages'.($c->order_id ? "&order={$c->order_id}" : "&conversation={$c->id}");
 
         return (new MailMessage)
             ->subject("DMD World replied about {$about}")
-            ->greeting('Hi '.($notifiable->first_name ?? '').',')
+            ->greeting('Hi '.($notifiable->first_name ?? $c->guest_name ?? '').',')
             ->line("DMD World wrote to you about {$about}:")
             ->line(Str::limit($this->message->body, 300))
             ->action('Read and reply', $link);

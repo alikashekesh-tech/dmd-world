@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Http\Requests\ApiRequest;
 use App\Models\Product;
 use App\Services\ProductService;
+use App\Support\ProductVideo;
 use Illuminate\Validation\Rule;
 
 /** Adding (POST) or editing (PUT: send only what changes) a product. Cross-field rules live in ProductService. */
@@ -46,6 +47,7 @@ class ProductRequest extends ApiRequest
             'sale_price' => ['sometimes', 'nullable', ...$money],
             'sale_starts_at' => ['sometimes', 'nullable', 'date'],
             'sale_ends_at' => ['sometimes', 'nullable', 'date'],
+            'delivery_fee' => ['sometimes', 'nullable', ...$money, 'max:1000'], // empty = the store's delivery price
             'status' => ['sometimes', Rule::in(['draft', 'published'])],
             'is_featured' => ['sometimes', 'boolean'],
             'track_stock' => ['sometimes', 'boolean'],
@@ -55,6 +57,11 @@ class ProductRequest extends ApiRequest
             'images' => ['sometimes', 'array', 'max:12'],
             'images.*.url' => ['required', 'string', 'max:2048', 'regex:#^(https?://|/storage/)#i'],
             'images.*.alt' => ['nullable', 'string', 'max:200'],
+            'video_url' => ['sometimes', 'nullable', 'string', 'max:2048', function ($attribute, $value, $fail) {
+                if (ProductVideo::parse($value) === null) {
+                    $fail('Upload an MP4 or WebM video here, or paste a YouTube link.');
+                }
+            }],
             'specifications' => ['sometimes', 'array', 'max:40'],
             'specifications.*.name' => ['required', 'string', 'max:80', 'distinct:ignore_case'],
             'specifications.*.value' => ['required', 'string', 'max:500'],
@@ -67,6 +74,7 @@ class ProductRequest extends ApiRequest
             'variants.*.options' => ['required', 'array', 'max:'.ProductService::MAX_ATTRIBUTES],
             'variants.*.options.*' => ['required', 'string', 'max:60'],
             'variants.*.sku' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._\/-]+$/'],
+            'variants.*.image_url' => ['nullable', 'string', 'max:2048'],
             'variants.*.regular_price' => ['required', ...$money, 'gt:0'],
             'variants.*.sale_price' => ['nullable', ...$money],
             'variants.*.track_stock' => ['sometimes', 'boolean'],
@@ -89,6 +97,8 @@ class ProductRequest extends ApiRequest
             'regular_price.gt' => 'The price must be more than $0.',
             'regular_price.decimal' => 'Use at most two decimals (cents).',
             'sale_price.decimal' => 'Use at most two decimals (cents).',
+            'delivery_fee.decimal' => 'Use at most two decimals (cents).',
+            'delivery_fee.max' => 'The delivery price can be at most $1,000.',
             'sku.regex' => 'Use letters, numbers, dots, dashes, underscores or slashes in the SKU.',
             'images.*.url.regex' => 'Images must be uploaded here or be a full https:// address.',
             'specifications.*.name.distinct' => 'Each specification needs a different name.',

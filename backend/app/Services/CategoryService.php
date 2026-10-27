@@ -100,6 +100,7 @@ final class CategoryService
                 Category::whereKey($id)->update(['position' => $position]);
             }
         });
+        Catalog::bust(); // a query update skips the model's own refresh: the shop's menus follow the new order at once
         Activity::record('category.reordered', 'Reordered '.count($ids).' categories', null, $by);
     }
 

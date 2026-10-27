@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Admin\OrderResource;
 use App\Models\Order;
@@ -82,7 +83,22 @@ class OrderController extends Controller
         return new OrderResource($order->load(['items', 'history.admin:id,name']));
     }
 
-    /** A private note on the order (the buyer never sees it). */
+    /** The order's delivery price (the total follows). Not for pickup orders, which are free. */
+    public function delivery(Request $request, Order $order): OrderResource
+    {
+        $v = $request->validate(['shipping_total' => ['required', 'numeric', 'min:0', 'max:1000', 'decimal:0,2']], [
+            'shipping_total.decimal' => 'Use at most two decimals (cents).',
+            'shipping_total.max' => 'The delivery price can be at most $1,000.',
+        ]);
+        if ($order->delivery_method !== 'delivery') {
+            throw new ApiException(422, 'PICKUP_ORDER', 'This order is picked up from the store, so it has no delivery price.');
+        }
+        $this->orders->setDeliveryPrice($order, Money::cents($v['shipping_total']), $request->user('admin'));
+
+        return new OrderResource($order->load(['items', 'history.admin:id,name']));
+    }
+
+    /** A private note on the order (the customer never sees it). */
     public function note(Request $request, Order $order): OrderResource
     {
         $v = $request->validate(['note' => ['required', 'string', 'max:500']]);

@@ -4,7 +4,7 @@ import { useApi } from '../lib/hooks.js';
 import { num } from '../lib/format.js';
 import { Button, Field, Icon, Notice, PageHeader, PasswordInput, PasswordRules, SkeletonRows, Toggle, passwordOk, useUi } from '../ui/kit.jsx';
 
-const KEYS = ['store_name', 'contact_phone', 'contact_email', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note'];
+const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'delivery_fee'];
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function Settings({ session }) {
@@ -17,6 +17,7 @@ export default function Settings({ session }) {
   const [pwBusy, setPwBusy] = useState(false);
   const [pwErr, setPwErr] = useState('');
   const stored = data?.data;
+  const staff = session.owner?.role === 'staff';
   useEffect(() => {
     if (!stored) return;
     setVals(Object.fromEntries(KEYS.map((k) => [k, stored[k]])));
@@ -25,7 +26,9 @@ export default function Settings({ session }) {
 
   if (error) return <Notice tone="coral" icon="alert">{error.message}</Notice>;
   if (!stored || !vals) return <SkeletonRows rows={8} />;
-  const changes = Object.fromEntries(KEYS.filter((k) => !same(vals[k], stored[k])).map((k) => [k, vals[k]]));
+  // The delivery price is typed as text ("6", "6.50"); compare it as a number, so "6" is the stored 6.
+  const norm = (k, v) => (k === 'delivery_fee' ? (v === '' || v == null ? null : Number(v)) : v);
+  const changes = Object.fromEntries(KEYS.filter((k) => !same(norm(k, vals[k]), norm(k, stored[k]))).map((k) => [k, vals[k]]));
   const n = Object.keys(changes).length;
   const set = (k) => (v) => setVals((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
   const toggleIn = (k, id, on) => setVals((x) => ({ ...x, [k]: on ? [...new Set([...x[k], id])] : x[k].filter((y) => y !== id) }));
@@ -36,6 +39,8 @@ export default function Settings({ session }) {
       const body = { ...changes };
       if ('low_stock_threshold' in body) body.low_stock_threshold = Number(body.low_stock_threshold);
       if ('bank_transfer_note' in body) body.bank_transfer_note = body.bank_transfer_note || null;
+      if ('delivery_fee' in body) body.delivery_fee = body.delivery_fee === '' || body.delivery_fee == null ? null : Number(body.delivery_fee);
+      if ('order_notification_email' in body) body.order_notification_email = body.order_notification_email?.trim() || null;
       const r = await api.put('/settings', body);
       setData(r);
       changed('settings');
@@ -58,6 +63,36 @@ export default function Settings({ session }) {
     <Toggle key={id} label={label} checked={vals[key].includes(id)} disabled={vals[key].length === 1 && vals[key].includes(id)} onChange={(on) => toggleIn(key, id, on)} />
   ));
 
+  const passwordSection = (
+      <section className="surface">
+        <div className="surface-head"><h3>{staff ? 'Your password' : 'Owner password'}</h3><Icon name="lock" size={16} className="muted" /></div>
+        <form className="surface-body stack" onSubmit={changePw} noValidate>
+          <p className="muted" style={{ fontSize: 12.5 }}>Signed in as {session.owner?.email}.</p>
+          <Field label="Current password"><PasswordInput value={pw.current} onChange={(v) => { setPw({ ...pw, current: v }); setPwErr(''); }} autoComplete="current-password" /></Field>
+          <Field label="New password"><PasswordInput value={pw.next} onChange={(v) => { setPw({ ...pw, next: v }); setPwErr(''); }} autoComplete="new-password" describedBy="owner-pw-rules" invalid={pw.next && !passwordOk(pw.next)} /></Field>
+          <PasswordRules id="owner-pw-rules" password={pw.next} />
+          <Field label="Confirm new password"><PasswordInput value={pw.again} onChange={(v) => { setPw({ ...pw, again: v }); setPwErr(''); }} autoComplete="new-password" invalid={pw.again && pw.again !== pw.next} describedBy="owner-pw-match" /></Field>
+          <span id="owner-pw-match" aria-live="polite">
+            {pw.again && (pw.again === pw.next
+              ? <span className="pw-match ok"><Icon name="check" size={14} />Passwords match</span>
+              : <span className="pw-match no"><Icon name="close" size={14} />Doesn’t match the new password yet</span>)}
+          </span>
+          {pw.next && pw.current && pw.next === pw.current && <span className="pw-match no"><Icon name="alert" size={14} />Choose a password different from the current one</span>}
+          {pwErr && <Notice tone="coral" icon="alert">{pwErr}</Notice>}
+          <Button type="submit" icon="lock" loading={pwBusy} disabled={!pw.current || !passwordOk(pw.next) || pw.next !== pw.again || pw.next === pw.current}>Change password</Button>
+        </form>
+      </section>
+  );
+  // Staff only manage their own password here; the store settings are the owner's.
+  if (staff) {
+    return (
+      <>
+        <PageHeader hud={<><span className="led" />Account</>} title="Your account" text="Store settings are managed by the owner." />
+        <div style={{ maxWidth: 520 }}>{passwordSection}</div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader hud={<><span className="led" />Site</>} title="Settings" text="How the store works: contact details, stock alerts, reviews, coupons and checkout options." />
@@ -72,21 +107,34 @@ export default function Settings({ session }) {
             </div>
           </section>
           <section className="surface">
-            <div className="surface-head"><div><h3>Stock & reviews</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>When stock alerts fire and how reviews work.</p></div></div>
-            <div className="surface-body stack">
-              <Field label="Low-stock alert at" hint="Products with this many or fewer show as running low (a product can set its own)."><input className="input mono" type="number" min="0" style={{ maxWidth: 140 }} value={vals.low_stock_threshold} onChange={set('low_stock_threshold')} /></Field>
-              <Toggle label="Buyers can write reviews" checked={vals.reviews_enabled} onChange={set('reviews_enabled')} />
-              <Toggle label="Only buyers who bought the product can review it" checked={vals.reviews_require_purchase} onChange={set('reviews_require_purchase')} disabled={!vals.reviews_enabled} />
+            <div className="surface-head"><div><h3>Order emails</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Private: never shown in the shop.</p></div></div>
+            <div className="surface-body">
+              <Field label="Email me each new order at" hint="Every order placed in the shop is emailed here with the customer, items and total. Leave empty for no email.">
+                <input className="input" type="email" value={vals.order_notification_email || ''} onChange={set('order_notification_email')} placeholder="you@example.com" />
+              </Field>
             </div>
           </section>
           <section className="surface">
-            <div className="surface-head"><div><h3>Checkout</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>What buyers can choose when they order. At least one of each stays on.</p></div></div>
+            <div className="surface-head"><div><h3>Stock & reviews</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>When stock alerts fire and how reviews work.</p></div></div>
+            <div className="surface-body stack">
+              <Field label="Low-stock alert at" hint="Products with this many or fewer show as running low (a product can set its own)."><input className="input mono" type="number" min="0" style={{ maxWidth: 140 }} value={vals.low_stock_threshold} onChange={set('low_stock_threshold')} /></Field>
+              <Toggle label="Customers can write reviews" checked={vals.reviews_enabled} onChange={set('reviews_enabled')} />
+              <Toggle label="Only customers who bought the product can review it" checked={vals.reviews_require_purchase} onChange={set('reviews_require_purchase')} disabled={!vals.reviews_enabled} />
+            </div>
+          </section>
+          <section className="surface">
+            <div className="surface-head"><div><h3>Checkout</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>What customers can choose when they order. At least one of each stays on.</p></div></div>
             <div className="surface-body stack">
               <span className="label">Payment</span>
               {methods('payment_methods', data.meta.payment_methods)}
               {vals.payment_methods.includes('bank_transfer') && <Field label="Bank transfer note" hint="Shown under “Direct bank transfer” at checkout."><input className="input" maxLength={300} value={vals.bank_transfer_note || ''} onChange={set('bank_transfer_note')} /></Field>}
               <span className="label" style={{ marginTop: 6 }}>Delivery</span>
               {methods('delivery_methods', data.meta.delivery_methods)}
+              {vals.delivery_methods.includes('delivery') && (
+                <Field label="Delivery price" hint="One price anywhere in Lebanon, added to every delivery order (pickup stays free). 0 = free delivery. Empty = DMD confirms the cost with the customer after the order.">
+                  <span className="input-affix" style={{ maxWidth: 180 }}><span>$</span><input className="input mono" inputMode="decimal" value={vals.delivery_fee ?? ''} onChange={set('delivery_fee')} placeholder="e.g. 6" /></span>
+                </Field>
+              )}
               <Toggle label="Discount codes can be used" checked={vals.coupons_enabled} onChange={set('coupons_enabled')} />
             </div>
           </section>
@@ -110,24 +158,7 @@ export default function Settings({ session }) {
             </form>
           </section>
 
-          <section className="surface">
-            <div className="surface-head"><h3>Owner password</h3><Icon name="lock" size={16} className="muted" /></div>
-            <form className="surface-body stack" onSubmit={changePw} noValidate>
-              <p className="muted" style={{ fontSize: 12.5 }}>Signed in as {session.owner?.email}.</p>
-              <Field label="Current password"><PasswordInput value={pw.current} onChange={(v) => { setPw({ ...pw, current: v }); setPwErr(''); }} autoComplete="current-password" /></Field>
-              <Field label="New password"><PasswordInput value={pw.next} onChange={(v) => { setPw({ ...pw, next: v }); setPwErr(''); }} autoComplete="new-password" describedBy="owner-pw-rules" invalid={pw.next && !passwordOk(pw.next)} /></Field>
-              <PasswordRules id="owner-pw-rules" password={pw.next} />
-              <Field label="Confirm new password"><PasswordInput value={pw.again} onChange={(v) => { setPw({ ...pw, again: v }); setPwErr(''); }} autoComplete="new-password" invalid={pw.again && pw.again !== pw.next} describedBy="owner-pw-match" /></Field>
-              <span id="owner-pw-match" aria-live="polite">
-                {pw.again && (pw.again === pw.next
-                  ? <span className="pw-match ok"><Icon name="check" size={14} />Passwords match</span>
-                  : <span className="pw-match no"><Icon name="close" size={14} />Doesn’t match the new password yet</span>)}
-              </span>
-              {pw.next && pw.current && pw.next === pw.current && <span className="pw-match no"><Icon name="alert" size={14} />Choose a password different from the current one</span>}
-              {pwErr && <Notice tone="coral" icon="alert">{pwErr}</Notice>}
-              <Button type="submit" icon="lock" loading={pwBusy} disabled={!pw.current || !passwordOk(pw.next) || pw.next !== pw.again || pw.next === pw.current}>Change password</Button>
-            </form>
-          </section>
+          {passwordSection}
         </aside>
       </div>
     </>

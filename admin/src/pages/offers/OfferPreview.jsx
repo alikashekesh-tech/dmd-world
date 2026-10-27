@@ -31,7 +31,7 @@ export default function OfferPreview({ data, loading, hasTargets, startsLater })
         <span className="pv-when">{loading ? <><span className="spin" />Updating…</> : startsLater && data ? `Prices on ${formatWhen(data.at)}` : 'Prices if saved now'}</span>
       </header>
       <div className="pv-tiles">
-        <Tile n={data?.eligible} label="In the shop" hint="Covered products buyers can see: published and not in the trash." />
+        <Tile n={data?.eligible} label="In the shop" hint="Covered products customers can see: published and not in the trash." />
         <Tile n={o?.decrease} label="Get cheaper" tone="good" hint="Their price goes down with this offer." />
         <Tile n={o?.already_cheaper} label="Already cheaper" tone="warn" hint="Their own sale or another offer already gives a lower price, so this one changes nothing for them." />
         <Tile n={o?.not_applicable} label="Can't apply" tone="muted" hint="A fixed amount as large as the price doesn't apply: an offer never makes a product free." />

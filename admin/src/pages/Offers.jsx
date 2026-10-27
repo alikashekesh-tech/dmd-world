@@ -127,7 +127,7 @@ function Coupons({ list }) {
     setBusy(null);
   };
   const rows = list.filter((c) => c.code.toLowerCase().includes(q.trim().toLowerCase()));
-  if (!list.length) return <div className="surface"><Empty icon="sparkle" title="No coupons yet" action={<Button variant="primary" icon="plus" onClick={() => setQuery({ new: 'coupon' })}>Create coupon</Button>}>Coupons are codes buyers type at checkout. Good for influencers, newsletters and returning customers.</Empty></div>;
+  if (!list.length) return <div className="surface"><Empty icon="sparkle" title="No coupons yet" action={<Button variant="primary" icon="plus" onClick={() => setQuery({ new: 'coupon' })}>Create coupon</Button>}>Coupons are codes customers type at checkout. Good for influencers, newsletters and returning customers.</Empty></div>;
   return (
     <>
       <div className="toolbar"><SearchBox value={q} onChange={setQ} placeholder="Find a code" /></div>
@@ -191,7 +191,7 @@ function CouponForm({ c, categories, onClose }) {
   return (
     <Drawer wide title={isNew ? 'Create coupon' : `Edit ${c.code}`} hud={isNew ? 'Coupon' : `Used ${num(c.uses)} times`} onClose={onClose}
       footer={<><Button variant="quiet" onClick={onClose}>Cancel</Button><Button variant="primary" icon="check" loading={busy} onClick={save} disabled={f.code.trim().length < 3 || !(Number(f.amount) > 0)}>{isNew ? 'Create coupon' : 'Save'}</Button></>}>
-      <Field label="Code" hint="What buyers type at checkout. Letters, numbers, - and _ only; not case-sensitive.">
+      <Field label="Code" hint="What customers type at checkout. Letters, numbers, - and _ only; not case-sensitive.">
         <div className="row"><input className="input mono grow" style={{ textTransform: 'uppercase' }} value={f.code} onChange={set('code')} placeholder="e.g. GAMER10" autoFocus={isNew} />{isNew && <Button icon="sparkle" onClick={suggest}>Suggest</Button>}</div>
       </Field>
       <div className="grid-2">
@@ -213,7 +213,7 @@ function CouponForm({ c, categories, onClose }) {
       </div>
       <div className="grid-2">
         <Field label="Total uses"><input className="input mono" type="number" min="1" value={f.usage_limit} onChange={set('usage_limit')} placeholder="unlimited" /></Field>
-        <Field label="Uses per buyer" hint="By account or email."><input className="input mono" type="number" min="1" value={f.usage_limit_per_customer} onChange={set('usage_limit_per_customer')} placeholder="unlimited" /></Field>
+        <Field label="Uses per customer" hint="By account or email."><input className="input mono" type="number" min="1" value={f.usage_limit_per_customer} onChange={set('usage_limit_per_customer')} placeholder="unlimited" /></Field>
       </div>
       <div className="stack" style={{ gap: 10 }}>
         <label className="row" style={{ cursor: 'pointer' }}><Check on={f.exclude_sale_items} onChange={set('exclude_sale_items')} label="Not on sale items" /><span className="t2" style={{ fontSize: 13 }}>Doesn’t apply to items already on sale</span></label>
