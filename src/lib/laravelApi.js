@@ -4,7 +4,7 @@
    Errors come back as {error: {code, message, fields}} and are raised as the same StoreApiError the UI already shows. */
 import { StoreApiError } from './storeApi.js';
 
-const BASE = '/api/v1';
+let BASE = '/api/v1';
 const TIMEOUT = 20000;
 const OFFLINE = 'We can’t reach the store right now. Check your connection and try again.';
 
@@ -40,7 +40,13 @@ async function call(method, path, body, { timeout = TIMEOUT, retried = false, he
     return call(method, path, body, { timeout, retried: true, headers });
   }
   if (res.status === 204) return null;
-  if (!/application\/json/i.test(res.headers.get('content-type') || '')) throw new StoreApiError(OFFLINE, res.status || 0, 'offline');
+  if (!/application\/json/i.test(res.headers.get('content-type') || '')) {
+    if (BASE === '/api/v1' && !retried) {
+      BASE = '/api.php/api/v1';
+      return call(method, path, body, { timeout, retried: true, headers });
+    }
+    throw new StoreApiError(OFFLINE, res.status || 0, 'offline');
+  }
   const data = await res.json().catch(() => null);
   if (data === null) throw new StoreApiError(OFFLINE, res.status, 'offline');
   if (!res.ok) {

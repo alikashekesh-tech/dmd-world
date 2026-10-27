@@ -28,8 +28,10 @@
     RewriteRule ^ - [L]
 
     # Route API and health endpoints to Laravel backend
-    RewriteCond %{REQUEST_URI} ^/(api|up|robots\.txt|sitemap\.xml)
-    RewriteRule ^.*$ /api.php [L,QSA]
+    RewriteRule ^api/(.*)$ /api.php/api/$1 [L,QSA]
+    RewriteRule ^api$ /api.php/api [L,QSA]
+    RewriteRule ^up$ /api.php/up [L,QSA]
+    RewriteRule ^(robots\.txt|sitemap\.xml)$ /api.php/$1 [L,QSA]
 
     # Admin Panel SPA (/admin and /admin/*)
     RewriteCond %{REQUEST_URI} ^/admin/

@@ -2,8 +2,8 @@
    production). The owner signs in with a Sanctum cookie session: the session cookie is HttpOnly (JavaScript never
    sees it) and every change carries the XSRF-TOKEN cookie back as the X-XSRF-TOKEN header.
    Errors arrive as {error: {code, message, fields}} and are raised as ApiError. */
-const ROOT = '/api/v1';
-const BASE = `${ROOT}/admin`;
+let ROOT = '/api/v1';
+let BASE = `${ROOT}/admin`;
 const OFFLINE = 'Can’t reach the store’s server. Check that the Laravel API is running, then try again.';
 
 export class ApiError extends Error {
@@ -45,7 +45,14 @@ async function call(method, path, body, opts = {}) {
   }
   if (res.status === 204) return null;
   // A non-JSON answer (proxy error page, HTML fallback) means the API itself wasn't reached.
-  if (!/application\/json/i.test(res.headers.get('content-type') || '')) throw new ApiError(OFFLINE, res.status || 0, 'offline');
+  if (!/application\/json/i.test(res.headers.get('content-type') || '')) {
+    if (ROOT === '/api/v1' && !opts.retried) {
+      ROOT = '/api.php/api/v1';
+      BASE = `${ROOT}/admin`;
+      return call(method, path, body, { ...opts, retried: true });
+    }
+    throw new ApiError(OFFLINE, res.status || 0, 'offline');
+  }
   const data = await res.json().catch(() => null);
   if (data === null) throw new ApiError(OFFLINE, res.status, 'offline');
   if (!res.ok) {
