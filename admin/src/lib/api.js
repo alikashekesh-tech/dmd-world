@@ -2,7 +2,7 @@
    production). The owner signs in with a Sanctum cookie session: the session cookie is HttpOnly (JavaScript never
    sees it) and every change carries the XSRF-TOKEN cookie back as the X-XSRF-TOKEN header.
    Errors arrive as {error: {code, message, fields}} and are raised as ApiError. */
-let ROOT = '/api/v1';
+let ROOT = import.meta.env.DEV ? '/api/v1' : '/api.php/api/v1';
 let BASE = `${ROOT}/admin`;
 const OFFLINE = 'Can’t reach the store’s server. Check that the Laravel API is running, then try again.';
 

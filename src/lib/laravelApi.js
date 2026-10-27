@@ -4,7 +4,7 @@
    Errors come back as {error: {code, message, fields}} and are raised as the same StoreApiError the UI already shows. */
 import { StoreApiError } from './storeApi.js';
 
-let BASE = '/api/v1';
+let BASE = import.meta.env.DEV ? '/api/v1' : '/api.php/api/v1';
 const TIMEOUT = 20000;
 const OFFLINE = 'We can’t reach the store right now. Check your connection and try again.';
 
