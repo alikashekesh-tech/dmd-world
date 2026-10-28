@@ -1,5 +1,6 @@
-// Build config for the admin only (the storefront keeps using the root vite.config.js).
-// Build: npm --prefix server run build:admin   → admin/dist, served by the admin server at /admin/
+// Build config for the admin only (the storefront uses the root vite.config.js).
+// Build: npm run build:admin → admin/dist, served at /admin/ (Caddy in production; the root dev server in development).
+// The admin calls the same-origin Laravel API at /api/v1/admin.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
@@ -10,5 +11,4 @@ export default defineConfig({
   plugins: [react()],
   publicDir: false,
   build: { outDir: 'dist', emptyOutDir: true },
-  define: { 'import.meta.env.VITE_ADMIN_API': JSON.stringify(process.env.VITE_ADMIN_API || '/admin/api') },
 });

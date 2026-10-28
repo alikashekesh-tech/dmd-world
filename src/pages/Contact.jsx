@@ -1,7 +1,7 @@
 import PageHero from '../components/ui/PageHero.jsx';
 import LineArt from '../components/art/LineArt.jsx';
-import { CONTACT } from '../data/dmdMenu.js';
-import { PhoneIcon, MailIcon, ArrowRight } from '../components/common/icons.jsx';
+import { CONTACT, STORE_LOCATION } from '../data/dmdMenu.js';
+import { PhoneIcon, MailIcon, PinIcon, ArrowRight } from '../components/common/icons.jsx';
 import { usePageMeta } from '../lib/meta.js';
 import s from './Contact.module.css';
 
@@ -34,6 +34,17 @@ export default function Contact() {
         <div className={`${s.card} ${s.ready}`}>
           <small>Have this ready</small>
           <ul>{READY.map((r, i) => <li key={r}><span>0{i + 1}</span>{r}</li>)}</ul>
+        </div>
+        <div className={`${s.card} ${s.store}`}>
+          <div className={s.storeInfo}>
+            <span className={s.icon}><PinIcon size={22} /></span>
+            <small>Visit the store</small>
+            <b>{STORE_LOCATION.short}</b>
+            <p>{STORE_LOCATION.address}</p>
+            <p>{STORE_LOCATION.hours}</p>
+            <a href={STORE_LOCATION.map} target="_blank" rel="noopener noreferrer"><em>Get directions <ArrowRight size={15} /></em></a>
+          </div>
+          <iframe className={s.map} src={STORE_LOCATION.embed} title="DMD Megastore on Google Maps" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
         </div>
       </div>
     </>

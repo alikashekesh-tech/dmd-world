@@ -2,14 +2,16 @@ import { Link } from '../router/index.jsx';
 import PageHero, { HeroStats } from '../components/ui/PageHero.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import CategoryArt, { artFor } from '../components/art/CategoryArt.jsx';
-import { MENU_SECTIONS, groupBySlug, catUrl } from '../data/dmdMenu.js';
+import { MENU_SECTIONS, groupBySlug, group, catUrl } from '../data/dmdMenu.js';
+import { useCatalog } from '../data/live.js';
 import { ArrowRight } from '../components/common/icons.jsx';
 import { usePageMeta } from '../lib/meta.js';
 import s from './Categories.module.css';
 
 export default function Categories() {
   usePageMeta({ title: 'All categories', description: 'Browse DMD World by category or brand: PlayStation, Nintendo Switch, Xbox, PC parts, laptops, tablets, gadgets and the gear brands we stock.' });
-  const [cats, brands] = MENU_SECTIONS;
+  useCatalog(); // the tree comes with the catalog
+  const [cats = { slugs: [] }, brands = { slugs: [] }] = MENU_SECTIONS;
   return (
     <>
       <PageHero
@@ -19,7 +21,7 @@ export default function Categories() {
         lead="Browse the full DMD World catalog by what it is or by who makes it."
         art={<LineArt type="shelf" />}
       >
-        <HeroStats items={[['Categories', cats.slugs.length], ['Brands', brands.slugs.length], ['PlayStation products', groupBySlug.playstation.count]]} />
+        <HeroStats items={[['Categories', cats.slugs.length], ['Brands', brands.slugs.length], ['PlayStation products', group('playstation').count]]} />
       </PageHero>
       <div className="container" style={{ paddingBottom: 80 }}>
         {MENU_SECTIONS.map((sec, i) => (

@@ -1,0 +1,74 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /
+
+    # Stop rewrite loop if already pointing to api.php or a built file
+    RewriteRule ^api\.php - [L]
+    RewriteRule ^(dist|admin/dist)/ - [L]
+
+    # Block access to hidden files, sources and sensitive directories
+    RewriteRule ^\. - [F,L]
+    RewriteRule ^(src|admin/src|shared|node_modules|deploy|docs)(/|$) - [F,L]
+    RewriteRule ^backend/(app|bootstrap|config|database|resources|routes|storage|tests|vendor) - [F,L]
+    RewriteRule ^backend/\.env - [F,L]
+    RewriteRule ^backend/composer\.(json|lock) - [F,L]
+    RewriteRule ^(package(-lock)?\.json|vite\.config\.js|eslint\.config\.js|[^/]+\.(zip|tar\.gz|md|sh))$ - [F,L]
+
+    # Handle Authorization & X-XSRF-Token headers for Laravel Sanctum
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Public uploads & storage symlink
+    RewriteRule ^storage/ - [L]
+
+    # Route API and health endpoints to Laravel backend
+    RewriteRule ^api/(.*)$ /api.php/api/$1 [L,QSA]
+    RewriteRule ^api$ /api.php/api [L,QSA]
+    RewriteRule ^up$ /api.php/up [L,QSA]
+    RewriteRule ^(robots\.txt|sitemap\.xml)$ /api.php/$1 [L,QSA]
+
+    # Admin Panel: built files from admin/dist, everything else is the admin SPA.
+    # admin/index.html in the repository is the Vite source page and is never served.
+    RewriteCond %{DOCUMENT_ROOT}/admin/dist/$1 -f
+    RewriteRule ^admin/(.+)$ /admin/dist/$1 [L]
+    RewriteRule ^admin(/.*)?$ /admin/dist/index.html [L]
+
+    # Storefront: built files from dist (assets, icons, manifest)
+    RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
+    RewriteRule ^(.+)$ /dist/$1 [L]
+
+    # Other existing static files in root (images, video)
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_URI} !^/index\.html$
+    RewriteRule ^ - [L]
+
+    # Storefront SPA fallback: always the built page, never the root index.html (the Vite source page)
+    RewriteRule ^ /dist/index.html [L]
+</IfModule>
+
+# Caching for content-hashed assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Never cache HTML pages or dynamic scripts
+    <FilesMatch "\.(html|php)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires 0
+    </FilesMatch>
+</IfModule>

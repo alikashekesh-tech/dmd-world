@@ -1,0 +1,15 @@
+# Nightly database and uploads backup (deploy/dmd-backup.sh). Started by dmd-world-backup.timer.
+# Install both files in /etc/systemd/system/, then: sudo systemctl daemon-reload && sudo systemctl enable --now dmd-world-backup.timer
+[Unit]
+Description=DMD World backup (MySQL dump and uploaded images)
+
+[Service]
+Type=oneshot
+User=dmd-backup
+Group=dmd-backup
+ExecStart=/srv/dmd-world/deploy/dmd-backup.sh
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/backups/dmd-world

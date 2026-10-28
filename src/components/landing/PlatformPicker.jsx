@@ -13,7 +13,7 @@ import s from './PlatformPicker.module.css';
 const KEY = 'dmd:platform';
 const readSaved = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
 
-export default function PlatformPicker() {
+export default function PlatformPicker({ n = 1 }) {
   const { PLATFORMS } = useLanding();
   const [saved] = useState(() => PLATFORMS.find((x) => x.id === readSaved()) || null);
   const [id, setId] = useState(saved?.id || 'playstation');
@@ -36,12 +36,12 @@ export default function PlatformPicker() {
   };
 
   return (
-    <section id="platform" ref={ref} className={s.sec} style={{ '--acc': p.accent }} data-paused={!live || undefined} aria-labelledby="pp-title">
+    <section id="platform" ref={ref} className={`${s.sec} ${p.products.length > 0 ? s.withBand : ''}`} style={{ '--acc': p.accent }} data-paused={!live || undefined} aria-labelledby="pp-title">
       <div className={s.glow} aria-hidden="true" />
       <div className="container">
         <div className={s.head}>
           <div>
-            <p className={s.eyebrow}>01 · Your platform</p>
+            <p className={s.eyebrow}>{String(n).padStart(2, '0')} · Your platform</p>
             <h2 id="pp-title" className={s.title}>What do you play on?</h2>
           </div>
           <p className={s.sub}>
@@ -86,15 +86,18 @@ export default function PlatformPicker() {
           </div>
         </div>
 
-        {p.products.length > 0 && (
-          <div className={s.railWrap}>
+      </div>
+      {/* The products sit on a light band, white cards like the rest of the shop. */}
+      {p.products.length > 0 && (
+        <div className={s.band}>
+          <div className="container">
             <div className={s.railHead}><span>In stock now</span><Link to={p.to}>See all <ArrowRight size={14} /></Link></div>
             <div className={s.rail} key={id}>
-              {p.products.map((x, i) => <MiniCard key={x.id} product={x} tone="dark" style={{ '--i': i }} />)}
+              {p.products.map((x, i) => <MiniCard key={x.id} product={x} style={{ '--i': i }} />)}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

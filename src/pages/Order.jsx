@@ -5,8 +5,10 @@ import { ProductImage } from '../components/art/Media.jsx';
 import PixelText from '../components/ui/PixelText.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import { ArrowRight, CheckIcon, PhoneIcon } from '../components/common/icons.jsx';
-import { storeApi, guestOrders, ORDER_STATUS } from '../lib/storeApi.js';
+import { guestOrders, ORDER_STATUS } from '../lib/storeApi.js';
+import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
+import { REGISTER } from '../lib/authRoutes.js';
 import { getProduct, money } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import NotFound from './NotFound.jsx';
@@ -49,11 +51,15 @@ export default function Order() {
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // Buyers can cancel for 24 hours after ordering: the button goes when that passes, even with the page left open.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60e3); return () => clearInterval(t); }, []);
   const key = guestOrders.keyFor(id);
   const load = () => {
     setO(null); setMissing(false); setFailed('');
-    const byKey = () => storeApi.get(`/orders/${encodeURIComponent(id)}?key=${encodeURIComponent(key)}`);
-    const req = buyer ? storeApi.get(`/me/orders/${encodeURIComponent(id)}`).catch((e) => (key && e.status === 404 ? byKey() : Promise.reject(e))) : key ? byKey() : Promise.reject(Object.assign(new Error('missing'), { status: 404 }));
+    const byKey = () => orders.get(id, key);
+    const mine = () => orders.get(id);
+    const req = buyer ? mine().catch((e) => (key && e.status === 404 ? byKey() : Promise.reject(e))) : key ? byKey() : Promise.reject(Object.assign(new Error('missing'), { status: 404 }));
     req.then(setO).catch((e) => (e.status === 404 ? setMissing(true) : setFailed(e.message)));
   };
   useEffect(() => { if (!checking) load(); }, [id, buyer, checking]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -66,6 +72,7 @@ export default function Order() {
     </div>
   );
   if (!o) return <div className="container" style={{ paddingBlock: '80px' }}><p role="status" style={{ color: 'var(--muted)' }}>Loading your order…</p></div>;
+  const canCancel = o.cancellable && (!o.cancellableUntil || new Date(o.cancellableUntil).getTime() > now);
   const items = o.items.reduce((a, i) => a + i.qty, 0);
   const st = ORDER_STATUS[o.status] || { label: o.status, hint: '' };
   const fresh = Date.now() - new Date(o.date).getTime() < 30 * 60e3 && o.status === 'pending';
@@ -74,10 +81,10 @@ export default function Order() {
   const cancel = async () => {
     setCancelling(true);
     try {
-      const next = await storeApi.post(`/orders/${o.id}/cancel`, { key: key || undefined, reason: reason.trim() || undefined });
+      const next = await orders.cancel(o.id, { token: key, reason: reason.trim() });
       setO((x) => ({ ...x, ...next })); updateOrder(next); setConfirmCancel(false);
       setToast(`Order #${o.number} cancelled`);
-    } catch (e) { setToast(e.message); if (e.code === 'not_cancellable') load(); }
+    } catch (e) { setToast(e.message); if (e.code === 'not_cancellable' || e.code === 'NOT_CANCELLABLE') load(); }
     setCancelling(false);
   };
   return (
@@ -103,7 +110,7 @@ export default function Order() {
           <ul className={s.items}>
             {o.items.map((i) => {
               const p = getProduct(String(i.productId));
-              return (
+  return (
                 <li key={`${i.productId}-${i.name}`}>
                   <span className={s.th}>{p ? <ProductImage product={p} /> : i.image ? <img src={i.image} alt="" referrerPolicy="no-referrer" /> : null}</span>
                   <span><small>Qty {i.qty}</small>{p ? <Link to={`/product/${p.slug}`}>{i.name}</Link> : <b>{i.name}</b>}</span>
@@ -128,10 +135,11 @@ export default function Order() {
               <ul>{o.updates.map((u) => <li key={u.at}><small>{when(u.at)}</small>{u.text}</li>)}</ul>
             </div>
           )}
-          {o.cancellable && (
+          {canCancel && (
             <div className={s.cancel}>
               {!confirmCancel ? (
-                <button type="button" className={s.cancelLink} onClick={() => setConfirmCancel(true)}>Cancel this order</button>
+                <><button type="button" className={s.cancelLink} onClick={() => setConfirmCancel(true)}>Cancel this order</button>
+                  {o.cancellableUntil && <small className={s.cancelUntil}>You can cancel until {when(o.cancellableUntil)}</small>}</>
               ) : (
                 <div className={s.cancelBox} role="group" aria-label="Cancel order">
                   <p><b>Cancel order #{o.number}?</b> DMD hasn’t confirmed it yet, so nothing has been charged or sent.</p>
@@ -151,7 +159,7 @@ export default function Order() {
           {buyer ? <Link to={`/account?tab=messages&order=${o.id}`} className="btn btn--secondary btn--lg">Message DMD</Link>
             : <a href={`tel:${CONTACT.tel}`} className="btn btn--secondary btn--lg"><PhoneIcon size={17} />Call DMD</a>}
         </div>
-        {!buyer && <p className={s.guestNote}>This page stays available on this device for 30 days. <Link to="/account" className="link">Create an account</Link> to keep every order in one place.</p>}
+        {!buyer && <p className={s.guestNote}>This page stays available on this device for 30 days. <Link to={REGISTER} className="link">Create an account</Link> to keep every order in one place.</p>}
       </div>
     </>
   );

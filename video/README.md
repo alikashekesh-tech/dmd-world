@@ -6,7 +6,7 @@ The soundtrack is generated in code (no samples or licensed music).
 
 ## Make the video
 
-The store's dev server must be running at http://localhost:5173 (`npm run dev` in the project root).
+The store's dev server must be running at http://127.0.0.1:5173 (`npm run dev` in the project root).
 
 ```bash
 cd video

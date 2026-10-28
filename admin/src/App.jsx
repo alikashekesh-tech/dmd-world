@@ -1,9 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { api } from './lib/api.js';
+import { setStoreZone } from './lib/zone.js';
 import { useRoute, match } from './lib/router.jsx';
 import { UiProvider, SkeletonRows } from './ui/kit.jsx';
 import Shell from './shell/Shell.jsx';
-import { Login, Setup, Offline, Spinner } from './shell/Gate.jsx';
+import { Login, Offline, Spinner } from './shell/Gate.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import PageError from './shell/PageError.jsx';
 
@@ -25,33 +26,39 @@ const Homepage = lazy(() => import('./pages/Homepage.jsx'));
 const Notifications = lazy(() => import('./pages/Notifications.jsx'));
 const Trash = lazy(() => import('./pages/Trash.jsx'));
 const Settings = lazy(() => import('./pages/Settings.jsx'));
+const Staff = lazy(() => import('./pages/Staff.jsx'));
+const Menu = lazy(() => import('./pages/Menu.jsx'));
+const Invoice = lazy(() => import('./pages/Invoice.jsx'));
 
 const ROUTES = [
   ['/', Dashboard], ['/products', ProductsPage], ['/products/new', ProductEditor], ['/products/:id', ProductEditor],
   ['/categories', Categories], ['/brands', Brands], ['/inventory', Inventory], ['/offers', Offers],
   ['/orders', OrdersPage], ['/orders/:id', OrderDetail], ['/customers', CustomersPage], ['/customers/guest/:email', CustomerProfile], ['/customers/:id', CustomerProfile],
-  ['/messages', Messages], ['/messages/:id', Messages], ['/reviews', Reviews], ['/homepage', Homepage], ['/notifications', Notifications], ['/trash', Trash], ['/settings', Settings],
+  ['/messages', Messages], ['/messages/:id', Messages], ['/reviews', Reviews], ['/homepage', Homepage], ['/menu', Menu], ['/notifications', Notifications], ['/trash', Trash], ['/staff', Staff], ['/settings', Settings],
 ];
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [error, setError] = useState(null);
   const route = useRoute();
+  // Signed in when the API recognises the session cookie (401: show the sign-in page).
   const load = useCallback(async () => {
     setError(null);
-    try { setSession(await api.get('/session')); } catch (e) { setError(e.message); }
+    try { const owner = (await api.get('/auth/me')).data; setStoreZone(owner.store_timezone); setSession({ authed: true, owner }); } catch (e) { if (e.status === 401) setSession({ authed: false }); else setError(e.message); }
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { const on = () => setSession((s) => (s ? { ...s, authed: false } : s)); window.addEventListener('adm:signedout', on); return () => window.removeEventListener('adm:signedout', on); }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [route.path]);
-  const signOut = async () => { await api.post('/logout').catch(() => {}); setSession((s) => ({ ...s, authed: false })); };
+  const signOut = async () => { await api.post('/auth/logout').catch(() => {}); setSession({ authed: false }); };
 
   let body;
   if (error) body = <Offline error={error} retry={load} />;
   else if (!session) body = <Spinner />;
-  else if (!session.configured) body = <Setup missing={session.missing} />;
-  else if (!session.authed) body = <Login store={session.store} onIn={load} />;
-  else {
+  else if (!session.authed) body = <Login onIn={load} />;
+  else if (match('/orders/:id/invoice', route.path)) {
+    // The invoice is a sheet of paper: no menus around it, so it prints as just the invoice.
+    body = <Suspense fallback={<Spinner />}><Invoice params={match('/orders/:id/invoice', route.path)} query={route.query} /></Suspense>;
+  } else {
     let Page = null; let params = {};
     for (const [pattern, C] of ROUTES) { const m = match(pattern, route.path); if (m) { Page = C; params = m; break; } }
     body = (

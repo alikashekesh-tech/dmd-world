@@ -178,20 +178,6 @@ export const CHAPTERS = [
     }],
   },
   {
-    id: 'compare', title: 'Compare', path: '/compare', blurb: 'Head to head',
-    shots: [{
-      img: 'compare',
-      stops: [
-        { y: 'top', lead: 2.8, notes: [
-          { target: 'heroArt', title: 'Head to head', text: 'Up to four products side by side.' },
-        ] },
-        { y: 'table', offset: 40, notes: [
-          { target: 'table', title: 'Spot the difference', text: 'Price, stock and every spec in one table.' },
-        ] },
-      ],
-    }],
-  },
-  {
     id: 'contact', title: 'Contact', path: '/contact', blurb: 'Talk to a person',
     shots: [{
       img: 'contact',

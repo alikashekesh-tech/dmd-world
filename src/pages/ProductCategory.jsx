@@ -6,7 +6,7 @@ import CategoryArt, { artFor } from '../components/art/CategoryArt.jsx';
 import { PRODUCTS } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
-import { resolvePath, catUrl } from '../data/dmdMenu.js';
+import { resolvePath, catUrl, inNode } from '../data/dmdMenu.js';
 import NotFound from './NotFound.jsx';
 
 /* Each platform keeps the colour it has in the home page's "What do you play on?" picker. */
@@ -17,9 +17,9 @@ export default function ProductCategory() {
   const params = useParams();
   const nodes = resolvePath(params['*'] || '');
   const node = nodes && nodes[nodes.length - 1];
-  const ids = node ? node.allIds : [];
   const version = useCatalog();
-  const base = useMemo(() => PRODUCTS.filter((p) => p.cats.some((c) => ids.includes(c))), [node, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A brand's page lists everything of that brand; a category's page lists it and everything below it.
+  const base = useMemo(() => (node ? PRODUCTS.filter((p) => inNode(p, node)) : []), [node, version]); // eslint-disable-line react-hooks/exhaustive-deps
   usePageMeta(node ? { title: node.slug === 'new-offers' ? 'New offers and price drops' : node.name, description: node.slug === 'new-offers' ? 'The latest discounts across DMD World: consoles, games, accessories and gear with real reductions.' : `${node.name} at DMD World${node.count ? `: ${node.count} products` : ''}. ${nodes.length === 1 && node.blurb ? `${node.blurb}. ` : ''}Order online and pay on delivery in Lebanon.` } : { title: 'Category not found', noindex: true });
   if (!nodes || !nodes.length) return <NotFound />;
   const slugs = nodes.map((n) => n.slug);

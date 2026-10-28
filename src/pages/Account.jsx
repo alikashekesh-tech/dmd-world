@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from '../router/index.jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from '../router/index.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 import PageHero from '../components/ui/PageHero.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
@@ -9,11 +9,15 @@ import { ProductImage } from '../components/art/Media.jsx';
 import { Rating } from '../components/common/bits.jsx';
 import { ArrowRight, RepeatIcon, BellIcon, TrashIcon } from '../components/common/icons.jsx';
 import { PasswordField, PasswordRules, MatchHint, passwordReady } from '../components/account/Password.jsx';
-import { storeApi, ORDER_STATUS } from '../lib/storeApi.js';
-import { getProduct, money } from '../data/index.js';
+import { ORDER_STATUS } from '../lib/storeApi.js';
+import { getProduct, money, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
 import { CONTACT } from '../data/dmdMenu.js';
+import { account } from '../lib/account.js';
+import { SIGN_IN, REGISTER, FORGOT, authUrl, safeNext } from '../lib/authRoutes.js';
+import { reviews as reviewApi, messages as messageApi } from '../lib/community.js';
+import AddressBook from '../components/account/AddressBook.jsx';
 import s from './Account.module.css';
 
 const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
@@ -32,21 +36,20 @@ function ItemThumb({ item }) {
 }
 
 /* ── signed out: sign in, create an account, or reset a forgotten password ── */
-function SignIn() {
+// The form comes from the address (SIGN_IN, REGISTER or FORGOT), never from state kept here, so every link to a form
+// opens it. Once signed in, Account sends the buyer on (to ?next= or the account).
+function SignIn({ mode = 'in' }) {
   const { signIn, register, accounts, sessionError, retrySession } = useStore();
-  const nav = useNavigate();
   const [params] = useSearchParams();
-  const next = params.get('next');
-  // Only plain paths on this site: no "//host", no backslashes (browsers read "/\host" as another site), no spaces.
-  const back = () => { if (next && /^\/(?![/\\])[^\\\s]*$/.test(next) && next.length < 300) nav(next); };
-  const [mode, setMode] = useState('in');
+  const to = (path) => authUrl(path, params.get('next'));
   const [f, setF] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirm: '' });
   const [err, setErr] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (e) => { setF((x) => ({ ...x, [e.target.name]: e.target.value })); setErr(''); };
   const setPw = (k) => (v) => { setF((x) => ({ ...x, [k]: v })); setErr(''); };
-  const go = (m) => { setMode(m); setErr(''); setDone(''); setF((x) => ({ ...x, password: '', confirm: '' })); };
+  // Switching forms keeps the name and email typed so far, never a password or an old message.
+  useEffect(() => { setErr(''); setDone(''); setBusy(false); setF((x) => ({ ...x, password: '', confirm: '' })); }, [mode]);
 
   const ready = mode === 'in' ? isEmail(f.email) && f.password.length > 0
     : mode === 'up' ? f.firstName.trim() && f.lastName.trim() && isEmail(f.email) && passwordReady(f.password) && f.password === f.confirm
@@ -57,9 +60,9 @@ function SignIn() {
     if (!ready || busy) return;
     setBusy(true); setErr('');
     try {
-      if (mode === 'in') { await signIn(f.email.trim(), f.password); back(); return; }
-      if (mode === 'up') { await register({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, confirm: f.confirm }); back(); return; }
-      else { const r = await storeApi.post('/password/forgot', { email: f.email.trim() }); setDone(r.message); }
+      if (mode === 'in') { await signIn(f.email.trim(), f.password); return; }
+      if (mode === 'up') { await register({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, confirm: f.confirm }); return; }
+      else setDone(await account.forgot(f.email.trim()));
     } catch (x) { setErr(x.message); }
     setBusy(false);
   };
@@ -84,7 +87,7 @@ function SignIn() {
             <div className={s.sent} role="status">
               <b>Check your email</b>
               <p>{done}</p>
-              <button type="button" className="btn btn--secondary btn--block" onClick={() => go('in')}>Back to sign in</button>
+              <Link to={to(SIGN_IN)} className="btn btn--secondary btn--block">Back to sign in</Link>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
@@ -98,7 +101,7 @@ function SignIn() {
               {mode === 'up' && <div className="field"><label htmlFor="phone">Phone <span className={s.opt}>optional</span></label><input id="phone" name="phone" type="tel" className="input" value={f.phone} onChange={set} autoComplete="tel" placeholder="+961 …" /></div>}
               {mode === 'in' && (
                 <PasswordField label="Password" value={f.password} onChange={setPw('password')} autoComplete="current-password">
-                  <button type="button" className={s.forgot} onClick={() => go('forgot')}>Forgot your password?</button>
+                  <Link to={to(FORGOT)} className={s.forgot}>Forgot your password?</Link>
                 </PasswordField>
               )}
               {mode === 'up' && (
@@ -117,8 +120,8 @@ function SignIn() {
             </form>
           )}
           <p className={s.switch}>
-            {mode === 'in' ? <>New to DMD World? <button type="button" onClick={() => go('up')}>Create an account</button></>
-              : <>Already have an account? <button type="button" onClick={() => go('in')}>Sign in</button></>}
+            {mode === 'in' ? <>New to DMD World? <Link to={to(REGISTER)}>Create an account</Link></>
+              : <>Already have an account? <Link to={to(SIGN_IN)}>Sign in</Link></>}
           </p>
           <small>Your password is checked by the store and never kept in this browser.</small>
         </div>
@@ -178,53 +181,76 @@ function Orders() {
   );
 }
 
+/** One conversation per order (started by the first message), plus any general ones. */
 function Messages() {
-  const { refreshInbox } = useStore();
+  const { refreshInbox, orders } = useStore();
   const [params] = useSearchParams();
-  const [list, setList] = useState(null);
-  const [open, setOpen] = useState(() => Number(params.get('order')) || null);
+  const [convs, setConvs] = useState(null);
+  const [open, setOpen] = useState(() => (params.get('conversation') ? `c${params.get('conversation')}` : params.get('order') ? `o${params.get('order')}` : null));
   const [thread, setThread] = useState(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  useEffect(() => { storeApi.get('/me/messages').then((r) => setList(r.items)).catch((e) => setErr(e.message)); }, []);
+  useEffect(() => { messageApi.list().then((r) => setConvs(r.items)).catch((e) => setErr(e.message)); }, []);
+  // The buyer's orders (each can be asked about) and conversations, as one list.
+  const list = useMemo(() => {
+    if (!convs) return null;
+    const byOrder = new Map(convs.filter((c) => c.orderId).map((c) => [c.orderId, c]));
+    const fromOrders = orders.map((o) => ({ key: `o${o.id}`, orderId: o.id, number: o.number, status: o.status, note: o.note, conv: byOrder.get(o.id) || null }));
+    const known = new Set(orders.map((o) => o.id));
+    const others = convs.filter((c) => !c.orderId || !known.has(c.orderId)).map((c) => ({ key: c.orderId ? `o${c.orderId}` : `c${c.id}`, orderId: c.orderId, number: c.number, status: c.status, subject: c.subject, conv: c }));
+    return [...others.filter((t) => t.orderId), ...fromOrders, ...others.filter((t) => !t.orderId)];
+  }, [convs, orders]);
+  const current = list?.find((t) => t.key === open) || null;
+  const convId = current?.conv?.id ?? (open?.startsWith('c') ? Number(open.slice(1)) : null);
+  const ready = list !== null;
   useEffect(() => {
-    if (!open) return;
-    setThread(null); setErr('');
-    storeApi.get(`/me/messages/${open}`).then((r) => { setThread(r); setList((l) => l?.map((x) => (x.orderId === open ? { ...x, unread: false } : x))); refreshInbox(); }).catch((e) => setErr(e.message));
-  }, [open, refreshInbox]);
+    if (!open || !ready) return;
+    setErr('');
+    if (!convId) { setThread({ thread: [] }); return; }
+    setThread(null);
+    messageApi.get(convId).then((c) => { setThread(c); setConvs((l) => l.map((x) => (x.id === c.id ? { ...x, unread: false } : x))); refreshInbox(); }).catch((e) => setErr(e.message));
+  }, [open, convId, ready, refreshInbox]);
   const send = async (e) => {
     e.preventDefault();
     if (text.trim().length < 2) return;
     setBusy(true); setErr('');
     try {
-      const m = await storeApi.post(`/me/messages/${open}`, { text });
-      setThread((t) => ({ ...t, thread: [...t.thread, m] })); setText('');
-      setList((l) => l?.map((x) => (x.orderId === open ? { ...x, hasThread: true } : x)));
+      if (convId) {
+        const m = await messageApi.reply(convId, text);
+        setThread((t) => ({ ...t, thread: [...t.thread, m] }));
+        setConvs((l) => l.map((x) => (x.id === convId ? { ...x, last: m.at } : x)));
+      } else {
+        const c = await messageApi.start(current.orderId, text);
+        setThread(c); setConvs((l) => [c, ...l]);
+      }
+      setText('');
     } catch (x) { setErr(x.message); }
     setBusy(false);
   };
   if (!list) return <p className={s.muted}>{err || 'Loading your messages…'}</p>;
   if (!list.length) return <EmptyState compact art={<LineArt type="receipt" />} status="No messages" title="No orders to talk about yet" text="Once you order, you can message DMD about it here." />;
+  const title = (t) => (t.orderId ? `Order #${t.number}` : t.subject);
   return (
     <div className={s.msgs}>
       <ul className={s.threadList}>
         {list.map((t) => (
-          <li key={t.orderId}>
-            <button type="button" className={`${s.threadBtn} ${open === t.orderId ? s.on : ''}`} onClick={() => setOpen(t.orderId)} aria-current={open === t.orderId ? 'true' : undefined}>
-              <span><b>Order #{t.number}</b><small>{t.hasThread ? (t.last ? `Last message ${shortDate(t.last)}` : 'Conversation') : 'Ask about this order'}</small></span>
-              {t.unread && <i className={s.dot} aria-label="New reply" />}
+          <li key={t.key}>
+            <button type="button" className={`${s.threadBtn} ${open === t.key ? s.on : ''}`} onClick={() => setOpen(t.key)} aria-current={open === t.key ? 'true' : undefined}>
+              <span><b>{title(t)}</b><small>{t.conv ? (t.conv.last ? `Last message ${shortDate(t.conv.last)}` : 'Conversation') : 'Ask about this order'}</small></span>
+              {t.conv?.unread && <i className={s.dot} aria-label="New reply" />}
             </button>
           </li>
         ))}
       </ul>
       <div className={s.thread}>
-        {!open ? <p className={s.muted}>Pick an order to see messages with DMD World, or to ask something about it.</p>
+        {!current ? <p className={s.muted}>Pick an order to see messages with DMD World, or to ask something about it.</p>
           : !thread ? <p className={s.muted}>{err || 'Loading…'}</p> : (
             <>
-              <div className={s.threadHead}><b>Order #{thread.order.number}</b><StatusTag status={thread.order.status} /></div>
+              <div className={s.threadHead}><b>{title(current)}</b>{current.status && <StatusTag status={current.status === 'on_hold' ? 'on-hold' : current.status} />}</div>
               <div className={s.bubbles}>
-                {thread.thread.length === 0 && <p className={s.muted}>No messages yet. Ask DMD anything about this order.</p>}
+                {current.note && <div className={`${s.bubble} ${s.you}`}><p>{current.note}</p><small>You · note at checkout</small></div>}
+                {thread.thread.length === 0 && !current.note && <p className={s.muted}>No messages yet. Ask DMD anything about this order.</p>}
                 {thread.thread.map((m) => (
                   <div key={m.id} className={`${s.bubble} ${m.from === 'you' ? s.you : s.store}`}>
                     <p>{m.text}</p>
@@ -232,12 +258,14 @@ function Messages() {
                   </div>
                 ))}
               </div>
-              <form className={s.composer} onSubmit={send}>
-                <label className="sr-only" htmlFor="msg">Message to DMD World</label>
-                <textarea id="msg" className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Write to DMD World…" maxLength={2000} />
-                {err && <p className={s.err} role="alert">{err}</p>}
-                <div><small className={s.muted}>DMD replies here and by email.</small><button type="submit" className="btn btn--primary btn--sm" disabled={busy || text.trim().length < 2}>{busy ? 'Sending…' : 'Send'}</button></div>
-              </form>
+              {(current.orderId || convId) && (
+                <form className={s.composer} onSubmit={send}>
+                  <label className="sr-only" htmlFor="msg">Message to DMD World</label>
+                  <textarea id="msg" className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Write to DMD World…" maxLength={2000} />
+                  {err && <p className={s.err} role="alert">{err}</p>}
+                  <div><small className={s.muted}>DMD replies here and by email.</small><button type="submit" className="btn btn--primary btn--sm" disabled={busy || text.trim().length < 2}>{busy ? 'Sending…' : 'Send'}</button></div>
+                </form>
+              )}
             </>
           )}
       </div>
@@ -249,7 +277,7 @@ const REVIEW_STATUS = { pending: ['Pending approval', s.wait], published: ['Publ
 function MyReviews() {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
-  useEffect(() => { storeApi.get('/me/reviews').then((r) => setItems(r.items)).catch((e) => setErr(e.message)); }, []);
+  useEffect(() => { reviewApi.mine().then(setItems).catch((e) => setErr(e.message)); }, []);
   if (!items) return <p className={s.muted}>{err || 'Loading your reviews…'}</p>;
   if (!items.length) return <EmptyState compact art={<LineArt type="receipt" />} status="No reviews yet" title="You haven’t reviewed anything yet" text="Review gear you bought from your order history or any product page." />;
   return (
@@ -293,10 +321,9 @@ function Alerts() {
   );
 }
 
-const ADDR = [['address_1', 'Street address', 'address-line1', true], ['address_2', 'Building, floor', 'address-line2'], ['city', 'City', 'address-level2'], ['state', 'Area', 'address-level1'], ['postcode', 'Postal code', 'postal-code']];
 function Profile() {
   const { buyer, setBuyer } = useStore();
-  const init = () => ({ firstName: buyer.firstName, lastName: buyer.lastName, phone: buyer.phone, email: buyer.email, currentPassword: '', ...Object.fromEntries(ADDR.map(([k]) => [k, buyer.shipping[k] || buyer.billing[k] || ''])) });
+  const init = () => ({ firstName: buyer.firstName, lastName: buyer.lastName, phone: buyer.phone, email: buyer.email, currentPassword: '' });
   const [f, setF] = useState(init);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -307,11 +334,9 @@ function Profile() {
     e.preventDefault();
     setBusy(true); setMsg(null);
     try {
-      const addr = Object.fromEntries(ADDR.map(([k]) => [k, f[k].trim()]));
-      const name = { first_name: f.firstName.trim(), last_name: f.lastName.trim() };
-      const b = await storeApi.put('/me', { firstName: f.firstName, lastName: f.lastName, phone: f.phone, shipping: { ...addr, ...name, country: 'LB' }, billing: { ...addr, ...name, country: 'LB' }, ...(emailChanged ? { email: f.email, currentPassword: f.currentPassword } : {}) });
+      const b = await account.updateProfile({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), phone: f.phone.trim(), ...(emailChanged ? { email: f.email.trim(), currentPassword: f.currentPassword } : {}) });
       setBuyer(b); setF((x) => ({ ...x, currentPassword: '' }));
-      setMsg({ ok: true, text: 'Saved. Your details will be filled in at checkout.' });
+      setMsg({ ok: true, text: 'Saved.' });
     } catch (x) { setMsg({ ok: false, text: x.message }); }
     setBusy(false);
   };
@@ -326,12 +351,6 @@ function Profile() {
           <div className="field"><label htmlFor="pf-phone">Phone</label><input id="pf-phone" name="phone" type="tel" className="input" value={f.phone} onChange={set} autoComplete="tel" placeholder="+961 …" /></div>
         </div>
         {emailChanged && <PasswordField label="Current password (to change your email)" value={f.currentPassword} onChange={(v) => setF((x) => ({ ...x, currentPassword: v }))} autoComplete="current-password" />}
-      </fieldset>
-      <fieldset>
-        <legend>Delivery address</legend>
-        <div className={s.two}>
-          {ADDR.map(([k, label, auto, wide]) => <div key={k} className={`field ${wide ? s.wide : ''}`}><label htmlFor={`pf-${k}`}>{label}</label><input id={`pf-${k}`} name={k} className="input" value={f[k]} onChange={set} autoComplete={auto} /></div>)}
-        </div>
       </fieldset>
       {msg && <p className={msg.ok ? s.okMsg : s.err} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p>}
       <div className={s.formActions}>
@@ -352,7 +371,7 @@ function Security() {
     e.preventDefault();
     if (!ready) return;
     setBusy(true); setMsg(null);
-    try { await storeApi.post('/me/password', f); setF({ current: '', next: '', confirm: '' }); setMsg({ ok: true, text: 'Password changed. Any other devices signed in to your account were signed out.' }); } catch (x) { setMsg({ ok: false, text: x.message }); }
+    try { await account.changePassword(f); setF({ current: '', next: '', confirm: '' }); setMsg({ ok: true, text: 'Password changed. Any other devices signed in to your account were signed out.' }); } catch (x) { setMsg({ ok: false, text: x.message }); }
     setBusy(false);
   };
   return (
@@ -375,19 +394,31 @@ function Security() {
   );
 }
 
-const HELP = [
-  ['Delivery', `Delivery cost and timing are confirmed by DMD after you place your order. Call ${CONTACT.phone} or email ${CONTACT.email}.`],
+/** Built when shown, so it has the store's current phone, email and delivery price. */
+const help = () => [
+  ['Delivery', `${deliveryFee() == null ? 'Delivery cost and timing are confirmed by DMD after you place your order.' : deliveryFee() > 0 ? `Delivery costs ${money(deliveryFee())} anywhere in Lebanon; pickup from the store is free. DMD confirms the timing with you.` : 'Delivery is free anywhere in Lebanon. DMD confirms the timing with you.'} Call ${CONTACT.phone} or email ${CONTACT.email}.`],
   ['Returns & warranty', 'Please contact the store with your order number for returns or warranty questions.'],
   ['Payments', 'Pay cash on delivery or by bank transfer. DMD confirms every order with you before it ships.'],
 ];
 const TABS = [['orders', 'Order history'], ['messages', 'Messages'], ['reviews', 'My reviews'], ['alerts', 'Stock alerts'], ['profile', 'Profile & address'], ['security', 'Password'], ['help', 'Shipping & returns']];
 
-export default function Account() {
-  usePageMeta({ title: 'Your account', noindex: true });
+const AUTH_TITLES = { in: 'Sign in', up: 'Create account', forgot: 'Reset your password' };
+
+/** `auth` is set on the sign-in routes (App.jsx): 'in' (SIGN_IN), 'up' (REGISTER) or 'forgot' (FORGOT). */
+export default function Account({ auth }) {
+  usePageMeta({ title: AUTH_TITLES[auth] || 'Your account', noindex: true });
   const { buyer, checking, signOut, orders, wishlist, unread, alerts } = useStore();
   const [params, setParams] = useSearchParams();
-  if (checking) return <div className={`container ${s.auth}`}><p className={s.muted} role="status">Checking your account…</p></div>;
-  if (!buyer) return <SignIn />;
+  const { search } = useLocation();
+  const nav = useNavigate();
+  // Signed in on a sign-in form: on to ?next= or the account. Signed out on the account: the sign-in form, which
+  // brings the buyer back here afterwards (to the same tab, or to the ?next= an older link carried).
+  const redirect = checking ? null
+    : buyer ? (auth ? safeNext(params.get('next')) || '/account' : null)
+      : auth ? null : authUrl(SIGN_IN, params.get('next') || (search.length > 1 ? `/account${search}` : null));
+  useEffect(() => { if (redirect) nav(redirect, { replace: true }); }, [redirect, nav]);
+  if (checking || redirect) return <div className={`container ${s.auth}`}><p className={s.muted} role="status">Checking your account…</p></div>;
+  if (!buyer) return <SignIn mode={auth} />;
   const tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'orders';
   const go = (t) => setParams({ tab: t });
   const ordersCount = orders.length;
@@ -421,8 +452,9 @@ export default function Account() {
           {tab === 'reviews' && <MyReviews />}
           {tab === 'alerts' && <Alerts />}
           {tab === 'profile' && <Profile key={buyer.email} />}
+          {tab === 'profile' && <section className={s.form} aria-labelledby="addr-title"><fieldset><legend id="addr-title">Delivery addresses</legend><AddressBook buyer={buyer} /></fieldset></section>}
           {tab === 'security' && <Security />}
-          {tab === 'help' && <div className={s.help}>{HELP.map(([t, b]) => <div key={t}><h3>{t}</h3><p>{b}</p></div>)}</div>}
+          {tab === 'help' && <div className={s.help}>{help().map(([t, b]) => <div key={t}><h3>{t}</h3><p>{b}</p></div>)}</div>}
         </section>
       </div>
     </>

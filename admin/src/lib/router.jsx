@@ -8,6 +8,13 @@ const read = () => {
   return { path: path || '/', query: new URLSearchParams(qs) };
 };
 
+/* A page address under /admin/ (/admin/orders/12?status=x: typed, bookmarked, or served by Caddy's fallback) becomes
+   the hash route it means (/admin/#/orders/12?status=x) before the app first renders, instead of the dashboard. */
+export function adoptPathRoute() {
+  const m = location.pathname.match(/^\/admin\/(.+?)\/?$/);
+  if (m && m[1] !== 'index.html' && !location.hash) history.replaceState(null, '', `/admin/#/${m[1]}${location.search}`);
+}
+
 export function useRoute() {
   const [r, setR] = useState(read);
   useEffect(() => {

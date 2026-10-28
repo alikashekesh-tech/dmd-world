@@ -6,14 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:admin": "vite build --config admin/vite.config.js",
+    "build:all": "npm run build && npm run build:admin",
     "preview": "vite preview",
-    "build:all": "vite build && npm --prefix server run build:admin",
     "lint": "eslint .",
-    "test": "npm --prefix server test",
-    "check": "npm run lint && npm test && npm run build:all"
+    "api:serve": "php backend/artisan serve --host=127.0.0.1 --port=8000",
+    "test": "cd backend && php artisan test",
+    "test:admin": "node --test \"admin/src/lib/*.test.js\"",
+    "check": "npm run lint && npm run test:admin && npm run build:all && npm test"
   },
   "dependencies": {
+    "@date-fns/tz": "1.5.0",
+    "@floating-ui/react-dom": "2.1.9",
+    "date-fns": "4.4.0",
     "react": "^19.0.0",
+    "react-day-picker": "9.14.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {

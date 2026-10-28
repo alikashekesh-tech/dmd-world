@@ -5,8 +5,9 @@ import PixelText from '../components/ui/PixelText.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import { ArrowRight } from '../components/common/icons.jsx';
 import { PasswordField, PasswordRules, MatchHint, passwordReady } from '../components/account/Password.jsx';
-import { storeApi } from '../lib/storeApi.js';
+import { account } from '../lib/account.js';
 import { usePageMeta } from '../lib/meta.js';
+import { SIGN_IN } from '../lib/authRoutes.js';
 import s from './Account.module.css';
 
 /* Opened from the reset email: choose a new password (same rules as sign-up), then you're signed in. */
@@ -14,6 +15,8 @@ export default function ResetPassword() {
   usePageMeta({ title: 'Choose a new password', noindex: true });
   const [params] = useSearchParams();
   const [token] = useState(() => params.get('token') || '');
+  const [email] = useState(() => params.get('email') || ''); // Laravel's links carry the account email too
+  // The token (and email) leave the address bar at once, so they aren't kept in history or shared by accident.
   useEffect(() => { if (params.get('token')) window.history.replaceState(window.history.state, '', '/account/reset'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const { signedIn } = useStore();
   const nav = useNavigate();
@@ -22,19 +25,20 @@ export default function ResetPassword() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!token) { setValid(false); return; }
-    storeApi.get(`/password/reset?token=${encodeURIComponent(token)}`).then((r) => setValid(r.valid)).catch(() => setValid(false));
-  }, [token]);
+    if (!token || !email) { setValid(false); return; }
+    account.resetValid({ token, email })
+      .then(setValid).catch(() => setValid(false));
+  }, [token, email]);
   const ready = passwordReady(f.password) && f.password === f.confirm;
   const submit = async (e) => {
     e.preventDefault();
     if (!ready || busy) return;
     setBusy(true); setErr('');
     try {
-      const r = await storeApi.post('/password/reset', { token, password: f.password, confirm: f.confirm });
-      await signedIn(r.buyer);
+      const buyer = await account.reset({ token, email, password: f.password, confirm: f.confirm });
+      await signedIn(buyer);
       nav('/account');
-    } catch (x) { setErr(x.message); if (x.code === 'reset_expired') setValid(false); }
+    } catch (x) { setErr(x.message); if (x.code === 'reset_expired' || x.code === 'RESET_LINK_INVALID') setValid(false); }
     setBusy(false);
   };
   return (
@@ -53,7 +57,7 @@ export default function ResetPassword() {
             <div className={s.sent} role="alert">
               <b>This link has expired</b>
               <p>Reset links work once, for 60 minutes. Ask for a new one and use the newest email.</p>
-              <Link to="/account" className="btn btn--secondary btn--block">Back to sign in</Link>
+              <Link to={SIGN_IN} className="btn btn--secondary btn--block">Back to sign in</Link>
             </div>
           )}
           {valid && (

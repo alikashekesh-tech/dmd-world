@@ -7,7 +7,7 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { TrashIcon, PhoneIcon, ArrowRight } from '../components/common/icons.jsx';
-import { money, getBrand, COLORS, PRODUCTS } from '../data/index.js';
+import { money, getBrand, COLORS, PRODUCTS, deliveryFee, deliveryLabel } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import { useQuote } from '../lib/useQuote.js';
 import { usePageMeta } from '../lib/meta.js';
@@ -15,12 +15,13 @@ import s from './Cart.module.css';
 
 /* The summary is an ink "receipt": mono line items, one big total, and the action that moves you forward.
    With a live quote it shows the store's own prices and discount; without one, the catalog's. */
-export function OrderSummary({ children, showItems, quote, checking }) {
+export function OrderSummary({ children, showItems, quote, checking, method = 'delivery' }) {
   const { lines, subtotal: shown, savings, count } = useStore();
   const live = (id) => quote?.lines.find((q) => q.id === Number(id));
   const subtotal = quote ? quote.subtotal : shown;
   const discount = quote?.discount || 0;
-  const total = quote ? quote.total : shown;
+  const fee = quote ? quote.shipping : deliveryFee(method, lines.map((l) => l.product)); // null = confirmed by DMD after the order
+  const total = quote ? quote.total : shown + (fee || 0);
   const changed = quote && lines.some((l) => { const q = live(l.id); return q && !q.problem && Math.abs(q.price - l.product.price) > 0.004; });
   return (
     <aside className={s.summary} aria-label="Order summary" aria-busy={checking || undefined}>
@@ -43,7 +44,7 @@ export function OrderSummary({ children, showItems, quote, checking }) {
         <div><dt>Subtotal</dt><dd>{money(subtotal)}</dd></div>
         {!quote && savings > 0 && <div className={s.save}><dt>You save</dt><dd>−{money(savings)}</dd></div>}
         {discount > 0 && <div className={s.save}><dt>Code {quote.coupon?.code}</dt><dd>−{money(discount)}</dd></div>}
-        <div><dt>Delivery</dt><dd>Confirmed on order</dd></div>
+        <div><dt>{method === 'pickup' ? 'Pick up' : 'Delivery'}</dt><dd>{deliveryLabel(fee)}</dd></div>
         <div className={s.total}><dt>Total</dt><dd>{money(total)}</dd></div>
       </dl>
       {children}
@@ -54,7 +55,7 @@ export function OrderSummary({ children, showItems, quote, checking }) {
 
 export default function Cart() {
   usePageMeta({ title: 'Your cart', noindex: true });
-  const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast } = useStore();
+  const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast, lineMax } = useStore();
   const [quote, checking] = useQuote(lines);
   const problemOf = (id) => quote?.lines.find((q) => q.id === Number(id) && q.problem);
   const blocked = lines.some((l) => problemOf(l.id));
@@ -95,12 +96,12 @@ export default function Cart() {
                         <Link to={`/product/${l.product.slug}`}>{l.product.name}</Link>
                         {l.color && COLORS[l.color] && <span className={s.variant}><i style={{ background: COLORS[l.color].hex }} />{COLORS[l.color].label}</span>}
                         {bad ? (
-                          <span className={s.warn}>{bad.code === 'low_stock' ? `Only ${bad.max} left` : bad.code === 'sold_out' ? 'Sold out' : 'No longer available'}
+                          <span className={s.warn}>{bad.code === 'low_stock' ? `Only ${bad.max} left` : bad.code === 'sold_out' ? 'Sold out' : bad.code === 'too_large' ? 'Too many to order online' : 'No longer available'}
                             {bad.code === 'low_stock' && bad.max > 0 ? <button type="button" className={s.fixBtn} onClick={() => setQty(l.key, bad.max)}>Change to {bad.max}</button> : <button type="button" className={s.fixBtn} onClick={() => removeLine(l.key)}>Remove</button>}
                           </span>
                         ) : <span className={l.product.stock === 'out' ? s.warn : s.ok}>{l.product.stock === 'out' ? 'Currently out of stock' : l.product.stock === 'low' ? `Only ${l.product.stockCount} left` : 'In stock'}</span>}
                       </div>
-                      <QtyStepper value={l.qty} max={bad?.code === 'low_stock' ? Math.max(1, bad.max) : live?.max || 10} onChange={(q) => setQty(l.key, q)} label={l.product.name} />
+                      <QtyStepper value={l.qty} max={bad?.code === 'low_stock' ? Math.max(1, bad.max) : lineMax(l.key)} onChange={(q) => setQty(l.key, q)} label={l.product.name} />
                       <div className={s.price}><b>{money(l.qty * unit)}</b>{l.qty > 1 && <small>{money(unit)} each</small>}</div>
                       <button type="button" className={s.rm} aria-label={`Remove ${l.product.name}`} onClick={() => remove(l)}><TrashIcon size={18} /></button>
                     </li>
