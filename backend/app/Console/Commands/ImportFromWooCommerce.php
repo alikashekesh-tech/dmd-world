@@ -12,6 +12,7 @@ use App\Services\Import\ReviewImporter;
 use App\Services\Import\SettingsImporter;
 use App\Services\Import\TaxonomyImporter;
 use App\Services\Import\WooCommerceSource;
+use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -81,7 +82,11 @@ class ImportFromWooCommerce extends Command
             foreach (self::PARTS as $part) {
                 if (in_array($part, $only, true)) {
                     $this->line("Importing {$part}…");
-                    $stats = DB::transaction(fn () => $this->{$part}($source));
+                    // Read the old store first (minutes for products and orders), then write in one short transaction:
+                    // a transaction left open during the downloads loses its MySQL connection on shared hosting.
+                    $write = $this->{$part}($source);
+                    DB::reconnect();
+                    $stats = DB::transaction($write);
                     $this->info('  '.collect($stats)->map(fn ($n, $k) => "{$n} {$k}")->implode(', '));
                 }
             }
@@ -94,34 +99,46 @@ class ImportFromWooCommerce extends Command
         return self::SUCCESS;
     }
 
-    private function products(WooCommerceSource $source): array
-    {
-        $importer = app(ProductImporter::class);
-        $stats = $importer->import($source->all('/products', ['status' => 'any']));
-        foreach ($importer->warnings as $warning) {
-            $this->warn("  {$warning}");
-        }
+    /* Each part reads the old store now and returns the writes, which handle() runs inside a transaction. */
 
-        return $stats;
+    private function products(WooCommerceSource $source): Closure
+    {
+        $products = $source->all('/products', ['status' => 'any']);
+
+        return function () use ($products) {
+            $importer = app(ProductImporter::class);
+            $stats = $importer->import($products);
+            foreach ($importer->warnings as $warning) {
+                $this->warn("  {$warning}");
+            }
+
+            return $stats;
+        };
     }
 
-    private function customers(WooCommerceSource $source): array
+    private function customers(WooCommerceSource $source): Closure
     {
-        return $this->report(new CustomerImporter, fn ($i) => $i->import($source->all('/customers', ['role' => 'all'])));
+        $customers = $source->all('/customers', ['role' => 'all']);
+
+        return fn () => $this->report(new CustomerImporter, fn ($i) => $i->import($customers));
     }
 
-    private function orders(WooCommerceSource $source): array
+    private function orders(WooCommerceSource $source): Closure
     {
-        return $this->report(new OrderImporter, fn ($i) => $i->import($source->all('/orders', ['status' => 'any'])));
+        $orders = $source->all('/orders', ['status' => 'any']);
+
+        return fn () => $this->report(new OrderImporter, fn ($i) => $i->import($orders));
     }
 
-    private function reviews(WooCommerceSource $source): array
+    private function reviews(WooCommerceSource $source): Closure
     {
-        return $this->report(new ReviewImporter, fn ($i) => $i->import($source->all('/products/reviews', ['status' => 'all'])));
+        $reviews = $source->all('/products/reviews', ['status' => 'all']);
+
+        return fn () => $this->report(new ReviewImporter, fn ($i) => $i->import($reviews));
     }
 
     /** Order notes: one request per imported order (WooCommerce has no bulk endpoint for them). */
-    private function notes(WooCommerceSource $source): array
+    private function notes(WooCommerceSource $source): Closure
     {
         $ids = array_column($source->all('/orders', ['status' => 'any', '_fields' => 'id']), 'id');
         $imported = Order::whereIn('id', $ids)->pluck('id');
@@ -130,17 +147,21 @@ class ImportFromWooCommerce extends Command
             $notes[$id] = $source->all("/orders/{$id}/notes", ['type' => 'any']);
         }
 
-        return $this->report(new OrderNoteImporter, fn ($i) => $i->import($notes));
+        return fn () => $this->report(new OrderNoteImporter, fn ($i) => $i->import($notes));
     }
 
-    private function coupons(WooCommerceSource $source): array
+    private function coupons(WooCommerceSource $source): Closure
     {
-        return $this->report(new CouponImporter, fn ($i) => $i->import([...$source->all('/coupons'), ...$source->all('/coupons', ['status' => 'trash'])]));
+        $coupons = [...$source->all('/coupons'), ...$source->all('/coupons', ['status' => 'trash'])];
+
+        return fn () => $this->report(new CouponImporter, fn ($i) => $i->import($coupons));
     }
 
-    private function settings(WooCommerceSource $source): array
+    private function settings(WooCommerceSource $source): Closure
     {
-        return (new SettingsImporter)->import(['general' => $source->all('/settings/general'), 'products' => $source->all('/settings/products')]);
+        $settings = ['general' => $source->all('/settings/general'), 'products' => $source->all('/settings/products')];
+
+        return fn () => (new SettingsImporter)->import($settings);
     }
 
     private function report(object $importer, callable $run): array
@@ -153,8 +174,10 @@ class ImportFromWooCommerce extends Command
         return $stats;
     }
 
-    private function taxonomy(WooCommerceSource $source): array
+    private function taxonomy(WooCommerceSource $source): Closure
     {
-        return (new TaxonomyImporter)->import($source->all('/products/categories'), require database_path('import/storefront-taxonomy.php'));
+        $categories = $source->all('/products/categories');
+
+        return fn () => (new TaxonomyImporter)->import($categories, require database_path('import/storefront-taxonomy.php'));
     }
 }
