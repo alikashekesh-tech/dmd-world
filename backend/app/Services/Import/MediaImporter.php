@@ -22,7 +22,7 @@ final class MediaImporter
     /** table => column */
     public const COLUMNS = ['product_images' => 'url', 'categories' => 'image_url', 'brands' => 'logo_url', 'banners' => 'image_url', 'order_items' => 'image_url'];
 
-    private const TYPES = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+    private const TYPES = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif', 'image/avif' => 'avif'];
 
     private const MAX_BYTES = 10 * 1024 * 1024;
 
