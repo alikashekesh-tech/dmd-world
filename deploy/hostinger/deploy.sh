@@ -35,20 +35,8 @@ if [ ! -f "backend/.env" ]; then
     cd backend && php artisan key:generate && cd "$ROOT_DIR"
 fi
 
-# 3. Publish Storefront (dist -> public_html)
-echo ">> Publishing Storefront assets..."
-mkdir -p "$ROOT_DIR/assets"
-cp -rf dist/* "$ROOT_DIR/"
-
-# 4. Publish Admin Panel (admin/dist -> public_html/admin)
-echo ">> Publishing Admin Panel..."
-mkdir -p "$ROOT_DIR/admin"
-cp -rf admin/dist/* "$ROOT_DIR/admin/"
-
-# 5. Configure Hostinger Apache .htaccess and API entry point
-echo ">> Configuring .htaccess and api.php..."
-cp -f deploy/hostinger/.htaccess "$ROOT_DIR/.htaccess"
-cp -f api.php "$ROOT_DIR/api.php"
+# 3-5. Storefront, admin, .htaccess and api.php need no copying: the committed .htaccess serves the built pages
+# straight from dist/ and admin/dist/, so tracked files are never overwritten and the next git pull stays clean.
 
 # 6. Install / update PHP dependencies
 echo ">> Installing backend composer dependencies..."
