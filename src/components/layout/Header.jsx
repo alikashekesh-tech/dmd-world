@@ -25,7 +25,9 @@ export default function Header() {
   useEffect(() => { setMenu(false); setMobile(false); setSearchOpen(false); }, [pathname]);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') { setMenu(false); setSearchOpen(false); } };
-    const onScroll = () => setScrolled(window.scrollY > 36);
+    // Collapsing the 36px ink strip moves the page up by 36px, so one threshold would flip back and forth forever:
+    // fold it past 80px, open it again only near the top.
+    const onScroll = () => setScrolled((was) => (was ? window.scrollY > 8 : window.scrollY > 80));
     window.addEventListener('keydown', onKey); window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('scroll', onScroll); };
   }, []);
