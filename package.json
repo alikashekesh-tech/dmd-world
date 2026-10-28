@@ -13,7 +13,8 @@
     "api:serve": "php backend/artisan serve --host=127.0.0.1 --port=8000",
     "test": "cd backend && php artisan test",
     "test:admin": "node --test \"admin/src/lib/*.test.js\"",
-    "check": "npm run lint && npm run test:admin && npm run build:all && npm test"
+    "test:store": "node --test \"src/lib/*.test.js\"",
+    "check": "npm run lint && npm run test:admin && npm run test:store && npm run build:all && npm test"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",

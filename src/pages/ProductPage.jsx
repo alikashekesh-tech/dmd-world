@@ -12,6 +12,7 @@ import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellI
 import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
+import RoomView from '../components/product/RoomView.jsx';
 import { catUrl, CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
@@ -178,6 +179,7 @@ export default function ProductPage() {
             {onVideo ? <ProductVideo video={video} name={p.name} /> : <ProductImage product={p} color={color} view={view} eager className={s.stageImg} />}
             {!onVideo && p.discount > 0 && <span className={s.badge}>{dealBadge(p)}</span>}
             {!onVideo && isNew(p) && !p.discount && <span className={`${s.badge} ${s.new}`}>New</span>}
+            {!onVideo && p.img && <RoomView src={shots[view] || p.img} name={p.name} />}
           </div>
           {(shots.length > 1 || video) && (
             <ul className={s.thumbs} aria-label="Product photos and video">

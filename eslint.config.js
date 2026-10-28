@@ -7,7 +7,8 @@ import globals from 'globals';
 const jsx = { ecmaVersion: 'latest', sourceType: 'module', parserOptions: { ecmaFeatures: { jsx: true } } };
 
 export default [
-  { ignores: ['**/dist/**', 'node_modules/**', 'video/**', 'backend/**'] },
+  // assets/ and admin/assets/: built bundles committed at the root by an earlier deploy (8cd781d), like dist/.
+  { ignores: ['**/dist/**', 'assets/**', 'admin/assets/**', 'node_modules/**', 'video/**', 'backend/**'] },
   js.configs.recommended,
   {
     files: ['src/**/*.{js,jsx}', 'admin/src/**/*.{js,jsx}', 'shared/**/*.js'],
