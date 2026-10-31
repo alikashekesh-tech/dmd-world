@@ -15,6 +15,17 @@
 .radio i { width: 8px; height: 8px; border-radius: 50%; background: #fff; }
 .check input:checked + .radio { background: var(--accent); }
 .lab { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+
+/* Category tree: a row per category, its sub-categories indented under a line when opened */
+.node { display: flex; align-items: center; gap: 2px; }
+.node > .check { flex: 1; min-width: 0; margin-right: 0; }
+.twist { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--muted); transition: background .12s, color .12s; }
+.twist:hover { background: var(--surface-2); color: var(--text); }
+.twist svg { transition: transform .2s; }
+.twist:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sublist { display: grid; gap: 1px; margin: 2px 0 6px 14px; padding-left: 10px; border-left: 1px solid var(--line); }
+.sublist .check { font-size: 13.5px; min-height: 34px; }
 .stars { display: inline-flex; gap: 1px; }
 .cnt { font: 500 11px var(--font-mono); color: var(--muted); }
 .dis { opacity: .4; cursor: not-allowed; }

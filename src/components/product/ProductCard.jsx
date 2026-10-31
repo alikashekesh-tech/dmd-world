@@ -2,7 +2,7 @@ import { Link } from '../../router/index.jsx';
 import { ProductImage } from '../art/Media.jsx';
 import { HeartIcon, BagIcon } from '../common/icons.jsx';
 import { Rating, Price, Compat, Stock } from '../common/bits.jsx';
-import { getBrand, isNew, money } from '../../data/index.js';
+import { groupOf, isNew, money } from '../../data/index.js';
 import { useStore } from '../../context/StoreContext.jsx';
 import s from './ProductCard.module.css';
 
@@ -34,7 +34,7 @@ export default function ProductCard({ product: p, priority }) {
         )}
       </div>
       <div className={s.body}>
-        <span className={s.brand}>{getBrand(p.brand).name}</span>
+        <span className={s.brand}>{groupOf(p).name}</span>
         <h3 className={s.name}><Link to={href}>{p.name}</Link></h3>
         {p.sub && <p className={s.sub}>{p.sub}</p>}
         {p.n > 0 && <Rating value={p.r} count={p.n} />}

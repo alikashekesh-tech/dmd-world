@@ -9,12 +9,12 @@ import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellIcon } from '../components/common/icons.jsx';
-import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit, deliveryFee } from '../data/index.js';
+import { getProduct, groupOf, PRODUCTS, COLORS, money, isNew, purchaseLimit, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import RoomView from '../components/product/RoomView.jsx';
 import { whatsAppUrl, productMessage, WhatsAppIcon } from '../components/layout/WhatsAppButton.jsx';
-import { catUrl, CONTACT } from '../data/dmdMenu.js';
+import { CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
@@ -117,7 +117,7 @@ export default function ProductPage() {
   }, [p, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const recent = useMemo(() => recentIds().filter((id) => id !== slug).map(getProduct).filter(Boolean).slice(0, 4), [slug, version]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const brand = p ? getBrand(p.brand) : null;
+  const brand = p ? groupOf(p) : null; // its brand, or the category it's listed under
   const cat = p ? { slug: p.brand, name: catName(Number(p.cat)) } : null;
   const out = p?.stock === 'out';
   const fee = p ? deliveryFee('delivery', [p]) : null; // its own delivery price, or the store's
@@ -171,7 +171,7 @@ export default function ProductPage() {
   return (
     <div className="container" data-catalog={catalogVersion}>
       <div className={s.head}>
-        <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: brand.name, to: catUrl(p.brand) }, { label: p.name }]} />
+        <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: brand.name, to: brand.to }, { label: p.name }]} />
       </div>
 
       <div className={s.top}>
@@ -201,7 +201,7 @@ export default function ProductPage() {
 
         <div className={s.buy}>
           <div className={s.kicker}>
-            <Link to={catUrl(p.brand)}>{brand.name}</Link>
+            <Link to={brand.to}>{brand.name}</Link>
             <span aria-hidden>·</span><span>{cat.name}</span>
           </div>
           <h1>{p.name}</h1>
@@ -258,7 +258,7 @@ export default function ProductPage() {
         <section className={s.bundle} aria-labelledby="inc">
           <h2 id="inc">What's in this setup</h2>
           <ul>{bundle.map((b) => (
-            <li key={b.id}><Link to={`/product/${b.slug}`}><span className={s.bThumb}><ProductImage product={b} color={b.colors[0]} /></span><span><small>{getBrand(b.brand).name}</small><b>{b.name}</b></span><em>{money(b.price)}</em></Link></li>
+            <li key={b.id}><Link to={`/product/${b.slug}`}><span className={s.bThumb}><ProductImage product={b} color={b.colors[0]} /></span><span><small>{groupOf(b).name}</small><b>{b.name}</b></span><em>{money(b.price)}</em></Link></li>
           ))}</ul>
         </section>
       )}
@@ -304,7 +304,7 @@ export default function ProductPage() {
 
       {related.length > 0 && (
         <section className={s.related} aria-labelledby="rel">
-          <div className="section-head"><div><p className="eyebrow">Keep exploring</p><h2 id="rel">You might also want</h2></div>{cat && <Link to={catUrl(p.brand)} className="link">More {brand.name} <ArrowRight size={16} /></Link>}</div>
+          <div className="section-head"><div><p className="eyebrow">Keep exploring</p><h2 id="rel">You might also want</h2></div>{cat && <Link to={brand.to} className="link">More {brand.name} <ArrowRight size={16} /></Link>}</div>
           <ProductGrid products={related} cols={4} />
         </section>
       )}

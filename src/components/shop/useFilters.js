@@ -1,40 +1,41 @@
 import { useMemo } from 'react';
 import { useSearchParams } from '../../router/index.jsx';
 
-const RESERVED = ['sort', 'price', 'rating', 'q', 'stock', 'page'];
+const RESERVED = ['sort', 'price', 'rating', 'q', 'stock', 'page', 'cat'];
 
-/** URL <-> filter state. Every facet key is a comma-separated list in the query string. */
+/** URL <-> filter state. One value per filter group (?brand=marvo, ?cat=gaming-accessories/headphones); groups combine.
+    A pick adds a history entry, so Back undoes it; typing a price replaces the entry instead of adding one per key. */
 export default function useFilters(keys) {
   const [params, setParams] = useSearchParams();
   const state = useMemo(() => {
     const f = {};
-    for (const k of keys) { const v = params.get(k); if (v) f[k] = v.split(','); }
+    for (const k of keys) { const v = params.get(k)?.split(',')[0]; if (v) f[k] = [v]; } // older links listed several: keep the first
     const pr = params.get('price');
     if (pr) { const [a, b] = pr.split('-').map(Number); if (!Number.isNaN(a)) f.price = [a, Number.isNaN(b) ? Infinity : b]; }
     if (params.get('rating')) f.rating = Number(params.get('rating'));
-    if (params.get('stock')) f.stock = ['in'];
+    const stock = params.get('stock');
+    if (stock) f.stock = [stock === 'out' ? 'out' : 'in'];
+    if (params.get('cat')) f.cat = params.get('cat');
     if (params.get('q')) f.q = params.get('q');
     return f;
   }, [params, keys]);
   const sort = params.get('sort') || 'featured';
 
-  const update = (patch) => {
+  const update = (patch, { typing = false } = {}) => {
     const next = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
       if (v == null || (Array.isArray(v) && v.length === 0) || v === '' || v === 0) next.delete(k);
       else next.set(k, Array.isArray(v) ? v.join(',') : String(v));
     }
     next.delete('page');
-    setParams(next);
+    setParams(next, { replace: typing });
   };
-  const toggle = (key, value) => {
-    const cur = state[key] || [];
-    update({ [key]: cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value] });
-  };
+  /** Selects one value in a group (replacing the one before), or clears the group when it's picked again. */
+  const toggle = (key, value) => update({ [key]: state[key]?.[0] === value ? null : value });
   const clearAll = () => {
     const next = new URLSearchParams();
     if (params.get('sort')) next.set('sort', params.get('sort'));
-    setParams(next);
+    setParams(next, { replace: false });
   };
   const activeCount = Object.keys(state).filter((k) => k !== 'q').length;
   return { state, sort, update, toggle, clearAll, activeCount, params, setParams, RESERVED };

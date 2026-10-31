@@ -1,4 +1,4 @@
-.panel { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; background: #fff; color: var(--text); border-top: 1px solid var(--line); box-shadow: 0 40px 80px -30px rgba(8, 14, 30, .4); animation: drop .18s ease-out; }
+.panel { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; overflow-y: auto; overscroll-behavior: contain; background: #fff; color: var(--text); border-top: 1px solid var(--line); box-shadow: 0 40px 80px -30px rgba(8, 14, 30, .4); animation: drop .18s ease-out; }
 @keyframes drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .inner { display: grid; grid-template-columns: 260px minmax(0, 1fr) 300px; min-height: 420px; }
 

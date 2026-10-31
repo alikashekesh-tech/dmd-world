@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import { MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
+import { DEPARTMENTS, isRetired } from '../../data/departments.js';
 import { useCatalog } from '../../data/live.js';
 import { STORE } from '../../data/index.js';
 import { MENU_LINKS } from '../../data/nav.js';
@@ -24,6 +25,39 @@ function Acc({ title, open, onToggle, children }) {
 
 // MENU_SECTIONS is [categories, brands]: each becomes one section of the drawer.
 const SECTION_TITLES = ['Categories', 'Brands'];
+
+/** The main categories; tapping one opens its sub-categories (one at a time). */
+function Departments({ onClose }) {
+  const [open, setOpen] = useState(null);
+  return (
+    <ul className={s.depts}>
+      {DEPARTMENTS.map((d) => {
+        const on = open === d.slug;
+        return (
+          <li key={d.slug}>
+            <div className={s.deptRow}>
+              <Link to={d.to} onClick={onClose}>{d.name}</Link>
+              <button type="button" aria-expanded={on} aria-controls={`mn-${d.slug}`} aria-label={`${on ? 'Hide' : 'Show'} ${d.name} sub-categories`} onClick={() => setOpen(on ? null : d.slug)}>
+                <ChevronDown size={17} style={{ transform: on ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
+              </button>
+            </div>
+            {on && (
+              <div id={`mn-${d.slug}`} className={s.group}>
+                <ul>{d.children.map((x) => {
+                  const kids = x.node ? x.node.children.filter((c) => c.count > 0 && !isRetired(c)) : [];
+                  return (
+                    <li key={x.slug}><Link to={x.to} onClick={onClose}>{x.name}</Link>
+                      {kids.length > 0 && <span className={s.sub}>{kids.map((c) => <Link key={c.slug} to={catUrl(...c.path)} onClick={onClose}>{c.name}</Link>)}</span>}</li>
+                  );
+                })}</ul>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export default function MobileNav({ open, onClose }) {
   const { wishlist, user } = useStore();
@@ -54,8 +88,9 @@ export default function MobileNav({ open, onClose }) {
             if (!sec) return null;
             return (
               <Acc key={key} title={SECTION_TITLES[i]} open={section === i} onToggle={() => toggle(i)}>
+                {i === 0 && <Departments onClose={onClose} />}
                 {i === 1 && <div className={s.group}><h5><Link to="/brands" onClick={onClose}>All brands</Link></h5></div>}
-                {sec.slugs.filter((sl) => groupBySlug[sl]).map((sl) => { const g = groupBySlug[sl]; return (
+                {i === 1 && sec.slugs.filter((sl) => groupBySlug[sl]).map((sl) => { const g = groupBySlug[sl]; return (
                   <div key={sl} className={s.group}>
                     <h5><Link to={catUrl(sl)} onClick={onClose}>{g.name}</Link></h5>
                     {g.children?.length > 0 && <ul>{g.children.map((c) => <li key={c.slug}><Link to={catUrl(sl, c.slug)} onClick={onClose}>{c.name}</Link>

@@ -1,6 +1,7 @@
 import { Link, useLocation } from '../../router/index.jsx';
 import { FOOTER_COLS } from '../../data/nav.js';
 import { CONTACT, STORE_LOCATION, MENU_SECTIONS, groupBySlug, catUrl } from '../../data/dmdMenu.js';
+import { DEPARTMENTS } from '../../data/departments.js';
 import { useCatalog } from '../../data/live.js';
 import Logo from './Logo.jsx';
 import LineArt from '../art/LineArt.jsx';
@@ -12,10 +13,10 @@ const HEART = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
 /* The first two columns follow the store's own categories and brands (the same tree as the menus); the last two are
    fixed links. */
 function columns() {
-  const pick = (i, all) => (MENU_SECTIONS[i]?.slugs || []).filter((sl) => groupBySlug[sl]).slice(0, 7).map((sl) => ({ label: groupBySlug[sl].name, to: catUrl(sl) })).concat([all]);
+  const brands = (MENU_SECTIONS[1]?.slugs || []).filter((sl) => groupBySlug[sl]).slice(0, 7).map((sl) => ({ label: groupBySlug[sl].name, to: catUrl(sl) }));
   return [
-    { title: 'Categories', links: pick(0, { label: 'All Categories', to: '/categories' }) },
-    { title: 'Brands', links: pick(1, { label: 'All brands', to: '/brands' }) },
+    { title: 'Categories', links: [...DEPARTMENTS.slice(0, 7).map((d) => ({ label: d.name, to: d.to })), { label: 'All Categories', to: '/categories' }] },
+    { title: 'Brands', links: [...brands, { label: 'All brands', to: '/brands' }] },
     ...FOOTER_COLS,
   ];
 }

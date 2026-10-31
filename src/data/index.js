@@ -1,10 +1,18 @@
 import { COMPAT, COMPAT_ORDER, CATEGORIES, categoryBySlug, brandBySlug, BRANDS, FILTERS_BY_TYPE, FACET_LABELS } from './meta.js';
 import { catName, fromApi, setCategories } from './dmdProducts.js';
-import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS, CONTACT } from './dmdMenu.js';
+import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS, CONTACT, catUrl } from './dmdMenu.js';
 import { MENU_LINKS, DEFAULT_MENU } from './nav.js';
+import { buildDepartments, isRetired, homeOf } from './departments.js';
 export * from './meta.js';
 const FALLBACK_BRAND = { slug: 'dmd', name: 'DMD World' };
 export const getBrand = (slug) => (groupBySlug[slug] ? { slug, name: groupBySlug[slug].name } : brandBySlug[slug] || FALLBACK_BRAND);
+/** The brand (or group) a product is shown under, with its page: a retired group gives way to the product's main
+    category (an unbranded chair filed under PC Parts shows under Gaming Furniture › Chairs & Tables). */
+export function groupOf(p) {
+  const g = groupBySlug[p.brand];
+  if (g && isRetired(g)) { const home = homeOf(p); return home ? { name: home.name, to: home.to } : { name: FALLBACK_BRAND.name, to: '/shop' }; }
+  return { name: getBrand(p.brand).name, to: catUrl(p.brand) };
+}
 
 /* ── the catalog ────────────────────────────────────────────────────────────────
    Empty until /api/v1/catalog (MySQL) arrives, or this device's cached copy of it; the app waits for one of the two
@@ -15,6 +23,7 @@ export const productById = {};
 const reindex = () => { for (const k of Object.keys(productById)) delete productById[k]; for (const p of PRODUCTS) productById[p.id] = p; };
 reindex();
 recountMenu(PRODUCTS);
+buildDepartments(PRODUCTS);
 export const getProduct = (id) => productById[id];
 
 let version = 0;
@@ -92,7 +101,7 @@ export function applyCatalog(data) {
   const next = [];
   for (const p of data.products) { try { next.push(fromApi(p, ctx)); } catch { /* skip a malformed product */ } }
   PRODUCTS.splice(0, PRODUCTS.length, ...next);
-  reindex(); recountMenu(PRODUCTS);
+  reindex(); recountMenu(PRODUCTS); buildDepartments(PRODUCTS);
   applyStore(data.homepage, data.store);
   liveAt = Date.parse(data.generated_at) || Date.now();
   changed();
@@ -147,7 +156,7 @@ export function sortProducts(list, key) {
 /** The values a product offers for a facet key (all facet keys incl. core ones). */
 export function facetValues(p, key) {
   switch (key) {
-    case 'brand': return [p.brand];
+    case 'brand': return p.brandId != null ? [p.brand] : []; // the brands the store lists, not a product's category group
     case 'type': return [p.cat];
     case 'platform': return [...p.compat, ...(p.multi ? ['multi'] : [])];
     case 'conn': return p.conn ? (p.conn === 'Wired / Wireless' ? ['Wired', 'Wireless'] : [p.conn]) : [];
@@ -158,12 +167,13 @@ export function facetValues(p, key) {
 }
 export const platformLabel = (k) => (k === 'multi' ? 'Multi-platform' : COMPAT[k]?.label || k);
 
-/** Filter state: { brand:[], platform:[], ..., price:[min,max]|null, rating:number|0, stock:['in'] } */
+/** Filter state: { brand:[one], platform:[one], ..., price:[min,max]|null, rating:number|0, stock:['in'|'out'], cat }
+    (the category, `cat`, is applied by ProductBrowser from its own options). */
 export function applyFilters(list, f, skipKey) {
   const terms = f.q ? fold(f.q).split(/\s+/).filter(Boolean) : null;
   return list.filter((p) => {
     for (const key of Object.keys(f)) {
-      if (key === skipKey || key === 'price' || key === 'rating' || key === 'q') continue;
+      if (key === skipKey || key === 'price' || key === 'rating' || key === 'q' || key === 'cat') continue;
       const want = f[key];
       if (!want || !want.length) continue;
       const have = facetValues(p, key);

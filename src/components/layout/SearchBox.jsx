@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '../../router/index.jsx';
 import { search, money, getBrand } from '../../data/index.js';
 import { DMD_GROUPS, catUrl } from '../../data/dmdMenu.js';
+import { DEPARTMENTS, isRetired } from '../../data/departments.js';
 import { ProductImage } from '../art/Media.jsx';
 import { SearchIcon, CloseIcon } from '../common/icons.jsx';
 import { useCatalog } from '../../data/live.js';
@@ -16,7 +17,13 @@ export default function SearchBox({ autoFocus, onDone, variant = 'bar', placehol
   const version = useCatalog();
   const listId = useId();
   const results = useMemo(() => search(q, 6), [q, version]); // eslint-disable-line react-hooks/exhaustive-deps
-  const cats = useMemo(() => (q.trim().length > 1 ? DMD_GROUPS.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 3) : []), [q]);
+  // Main categories, their sub-categories, then the store's own groups (not the retired ones), each once.
+  const cats = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (term.length < 2) return [];
+    const all = [...DEPARTMENTS.flatMap((d) => [d, ...d.children]), ...DMD_GROUPS.filter((g) => !isRetired(g)).map((g) => ({ name: g.name, to: catUrl(g.slug) }))];
+    return all.filter((c, i) => c.name.toLowerCase().includes(term) && all.findIndex((x) => x.to === c.to) === i).slice(0, 3);
+  }, [q]);
 
   useEffect(() => {
     const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -50,7 +57,7 @@ export default function SearchBox({ autoFocus, onDone, variant = 'bar', placehol
       </form>
       {open && q.trim().length > 0 && (
         <div className={s.panel} role="listbox" id={listId} aria-label="Search suggestions">
-          {cats.length > 0 && <div className={s.cats}>{cats.map((c) => <button key={c.slug} type="button" onClick={() => go(catUrl(c.slug))}>{c.name}</button>)}</div>}
+          {cats.length > 0 && <div className={s.cats}>{cats.map((c) => <button key={c.to} type="button" onClick={() => go(c.to)}>{c.name}</button>)}</div>}
           {results.length === 0 ? <p className={s.empty} role="status">No products found for “{q}”. Try a brand, a console or a shorter word.</p> : results.map((p, i) => (
             <button key={p.id} id={`${listId}-${i}`} type="button" role="option" aria-selected={i === idx} className={`${s.row} ${i === idx ? s.active : ''}`} onClick={() => go(`/product/${p.slug}`)}>
               <span className={s.thumb}><ProductImage product={p} color={p.colors[0]} /></span>

@@ -4,6 +4,7 @@ import { PRODUCTS, sortProducts, catalog, getProduct, HOMEPAGE } from '../../dat
 import { useCatalog } from '../../data/live.js';
 import { group, catUrl, resolvePath, inNode, NEW_OFFERS, BRAND_GROUPS, DMD_GROUPS } from '../../data/dmdMenu.js';
 import { artFor } from '../art/CategoryArt.jsx';
+import { resolveDepartment } from '../../data/departments.js';
 
 export const usd = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const from = (list) => (list.length ? Math.min(...list.map((p) => p.price)) : null);
@@ -48,8 +49,12 @@ function build() {
     const node = resolvePath(path.join('/'))?.at(-1);
     return { to: catUrl(...path), list: node ? LIVE.filter((p) => inNode(p, node)) : [] };
   };
+  const byDepartment = (path, q) => {
+    const x = resolveDepartment(path)?.at(-1);
+    return x ? { to: x.to, list: LIVE.filter((p) => x.ids.has(p.id)) } : bySearch(q);
+  };
   const SPOTS = [
-    { id: 'monitor', label: 'Monitors', ...byCategory('pc-parts', 'monitors') },
+    { id: 'monitor', label: 'Monitors', ...byDepartment('displays/monitors', 'monitor') },
     { id: 'chair', label: 'Gaming chairs', ...bySearch('chair') },
     { id: 'headset', label: 'Headsets', ...bySearch('headset') },
     { id: 'keyboard', label: 'Keyboards', ...bySearch('keyboard') },
@@ -110,15 +115,17 @@ function build() {
   const other = Object.fromEntries(group('other').children.map((c) => [c.slug, c]));
   // A tile whose category the owner removed simply isn't shown.
   const tile = (slug, art, size, node = other[slug]) => (node ? { slug, art, size, name: node.name, count: node.count, to: node === other[slug] ? catUrl('other', slug) : catUrl(node.slug) } : null);
+  const top = (slug) => (group(slug).slug ? group(slug) : undefined);
+  const drawn = (t, spec) => t && { ...t, spec };
   const builtIn = [
     tile('action-figures', 'figure', 'xl'),
     tile('retro-games-and-consoles', 'retro', 'wide'),
     tile('speakers', 'speaker'),
-    tile('phone-accessories', 'phone'),
-    tile('laptops', 'laptop', null, group('laptops').slug ? group('laptops') : undefined),
-    tile('network-products', 'router'),
+    tile('gadgets', 'phone'),
+    tile('laptops', 'laptop', null, top('laptops')),
+    drawn(tile('tablets', null, null, top('tablets')), ['line', 'tablet']),
     tile('electronic-toys', 'car'),
-    tile('smart-watches', 'watch'),
+    drawn(tile('airpods', null), ['line', 'headset']),
   ].filter(Boolean);
   /* The owner's hand-picked categories take the grid's places in order (each with the drawing its name suggests);
      the built-in tiles fill any places left, so the layout stays whole. */

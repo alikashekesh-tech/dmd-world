@@ -18,18 +18,44 @@ export { Breadcrumbs };
 const ALL_KEYS = Object.keys(FACET_LABELS);
 const PAGE = 24;
 
+/** The option for ?cat=key and the options above it ([] when the key isn't one of these: an old or foreign link). */
+function trailOf(options, key, trail = []) {
+  for (const o of options) {
+    if (o.key === key) return [...trail, o];
+    const hit = trailOf(o.children, key, [...trail, o]);
+    if (hit.length) return hit;
+  }
+  return [];
+}
+
+/** The category options with live counts (under every other filter), without those that list nothing here. */
+function countOptions(options, baseIds, poolIds) {
+  const has = (ids, set) => { let n = 0; for (const id of ids) if (set.has(id)) n++; return n; };
+  return options.map((o) => ({ ...o, count: has(o.ids, poolIds), children: countOptions(o.children, baseIds, poolIds) }))
+    .filter((o) => has(o.ids, baseIds) > 0);
+}
 
 /**
  * Generic, URL-driven product listing with dynamic filters.
- * @param base      products in scope (already narrowed by the route)
- * @param keysFor   (state) => facet keys to show for the current selection
+ * @param base        products in scope (already narrowed by the route)
+ * @param keysFor     (state) => facet keys to show for the current selection
+ * @param categories  the category filter's options, [{ key, label, ids, children }] (none: no category filter)
  */
-export default function ProductBrowser({ base, keysFor, crumbs, title, eyebrow, blurb, headerExtra, chips, chipRows, bare, art, accent }) {
+export default function ProductBrowser({ base, keysFor, categories = [], crumbs, title, eyebrow, blurb, headerExtra, chips, chipRows, bare, art, accent }) {
   const { state, sort, update, toggle, clearAll, params, setParams } = useFilters(ALL_KEYS);
   const [sheet, setSheet] = useState(false);
   const keys = keysFor(state);
   const version = useCatalog(); // the live catalog replaces products in place: re-filter when it changes
-  const filtered = useMemo(() => sortProducts(applyFilters(base, state), sort), [base, state, sort, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const trail = useMemo(() => (state.cat ? trailOf(categories, state.cat) : []), [categories, state.cat]);
+  const picked = trail.at(-1);
+  // One category at a time narrows the page; the other filters then apply within it.
+  const scoped = useMemo(() => (picked ? base.filter((p) => picked.ids.has(p.id)) : base), [base, picked, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(() => sortProducts(applyFilters(scoped, state), sort), [scoped, state, sort, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const catOptions = useMemo(() => {
+    if (!categories.length) return [];
+    const pool = new Set(applyFilters(base, state).map((p) => p.id));
+    return countOptions(categories, new Set(base.map((p) => p.id)), pool);
+  }, [categories, base, state, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const bounds = useMemo(() => ({ min: Math.floor(Math.min(...base.map((p) => p.price), 0)), max: Math.ceil(Math.max(...base.map((p) => p.price), 1)) }), [base, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const page = Number(params.get('page') || 1);
   const shown = filtered.slice(0, page * PAGE);
@@ -37,10 +63,11 @@ export default function ProductBrowser({ base, keysFor, crumbs, title, eyebrow, 
   const sheetRef = useDialog(sheet, () => setSheet(false));
 
   const active = [];
+  if (picked) active.push({ k: 'cat', label: trail.map((o) => o.label).join(' › ') });
   for (const k of keys.concat(ALL_KEYS.filter((x) => !keys.includes(x)))) for (const v of state[k] || []) active.push({ k, v, label: facetLabel(k, v), group: FACET_LABELS[k] });
   if (state.price) active.push({ k: 'price', label: state.price[1] === Infinity ? `${money(state.price[0])}+` : `${money(state.price[0])} – ${money(state.price[1])}` });
   if (state.rating) active.push({ k: 'rating', label: `${state.rating}★ & up` });
-  if (state.stock) active.push({ k: 'stock', label: 'In stock' });
+  if (state.stock) active.push({ k: 'stock', label: state.stock[0] === 'out' ? 'Out of stock' : 'In stock' });
   if (state.q) active.push({ k: 'q', label: `“${state.q}”` });
   const remove = (a) => (a.v !== undefined ? toggle(a.k, a.v) : update({ [a.k]: null }));
 
@@ -56,7 +83,7 @@ export default function ProductBrowser({ base, keysFor, crumbs, title, eyebrow, 
       <div className={s.layout}>
         <aside className={s.side} aria-label="Filters">
           <div className={s.sideHead}><h2>Filters</h2>{active.length > 0 && <button type="button" onClick={clearAll}>Clear all</button>}</div>
-          <FilterPanel base={base} keys={keys} state={state} toggle={toggle} update={update} bounds={bounds} />
+          <FilterPanel base={scoped} keys={keys} state={state} toggle={toggle} update={update} bounds={bounds} categories={catOptions} />
         </aside>
         <div className={s.results}>
           <div className={s.toolbar}>
@@ -77,7 +104,9 @@ export default function ProductBrowser({ base, keysFor, crumbs, title, eyebrow, 
               <button type="button" className={s.clear} onClick={clearAll}>Clear all</button>
             </div>
           )}
-          {filtered.length === 0 ? (
+          {base.length === 0 ? (
+            <EmptyState art={<LineArt type="shelf" />} status="Coming soon" title="Nothing here yet" text="Products for this category are on their way. Ask DMD what’s coming, or browse the rest of the store."><Link className="btn btn--primary" to="/shop">Browse everything</Link></EmptyState>
+          ) : filtered.length === 0 ? (
             <EmptyState art={<LineArt type="controller" />} status="No match" title="Nothing fits that combo" text="Try removing a filter or widening the price range."><button className="btn btn--primary" type="button" onClick={clearAll}>Clear all filters</button></EmptyState>
           ) : (
             <>
@@ -99,7 +128,7 @@ export default function ProductBrowser({ base, keysFor, crumbs, title, eyebrow, 
         <div ref={sheetRef} className={s.sheetBody} role="dialog" aria-modal="true" aria-label="Filters">
           <div className={s.sheetHead}><h2>Filters</h2><button type="button" onClick={() => setSheet(false)} aria-label="Close filters"><CloseIcon /></button></div>
           <div className={s.sheetScroll}>
-            {sheet && <FilterPanel base={base} keys={keys} state={state} toggle={toggle} update={update} bounds={bounds} />}
+            {sheet && <FilterPanel base={scoped} keys={keys} state={state} toggle={toggle} update={update} bounds={bounds} categories={catOptions} />}
           </div>
           <div className={s.sheetFoot}>
             <button type="button" className="btn btn--secondary" onClick={clearAll}>Clear all</button>

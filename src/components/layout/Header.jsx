@@ -32,12 +32,21 @@ export default function Header() {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('scroll', onScroll); };
   }, []);
 
+  // A tap or click outside the header closes the categories menu (touch screens have no mouse leaving it).
+  const header = useRef(null);
+  useEffect(() => {
+    if (!menu) return undefined;
+    const onDown = (e) => { if (!header.current?.contains(e.target)) setMenu(false); };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [menu]);
+
   const open = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setMenu(true), 70); };
   const close = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setMenu(false), 160); };
   const stay = () => clearTimeout(timer.current);
 
   return (
-    <header className={`${s.header} ${scrolled ? s.scrolled : ''}`} onMouseLeave={close} onMouseEnter={stay}>
+    <header ref={header} className={`${s.header} ${scrolled ? s.scrolled : ''}`} onMouseLeave={close} onMouseEnter={stay}>
       <div className={s.util}>
         <div className={`container ${s.utilIn}`}>
           <div className={s.contact}>
