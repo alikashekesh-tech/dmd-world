@@ -29,7 +29,8 @@ final class ProductService
     public const MAX_VARIANTS = 100;
 
     private const FIELDS = ['brand_id', 'name', 'short_description', 'description', 'video_url', 'delivery_fee', 'regular_price', 'sale_price', 'sale_starts_at',
-        'sale_ends_at', 'is_featured', 'track_stock', 'low_stock_threshold', 'stock_status', 'weight_kg', 'length_cm', 'width_cm', 'height_cm'];
+        'sale_ends_at', 'is_featured', 'track_stock', 'low_stock_threshold', 'stock_status', 'weight_kg', 'length_cm', 'width_cm', 'height_cm',
+        'condition', 'condition_note'];
 
     public function __construct(private Inventory $inventory) {}
 
@@ -116,6 +117,9 @@ final class ProductService
         // A variable product's own price and stock columns are its variants' summary, never set directly.
         $fields = $variable ? array_diff(self::FIELDS, ['regular_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'track_stock', 'stock_status']) : self::FIELDS;
         $product->fill(array_intersect_key($data, array_flip($fields)));
+        if ($product->condition === null) {
+            $product->condition_note = null; // no longer listed as used: its condition note goes with it
+        }
         $product->type = $type;
 
         $plan = null;
@@ -381,7 +385,8 @@ final class ProductService
             }
         }
         foreach ($plan['rows'] as $position => $r) {
-            $m = $r['model'] ?? new ProductVariant(['stock_quantity' => 0]);
+            // A new variant starts at 0 (stock isn't mass-assignable: it only changes through Inventory, below).
+            $m = $r['model'] ?? (new ProductVariant)->forceFill(['stock_quantity' => 0]);
             $isNew = ! $m->exists;
             if ($m->trashed()) {
                 $m->restore();

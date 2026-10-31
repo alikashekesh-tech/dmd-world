@@ -14,7 +14,7 @@ export default function Wishlist() {
   useCatalog();
   const { wishlist, buyer, addToCart, setToast } = useStore();
   const items = wishlist.map(getProduct).filter(Boolean);
-  const available = items.filter((p) => p.stock !== 'out');
+  const available = items.filter((p) => p.stock !== 'out' && !p.attributes?.length); // options are chosen on the product's page
   const addAll = () => { available.forEach((p, i) => addToCart(p.id, 1, p.colors[0], { open: i === available.length - 1 })); setToast(`Added ${available.length} item${available.length === 1 ? '' : 's'} to your cart`); };
   return (
     <>

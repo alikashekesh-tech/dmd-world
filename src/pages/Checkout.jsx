@@ -10,6 +10,7 @@ import { account } from '../lib/account.js';
 import { orders } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
 import { useQuote } from '../lib/useQuote.js';
+import { lineRef } from '../lib/variants.js';
 import { SIGN_IN, authUrl } from '../lib/authRoutes.js';
 import { money, deliveryFee, deliveryLabel } from '../data/index.js';
 import s from './Checkout.module.css';
@@ -109,11 +110,11 @@ export default function Checkout() {
   );
 
   const stale = quote?.lines.filter((q) => q.problem) || [];
-  const total = quote ? quote.total : lines.reduce((a, l) => a + l.qty * l.product.price, 0) + (deliveryFee(method, lines.map((l) => l.product)) || 0);
+  const total = quote ? quote.total : lines.reduce((a, l) => a + l.qty * l.price, 0) + (deliveryFee(method, lines.map((l) => l.product)) || 0);
   const applyCoupon = (e) => { e.preventDefault(); const c = codeInput.trim(); if (c) setCoupon(c); };
   const dropCoupon = () => { setCoupon(''); setCodeInput(''); };
   const fix = (q) => {
-    const line = lines.find((l) => Number(l.id) === q.id);
+    const line = lines.find((l) => lineRef(l.id, l.variant) === q.ref);
     if (!line) return;
     if (q.code === 'low_stock' && q.max > 0) setQty(line.key, q.max); else removeLine(line.key);
   };

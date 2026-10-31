@@ -165,7 +165,7 @@ export function OrderDetail({ params }) {
                 {o.items.map((l, i) => (
                   <tr key={`${l.product_id}-${i}`}>
                     <td>{(() => {
-                      const inner = <><Thumb src={l.image_url} /><div style={{ minWidth: 0 }}><b>{l.name}</b><small>{l.sku ? `SKU ${l.sku}` : l.product_id ? `Product ${l.product_id}` : 'No longer in the catalog'}{l.unit_price < l.regular_price ? ` · was ${money(l.regular_price)}` : ''}</small></div></>;
+                      const inner = <><Thumb src={l.image_url} /><div style={{ minWidth: 0 }}><b>{l.name}</b>{l.options?.length > 0 && <small className="t2">{l.options.map((x) => `${x.name}: ${x.value}`).join(' · ')}</small>}<small>{l.sku ? `SKU ${l.sku}` : l.product_id ? `Product ${l.product_id}` : 'No longer in the catalog'}{l.unit_price < l.regular_price ? ` · was ${money(l.regular_price)}` : ''}</small></div></>;
                       // The whole cell (picture, name, SKU) shows the product as customers see it, in the shop (new tab).
                       return l.product_id ? <a className="cell-main cell-link" href={`/product/${l.product_id}`} target="_blank" rel="noopener noreferrer" title="View this product in the shop">{inner}</a> : <div className="cell-main">{inner}</div>;
                     })()}</td>

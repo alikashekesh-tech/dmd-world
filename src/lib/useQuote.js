@@ -10,7 +10,7 @@ export function useQuote(lines, coupon = '', email = '', method = 'delivery') {
   const [quote, setQuote] = useState(null);
   const [checking, setChecking] = useState(false);
   const seq = useRef(0);
-  const items = useMemo(() => lines.map((l) => ({ id: Number(l.id), qty: l.qty })), [lines]);
+  const items = useMemo(() => lines.map((l) => ({ id: Number(l.id), variant: l.variant, qty: l.qty })), [lines]);
   const key = JSON.stringify(items);
   const mail = coupon ? email : ''; // the email only matters for "once per customer" coupons
   useEffect(() => {

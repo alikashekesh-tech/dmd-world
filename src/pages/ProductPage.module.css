@@ -8,6 +8,15 @@
 .stageImg { position: relative; width: 100%; height: 100%; object-fit: contain; padding: 7%; animation: fade-in .5s both; }
 .badge { position: absolute; top: 16px; left: 16px; padding: 6px 10px; border-radius: 8px; background: var(--sale); color: #fff; font: 700 12.5px var(--font-mono); letter-spacing: .02em; text-transform: uppercase; }
 .badge.new { background: var(--accent); }
+.badge.used { top: auto; bottom: 16px; background: var(--ink); }
+/* A product sold in options, before they're chosen: its lowest price */
+.from { display: inline-flex; align-items: baseline; gap: 8px; }
+.from small { font: 500 11.5px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+/* Buy Used: what this item's grade means, and DMD's note on it */
+.condition { display: grid; gap: 6px; margin-top: 20px; padding: 16px 18px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line-soft); font-size: 14px; color: var(--text-2); line-height: 1.55; }
+.condition b { color: var(--text); }
+.condNote { padding-left: 10px; border-left: 2px solid var(--accent); color: var(--text); }
+.condition a { justify-self: start; font: 600 11.5px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 0; }
 .thumb { width: 100%; aspect-ratio: 1; padding: 0; border-radius: 14px; border: 1px solid var(--line); background: #fff; overflow: hidden; transition: border-color .15s; }
 .thumb:hover { border-color: #b9c4d8; }
@@ -45,7 +54,7 @@
 .sw.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
 .actions { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin: 28px 0 12px; }
-.actions :global(.btn) { width: 100%; }
+.actions :global(.btn) { width: 100%; min-width: 0; }
 .heart { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 14px; border: 1px solid #c5cfdf; color: var(--text); transition: all .15s; }
 .heart:hover { border-color: var(--deal); color: var(--deal); }
 .hearted { color: var(--deal); border-color: var(--deal); background: rgba(240, 83, 63, .08); }
@@ -121,7 +130,7 @@
 .sticky { display: none; }
 
 @media (max-width: 1024px) {
-  .top { grid-template-columns: 1fr; }
+  .top { grid-template-columns: minmax(0, 1fr); } /* never wider than the screen, whatever a button says */
   .gallery { position: static; }
   .stage { max-height: 520px; }
   .panel, .reviewPanel { grid-template-columns: 1fr; }

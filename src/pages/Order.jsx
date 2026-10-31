@@ -113,7 +113,7 @@ export default function Order() {
   return (
                 <li key={`${i.productId}-${i.name}`}>
                   <span className={s.th}>{p ? <ProductImage product={p} /> : i.image ? <img src={i.image} alt="" referrerPolicy="no-referrer" /> : null}</span>
-                  <span><small>Qty {i.qty}</small>{p ? <Link to={`/product/${p.slug}`}>{i.name}</Link> : <b>{i.name}</b>}</span>
+                  <span><small>Qty {i.qty}</small>{p ? <Link to={`/product/${p.slug}`}>{i.name}</Link> : <b>{i.name}</b>}{i.options?.length > 0 && <small className={s.opts}>{i.options.map(([n, v]) => `${n}: ${v}`).join(' · ')}</small>}</span>
                   <b>{money(Number(i.subtotal ?? i.total))}</b>
                 </li>
               );

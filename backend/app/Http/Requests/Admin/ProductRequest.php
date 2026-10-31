@@ -81,6 +81,9 @@ class ProductRequest extends ApiRequest
             'variants.*.stock_quantity' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000000'],
             'variants.*.stock_status' => ['sometimes', Rule::in(['in_stock', 'out_of_stock'])],
             'variants.*.is_active' => ['sometimes', 'boolean'],
+            // Buy Used: a condition makes it a second-hand product sold by DMD; null makes it new again.
+            'condition' => ['sometimes', 'nullable', Rule::in(array_keys(Product::CONDITIONS))],
+            'condition_note' => ['sometimes', 'nullable', 'string', 'max:500', 'not_regex:/[<>]/'],
             'weight_kg' => $size,
             'length_cm' => $size,
             'width_cm' => $size,
@@ -113,6 +116,9 @@ class ProductRequest extends ApiRequest
             'variants.*.sale_price.decimal' => 'Use at most two decimals (cents).',
             'variants.*.sku.regex' => 'Use letters, numbers, dots, dashes, underscores or slashes in a variant’s SKU.',
             'variants.*.stock_quantity.min' => 'Stock can’t be negative.',
+            'condition.in' => 'Choose Like New, Excellent, Good or Fair (or New for a product that isn’t used).',
+            'condition_note.max' => 'Keep the condition note under 500 characters.',
+            'condition_note.not_regex' => 'Leave out < and > in the condition note.',
         ] + parent::messages();
     }
 }

@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'brand_id', 'name', 'slug', 'sku', 'short_description', 'description', 'video_url', 'regular_price', 'sale_price',
     'sale_starts_at', 'sale_ends_at', 'delivery_fee', 'status', 'is_featured', 'track_stock', 'low_stock_threshold', 'stock_status',
-    'weight_kg', 'length_cm', 'width_cm', 'height_cm',
+    'weight_kg', 'length_cm', 'width_cm', 'height_cm', 'condition', 'condition_note',
 ])]
 class Product extends Model
 {
@@ -32,6 +32,17 @@ class Product extends Model
     public const STATUSES = ['draft', 'published'];
 
     public const TYPES = ['simple', 'variable'];
+
+    /**
+     * A used product's condition (Buy Used), best first; a product without one is new. The descriptions are what the
+     * storefront shows buyers: how the item looks, nothing more (its condition notes say the rest), the same on every product.
+     */
+    public const CONDITIONS = [
+        'like_new' => ['label' => 'Like New', 'description' => 'Little to no sign of use, with no visible marks.'],
+        'excellent' => ['label' => 'Excellent', 'description' => 'Light signs of use that are hard to spot.'],
+        'good' => ['label' => 'Good', 'description' => 'Visible light wear, such as small scratches.'],
+        'fair' => ['label' => 'Fair', 'description' => 'Clear signs of use, such as scuffs or marks.'],
+    ];
 
     protected function casts(): array
     {
@@ -96,6 +107,18 @@ class Product extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** Sold second-hand by DMD (it has a condition). */
+    public function isUsed(): bool
+    {
+        return $this->condition !== null;
+    }
+
+    /** "Excellent", or null for a new product. */
+    public function conditionLabel(): ?string
+    {
+        return self::CONDITIONS[$this->condition]['label'] ?? null;
     }
 
     public function isVariable(): bool

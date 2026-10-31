@@ -34,7 +34,20 @@ export function fromApi(p, { brandSlug, offersId }) {
     img: gallery[0] || null, gallery, cats, sku: p.sku || '', featured: !!p.is_featured,
     r: p.rating?.average || 0, n: p.rating?.count || 0,
     sold: p.units_sold || 0, date: p.published_at || '2022-01-01', tag: offersId != null && cats.includes(offersId) ? 'offer' : null,
-    search: `${p.name} ${detail.join(' ')} ${group} ${p.sku || ''}`.toLowerCase(),
+    search: `${p.name} ${detail.join(' ')} ${group} ${p.sku || ''}${p.condition ? ` used ${p.condition.replace('_', ' ')}` : ''}`.toLowerCase(),
+    // Options a buyer chooses (Colour, Size…) and the variants the store sells, each priced and stocked by the server.
+    attributes: p.type === 'variable' && Array.isArray(p.attributes) ? p.attributes : [],
+    variants: p.type === 'variable' && Array.isArray(p.variants) ? p.variants.map(variantFromApi) : [],
+    // Buy Used: a grade from the admin (like_new…fair), or filed under one of the imported "Used" categories.
+    condition: p.condition || null,
+    conditionNote: p.condition_note || '',
+    used: !!p.condition || detail.some((n) => n.trim().toLowerCase() === 'used'),
   };
 }
+
+const variantFromApi = (v) => ({
+  id: String(v.id), sku: v.sku || '', options: v.options || {}, image: full(v.image),
+  price: v.price, was: v.on_sale ? v.regular_price : null, discount: v.on_sale ? v.discount_percent : 0,
+  stock: v.availability === 'out_of_stock' ? 'out' : v.availability === 'low_stock' ? 'low' : 'in', stockCount: v.stock_left ?? null, maxQty: v.max_quantity ?? null,
+});
 

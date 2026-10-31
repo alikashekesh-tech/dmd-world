@@ -3,6 +3,7 @@ import { catName, fromApi, setCategories } from './dmdProducts.js';
 import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS, CONTACT, catUrl } from './dmdMenu.js';
 import { MENU_LINKS, DEFAULT_MENU } from './nav.js';
 import { buildDepartments, isRetired, homeOf } from './departments.js';
+import { conditionOf, CONDITIONS, CONDITION_ORDER } from '../lib/variants.js';
 export * from './meta.js';
 const FALLBACK_BRAND = { slug: 'dmd', name: 'DMD World' };
 export const getBrand = (slug) => (groupBySlug[slug] ? { slug, name: groupBySlug[slug].name } : brandBySlug[slug] || FALLBACK_BRAND);
@@ -112,6 +113,8 @@ export const isNew = (p) => p.tag === 'new' || (Date.now() - new Date(p.date).ge
 export const inStock = (p) => p.stock !== 'out';
 /** How many of a product one cart may hold in all: its stock when tracked, no stock limit when not (checkout enforces the same). */
 export const purchaseLimit = (p) => (!p ? Infinity : p.stock === 'out' ? 0 : p.maxQty ?? Infinity);
+/** The same for one variant of a variable product (its own stock). */
+export const variantLimit = (v) => (!v ? 0 : v.stock === 'out' ? 0 : v.maxQty ?? Infinity);
 
 // ── search ─────────────────────────────────────────────────────────────────────
 const fold = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -162,6 +165,7 @@ export function facetValues(p, key) {
     case 'conn': return p.conn ? (p.conn === 'Wired / Wireless' ? ['Wired', 'Wireless'] : [p.conn]) : [];
     case 'color': return p.colorFamilies;
     case 'stock': return [p.stock === 'out' ? 'out' : 'in'];
+    case 'condition': { const c = conditionOf(p); return c ? [c.key] : []; }
     default: return p.facets[key] || [];
   }
 }
@@ -199,11 +203,12 @@ export function facetOptions(base, f, key) {
     opts.sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
   } else if (key === 'brand') opts.sort((a, b) => getBrand(a.value).name.localeCompare(getBrand(b.value).name));
   else if (key === 'color') opts.sort((a, b) => b.count - a.count);
+  else if (key === 'condition') opts.sort((a, b) => (CONDITION_ORDER.indexOf(a.value) + 1 || 99) - (CONDITION_ORDER.indexOf(b.value) + 1 || 99));
   else opts.sort((a, b) => String(a.value).localeCompare(String(b.value), undefined, { numeric: true }));
   return opts;
 }
 export { FACET_LABELS, CATEGORIES, categoryBySlug, BRANDS, FILTERS_BY_TYPE };
-export const facetLabel = (key, v) => (key === 'brand' ? getBrand(v).name : key === 'platform' ? platformLabel(v) : key === 'type' ? catName(Number(v)) : v);
+export const facetLabel = (key, v) => (key === 'brand' ? getBrand(v).name : key === 'platform' ? platformLabel(v) : key === 'type' ? catName(Number(v)) : key === 'condition' ? CONDITIONS[v]?.label || 'Used (ungraded)' : v);
 
 // ── presentation helpers ───────────────────────────────────────────────────────
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });

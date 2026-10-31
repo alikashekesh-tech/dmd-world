@@ -62,6 +62,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     // Stock: levels, stocktakes and adjustments, history.
     Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::put('inventory/{product}', [InventoryController::class, 'update'])->whereNumber('product')->name('inventory.update');
+    Route::put('inventory/variants/{variant}', [InventoryController::class, 'updateVariant'])->whereNumber('variant')->name('inventory.variants.update');
     Route::get('inventory/{product}/movements', [InventoryController::class, 'movements'])->whereNumber('product')->name('inventory.movements');
 
     Route::post('uploads', [UploadController::class, 'store'])->name('uploads.store');

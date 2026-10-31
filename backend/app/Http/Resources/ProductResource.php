@@ -54,6 +54,9 @@ class ProductResource extends JsonResource
                 : null,
             'published_at' => $this->published_at?->toDateString(),
             'type' => $this->type ?? 'simple',
+            // Buy Used: like_new | excellent | good | fair, or null for a new product; the note describes this one item.
+            'condition' => $this->condition,
+            'condition_note' => $this->condition !== null ? $this->condition_note : null,
             // [{name: "Colour", values: ["Black", "White"]}]: what a buyer chooses on the product page.
             'attributes' => $this->isVariable() ? ($this->variation_attributes ?? []) : [],
             'variants' => $variants->map(function (ProductVariant $v) {

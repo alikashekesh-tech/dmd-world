@@ -136,8 +136,14 @@ function Orders() {
   useCatalog();
   const [more, setMore] = useState(false);
   const again = (o) => {
-    const ok = o.items.filter((it) => { const p = getProduct(String(it.productId)); return p && p.stock !== 'out'; });
-    ok.forEach((it, i) => addToCart(String(it.productId), it.qty, undefined, { open: i === ok.length - 1 }));
+    // The same variant again when it's still sold; a product now sold in options can't guess which one.
+    const ok = o.items.filter((it) => {
+      const p = getProduct(String(it.productId));
+      if (!p) return false;
+      if (it.variant) return p.variants?.some((v) => v.id === it.variant && v.stock !== 'out');
+      return !p.attributes?.length && p.stock !== 'out';
+    });
+    ok.forEach((it, i) => addToCart(String(it.productId), it.qty, it.variant ? { variant: it.variant } : undefined, { open: i === ok.length - 1 }));
     const missing = o.items.length - ok.length;
     setToast(ok.length ? `Added ${ok.length} item${ok.length === 1 ? '' : 's'} to your cart${missing ? ` · ${missing} no longer available` : ''}` : 'Those items aren’t available right now');
   };

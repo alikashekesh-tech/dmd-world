@@ -73,7 +73,7 @@ final class Checkout
             $v = $v && $p && $v->product_id === $p->id ? $v : null; // a variant id of another product counts as none
             $name = $p && $v ? "{$p->name} ({$v->label($p->variation_attributes)})" : $p?->name;
             $line = ['key' => $key, 'product_id' => $id, 'variant_id' => $vid, 'quantity' => $qty, 'product' => $p, 'variant' => $v, 'name' => $name,
-                'options' => $p && $v ? $v->optionList($p->variation_attributes) : null, 'sku' => $v?->sku ?? $p?->sku,
+                'options' => $p ? self::lineOptions($p, $v) : null, 'sku' => $v?->sku ?? $p?->sku,
                 'unit' => 0, 'regular' => 0, 'subtotal' => 0, 'problem' => null, 'code' => null, 'max' => null];
             if (! $p || ! $p->isPublished()) {
                 [$line['code'], $line['problem'], $line['max']] = ['UNAVAILABLE', ($p->name ?? 'An item in your cart').' is no longer available. Please remove it.', 0];
@@ -106,6 +106,20 @@ final class Checkout
         }
 
         return ['lines' => $lines, 'subtotal' => $subtotal, 'ok' => collect($lines)->every(fn ($l) => $l['problem'] === null)];
+    }
+
+    /**
+     * What the order line keeps about the item as sold: the variant's options ("Colour: Black") and, for a used product,
+     * its condition ("Condition: Used · Excellent"), so the order still says so after the product changes. Null: none.
+     */
+    private static function lineOptions(Product $product, ?ProductVariant $variant): ?array
+    {
+        $list = $variant ? $variant->optionList($product->variation_attributes) : [];
+        if ($product->isUsed()) {
+            $list[] = ['name' => 'Condition', 'value' => 'Used · '.$product->conditionLabel()];
+        }
+
+        return $list ?: null;
     }
 
     /**

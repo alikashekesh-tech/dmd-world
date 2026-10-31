@@ -61,6 +61,8 @@ class ProductResource extends JsonResource
             'published_at' => $this->published_at?->toIso8601String(),
             // A variable product's price and stock above are its variants' summary; these are what is sold.
             'type' => $this->type ?? 'simple',
+            'condition' => $this->condition, // null = new; otherwise a used product (Buy Used)
+            'condition_note' => $this->condition_note,
             'attributes' => $this->isVariable() ? ($this->variation_attributes ?? []) : [],
             'variants' => $this->isVariable() ? ($this->relationLoaded('variants') ? $this->variants : $this->variants()->get())->map(function (ProductVariant $v) {
                 $p = Pricing::forVariant($this->resource, $v);

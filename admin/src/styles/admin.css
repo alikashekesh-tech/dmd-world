@@ -709,3 +709,16 @@ a.mini-row:hover { background: var(--bg-2); }
   .review .thumb.lg { width: 48px; height: 48px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Product editor: one card per variant (options and switches on top, its fields below, wrapping to the space) */
+.variant-list { display: grid; gap: 10px; }
+.variant-card { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.variant-card.dup { border-color: var(--coral); background: color-mix(in srgb, var(--coral) 5%, var(--panel)); }
+.variant-card.off .variant-fields { opacity: .6; }
+.variant-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.variant-head .select { width: auto; min-width: 110px; height: 34px; }
+.variant-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px 12px; align-items: start; }
+.variant-fields .vf { display: grid; gap: 5px; min-width: 0; }
+.variant-fields .vf > span:first-child { font-size: 11.5px; color: var(--muted); }
+.variant-fields .vf .input, .variant-fields .vf .select { width: 100%; height: 34px; }
+.variant-fields .vf small { color: var(--muted); font-size: 11.5px; }

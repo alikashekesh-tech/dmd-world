@@ -5,6 +5,12 @@ import { useApi, useDebounced } from '../lib/hooks.js';
 import { money, ago, toInputDate, fromInputDate } from '../lib/format.js';
 import { productFromApi, useCatalogLists } from '../lib/catalog.js';
 import { Button, Chip, Check, Empty, Field, Hp, Icon, Notice, PageHeader, Pager, SearchBox, SkeletonRows, Tabs, Thumb, Toggle, useUi, CategoryPicker } from '../ui/kit.jsx';
+import VariantEditor, { variantRow } from './products/VariantEditor.jsx';
+import { cleanOptions } from '../lib/variants.js';
+
+/** Buy Used grades (the storefront shows the same words): null = a new product. */
+const CONDITIONS = [['like_new', 'Like New', 'Little to no sign of use, with no visible marks.'], ['excellent', 'Excellent', 'Light signs of use that are hard to spot.'], ['good', 'Good', 'Visible light wear, such as small scratches.'], ['fair', 'Fair', 'Clear signs of use, such as scuffs or marks.']];
+const conditionLabel = (k) => CONDITIONS.find(([v]) => v === k)?.[1];
 
 const STATUS_TABS = [['all', 'All'], ['published', 'Published'], ['draft', 'Drafts'], ['archived', 'Archived']];
 const PUB = { published: ['green', 'Published'], draft: ['muted', 'Draft'] };
@@ -20,6 +26,7 @@ export function ProductsPage({ query }) {
   for (const k of ['q', 'category', 'brand', 'stock']) if (query.get(k)) params.set(k, query.get(k));
   if (query.get('sale') === '1') params.set('on_sale', '1');
   if (query.get('featured') === '1') params.set('featured', '1');
+  if (query.get('used') === '1') params.set('condition', 'used');
   if (status === 'archived') params.set('archived', 'only'); else if (status !== 'all') params.set('status', status);
   const { data: raw, loading, error } = useApi(`/products?${params}`);
   const data = useMemo(() => (raw ? paged(raw, productFromApi) : null), [raw]);
@@ -76,6 +83,7 @@ export function ProductsPage({ query }) {
         </select>
         <Toggle label="On sale" checked={query.get('sale') === '1'} onChange={(v) => setQuery({ sale: v ? 1 : null, page: null })} />
         <Toggle label="Featured" checked={query.get('featured') === '1'} onChange={(v) => setQuery({ featured: v ? 1 : null, page: null })} />
+        <Toggle label="Used only" checked={query.get('used') === '1'} onChange={(v) => setQuery({ used: v ? 1 : null, page: null })} />
       </div>
       <div className="surface">
         {error && <div style={{ padding: 16 }}><Notice tone="coral" icon="alert">{error.message}</Notice></div>}
@@ -93,7 +101,7 @@ export function ProductsPage({ query }) {
                   <tr key={p.id} className="clickable" onClick={() => navigate(`/products/${p.id}`)}>
                     <td className="shrink" onClick={(e) => e.stopPropagation()}><Check on={sel.includes(p.id)} label={`Select ${p.name}`} onChange={(v) => setSel((s) => (v ? [...s, p.id] : s.filter((x) => x !== p.id)))} /></td>
                     <td><div className="cell-main"><Thumb src={p.image} /><div style={{ minWidth: 0 }}><b>{p.name}</b><small>{p.sku ? `SKU ${p.sku}` : `ID ${p.id}`}{p.brandName ? ` · ${p.brandName}` : ''}</small></div></div></td>
-                    <td data-label="Status"><span className="row" style={{ gap: 6 }}>{p.archived_at ? <Chip tone="coral" led>Archived</Chip> : <Chip tone={PUB[p.status]?.[0]} led>{PUB[p.status]?.[1] || p.status}</Chip>}{p.featured && <Icon name="star" size={14} style={{ color: 'var(--amber)' }} title="Featured" />}</span></td>
+                    <td data-label="Status"><span className="row" style={{ gap: 6 }}>{p.archived_at ? <Chip tone="coral" led>Archived</Chip> : <Chip tone={PUB[p.status]?.[0]} led>{PUB[p.status]?.[1] || p.status}</Chip>}{p.featured && <Icon name="star" size={14} style={{ color: 'var(--amber)' }} title="Featured" />}{p.condition && <Chip tone="violet">Used · {conditionLabel(p.condition)}</Chip>}{p.type === 'variable' && <Chip tone="blue">{p.variants?.length || 0} variants</Chip>}</span></td>
                     <td className="right" data-label="Price">
                       {p.on_sale ? <span className="row" style={{ justifyContent: 'flex-end', gap: 6 }}><b className="num" style={{ color: 'var(--coral)' }}>{money(p.price)}</b><del className="muted" style={{ fontSize: 12 }}>{money(p.regular_price)}</del></span> : <b className="num">{money(p.price)}</b>}
                     </td>
@@ -134,7 +142,8 @@ export function ProductsPage({ query }) {
 }
 
 /* ── editor ──────────────────────────────────────────────────────────── */
-const EMPTY = { name: '', status: 'draft', is_featured: false, description: '', short_description: '', sku: '', regular_price: '', sale_price: '', sale_starts_at: '', sale_ends_at: '', track_stock: true, stock_quantity: 0, low_stock_threshold: '', stock_status: 'in_stock', brand_id: '', category_ids: [], images: [], video_url: '', delivery_fee: '' };
+const EMPTY = { name: '', status: 'draft', is_featured: false, description: '', short_description: '', sku: '', regular_price: '', sale_price: '', sale_starts_at: '', sale_ends_at: '', track_stock: true, stock_quantity: 0, low_stock_threshold: '', stock_status: 'in_stock', brand_id: '', category_ids: [], images: [], video_url: '', delivery_fee: '',
+  variable: false, options: [], variants: [], condition: '', condition_note: '', specs: [] };
 const MAX_IMAGES = 12;
 /** The YouTube video id in a watch, youtu.be, shorts or embed link (the server checks the link again). */
 const youtubeId = (url) => /^https:\/\/(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/.exec(url || '')?.[1] || null;
@@ -145,7 +154,10 @@ const fromProduct = (p) => ({
   track_stock: !!p.track_stock, stock_quantity: p.stock_quantity ?? 0, low_stock_threshold: p.low_stock_threshold ?? '', stock_status: p.stock_status || 'in_stock',
   brand_id: p.brand?.id ?? '', category_ids: (p.categories || []).map((c) => c.id), images: (p.images || []).map((i) => ({ url: i.url, alt: i.alt || '' })), video_url: p.video_url || '',
   delivery_fee: p.delivery_fee != null ? String(p.delivery_fee) : '',
+  variable: p.type === 'variable', options: (p.attributes || []).map((a) => ({ name: a.name, values: [...a.values] })), variants: (p.variants || []).map(variantRow),
+  condition: p.condition || '', condition_note: p.condition_note || '', specs: (p.specifications || []).map((x) => ({ name: x.name, value: x.value })),
 });
+const num = (v) => (v === '' || v == null ? null : Number(v));
 /** The form → what the API takes (empty strings become null; the stock count is only sent when it changed). */
 const toBody = (f, initial) => ({
   name: f.name.trim(), status: f.status, is_featured: f.is_featured, description: f.description || null, short_description: f.short_description || null, sku: f.sku.trim() || null,
@@ -156,7 +168,28 @@ const toBody = (f, initial) => ({
   brand_id: f.brand_id === '' ? null : Number(f.brand_id), category_ids: f.category_ids, primary_category_id: f.category_ids[0] ?? null,
   images: f.images.map((i) => ({ url: i.url, alt: i.alt || null })), video_url: f.video_url || null,
   delivery_fee: f.delivery_fee === '' ? null : Number(f.delivery_fee),
+  condition: f.condition || null, condition_note: f.condition ? f.condition_note.trim() || null : null,
+  // Specifications are replaced as a whole on the server: only sent when they changed.
+  ...(JSON.stringify(f.specs) !== JSON.stringify(initial.specs) ? { specifications: f.specs.filter((x) => x.name.trim() && x.value.trim()).map((x) => ({ name: x.name.trim(), value: x.value.trim() })) } : {}),
+  ...(f.variable ? variableBody(f, initial) : initial.variable ? { type: 'simple' } : {}),
 });
+/** A product sold in variants: its options and variants. A variant's stock is only sent when it's new or was changed
+    here (a stocktake), so orders placed meanwhile aren't overwritten. Its own price and stock fields aren't sent. */
+const variableBody = (f, initial) => {
+  const options = cleanOptions(f.options);
+  return {
+    type: 'variable', regular_price: undefined, sale_price: undefined, sale_starts_at: undefined, sale_ends_at: undefined, stock_quantity: undefined, track_stock: undefined, stock_status: undefined,
+    attributes: options,
+    variants: f.variants.map((v) => {
+      const was = initial.variants.find((x) => x.id && x.id === v.id);
+      return {
+        ...(v.id ? { id: v.id } : {}), options: Object.fromEntries(options.map((o) => [o.name, v.options[o.name] || ''])), sku: v.sku.trim() || null, image_url: v.image_url || null,
+        regular_price: num(v.regular_price), sale_price: num(v.sale_price), track_stock: v.track_stock, stock_status: v.stock_status, is_active: v.is_active,
+        ...(v.track_stock && (!was || String(was.stock_quantity) !== String(v.stock_quantity)) ? { stock_quantity: Number(v.stock_quantity) || 0 } : {}),
+      };
+    }),
+  };
+};
 
 export function ProductEditor({ params }) {
   const { toast, fail, confirm } = useUi();
@@ -310,11 +343,12 @@ export function ProductEditor({ params }) {
           <section className="surface">
             <div className="surface-head"><h3>Price</h3>{discount != null && discount > 0 && <Chip tone="coral">−{discount}% sale</Chip>}</div>
             <div className="surface-body stack">
-              <div className="grid-2">
+              {form.variable && <Notice icon="info">Each variant has its own price, set in Options &amp; variants below. The shop shows the lowest one as “From”.</Notice>}
+              {!form.variable && <div className="grid-2">
                 <Field label="Regular price"><span className="input-affix"><span>$</span><input className="input mono" inputMode="decimal" value={form.regular_price} onChange={set('regular_price')} /></span></Field>
                 <Field label="Sale price" hint="Leave empty for no sale."><span className="input-affix"><span>$</span><input className="input mono" inputMode="decimal" value={form.sale_price} onChange={set('sale_price')} /></span></Field>
-              </div>
-              {form.sale_price !== '' && (
+              </div>}
+              {!form.variable && form.sale_price !== '' && (
                 <div className="grid-2">
                   <Field label="Sale starts" hint="Empty = now"><input className="input" type="datetime-local" value={form.sale_starts_at} onChange={set('sale_starts_at')} /></Field>
                   <Field label="Sale ends" hint="Empty = until you remove it"><input className="input" type="datetime-local" value={form.sale_ends_at} onChange={set('sale_ends_at')} /></Field>
@@ -328,9 +362,14 @@ export function ProductEditor({ params }) {
           </section>
 
           <section className="surface">
-            <div className="surface-head"><h3>Inventory</h3><Toggle label="Track stock" checked={form.track_stock} onChange={set('track_stock')} /></div>
+            <div className="surface-head"><h3>Inventory</h3>{!form.variable && <Toggle label="Track stock" checked={form.track_stock} onChange={set('track_stock')} />}</div>
             <div className="surface-body grid-3">
-              {form.track_stock ? (
+              {form.variable ? (
+                <>
+                  <Field label="Stock" hint="Kept per variant, in Options &amp; variants below and on the Inventory page."><span className="input mono" style={{ display: 'flex', alignItems: 'center' }}>{product?.stock_quantity ?? 0} in all</span></Field>
+                  <Field label="Low-stock alert at" hint="Empty = store default. Applies to each variant."><input className="input mono" type="number" min="0" value={form.low_stock_threshold} onChange={set('low_stock_threshold')} /></Field>
+                </>
+              ) : form.track_stock ? (
                 <>
                   <Field label="In stock" hint={!isNew ? 'Saved as a stocktake in the stock history.' : null}><input className="input mono" type="number" min="0" step="1" value={form.stock_quantity} onChange={set('stock_quantity')} /></Field>
                   <Field label="Low-stock alert at" hint="Empty = store default"><input className="input mono" type="number" min="0" value={form.low_stock_threshold} onChange={set('low_stock_threshold')} /></Field>
@@ -339,6 +378,34 @@ export function ProductEditor({ params }) {
                 <Field label="Availability"><select className="select" value={form.stock_status} onChange={set('stock_status')}><option value="in_stock">In stock</option><option value="out_of_stock">Out of stock</option></select></Field>
               )}
               <Field label="SKU"><input className="input mono" value={form.sku} onChange={set('sku')} placeholder="Optional" /></Field>
+            </div>
+          </section>
+
+          <section className="surface">
+            <div className="surface-head"><h3>Options &amp; variants</h3>
+              <Toggle label="Sold in options (colour, size, dimensions…)" checked={form.variable} onChange={async (on) => {
+                if (!on && initial.variable && !(await confirm({ title: 'Stop selling it in options?', text: 'Its variants are removed (past orders and the stock history keep them). Give the product its own price and stock before saving.', confirmLabel: 'Stop using options', danger: true }))) return;
+                setForm((f) => ({ ...f, variable: on }));
+              }} />
+            </div>
+            <div className="surface-body">
+              {form.variable
+                ? <VariantEditor options={form.options} variants={form.variants} images={form.images} saved={initial.variants} onChange={({ options, variants }) => setForm((f) => ({ ...f, options, variants }))} />
+                : <span className="muted" style={{ fontSize: 13 }}>One price and one stock count. Switch on to sell it in colours, sizes, dimensions or editions, each with its own SKU, price, stock and photo.</span>}
+            </div>
+          </section>
+
+          <section className="surface">
+            <div className="surface-head"><h3>Specifications</h3><span className="hud">{form.specs.length ? 'Shown in the Specifications tab' : 'None yet'}</span></div>
+            <div className="surface-body stack" style={{ gap: 8 }}>
+              {form.specs.map((sp, i) => (
+                <div key={i} className="row" style={{ gap: 8 }}>
+                  <input className="input" style={{ width: 200 }} value={sp.name} onChange={(e) => setForm((f) => ({ ...f, specs: f.specs.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) }))} placeholder="e.g. Storage" aria-label={`Specification ${i + 1} name`} />
+                  <input className="input grow" value={sp.value} onChange={(e) => setForm((f) => ({ ...f, specs: f.specs.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)) }))} placeholder="e.g. 512 GB SSD" aria-label={`Specification ${i + 1} value`} />
+                  <Button size="sm" variant="quiet" icon="close" aria-label={`Remove specification ${sp.name || i + 1}`} onClick={() => setForm((f) => ({ ...f, specs: f.specs.filter((_, k) => k !== i) }))} />
+                </div>
+              ))}
+              <Button size="sm" icon="plus" style={{ justifySelf: 'start' }} disabled={form.specs.length >= 40} onClick={() => setForm((f) => ({ ...f, specs: [...f.specs, { name: '', value: '' }] }))}>Add a specification</Button>
             </div>
           </section>
         </div>
@@ -351,6 +418,27 @@ export function ProductEditor({ params }) {
               </select>
             </Field>
             <Toggle label="Featured product" checked={form.is_featured} onChange={set('is_featured')} />
+          </section>
+          <section className="surface surface-body stack">
+            <Field label="Condition" hint={form.condition ? CONDITIONS.find(([v]) => v === form.condition)?.[2] : 'New products aren’t on Buy Used. Choose a grade to sell it as used.'}>
+              <select className="select" value={form.condition} onChange={set('condition')}>
+                <option value="">New</option>
+                {CONDITIONS.map(([v, l]) => <option key={v} value={v}>Used · {l}</option>)}
+              </select>
+            </Field>
+            {form.condition && (
+              <Field label="Condition notes" hint="What this item comes with and any marks, shown on its page. Max 500 characters.">
+                <textarea className="textarea" style={{ minHeight: 80 }} maxLength={500} value={form.condition_note} onChange={set('condition_note')} placeholder="e.g. Light scratches on the lid. Box and one controller included." />
+              </Field>
+            )}
+            {form.condition && <span className="muted" style={{ fontSize: 12.5 }}>Listed on <a className="linkish" href="/buy-used" target="_blank" rel="noopener noreferrer">Buy Used</a> while published.</span>}
+            {/* A suggestion, never applied on its own: the stock stays whatever the owner sets. */}
+            {form.condition && !form.variable && form.track_stock && String(form.stock_quantity) !== '1' && (
+              <div className="row wrap" style={{ gap: 8 }}>
+                <span className="muted" style={{ fontSize: 12.5 }}>Selling a single item? A stock of 1 means it can’t be sold twice.</span>
+                <Button size="sm" onClick={() => setForm((f) => ({ ...f, stock_quantity: '1' }))}>Set stock to 1</Button>
+              </div>
+            )}
           </section>
           <section className="surface surface-body stack">
             <Field label="Brand" hint={<a className="linkish" href="#/brands">Manage brands</a>}>

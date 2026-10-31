@@ -1,0 +1,16 @@
+/* Buy Used: the grade legend under the listing, and the empty shelf. Same cards and type as the rest of the shop. */
+.empty { padding-block: 32px 8px; }
+.gradeLink { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; font: 600 11.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--hud); }
+.gradeLink:hover svg { transform: translateX(3px); }
+.gradeLink svg { transition: transform .25s; }
+
+.grades { padding-block: 56px 80px; scroll-margin-top: 120px; }
+.list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; counter-reset: grade; }
+.list li { display: grid; align-content: start; gap: 8px; padding: 20px; border-radius: var(--radius-xl); background: var(--surface); border: 1px solid var(--line-soft); animation: rise .5s calc(var(--i) * 60ms) both var(--ease); }
+.step { font: 500 11px var(--font-mono); letter-spacing: .16em; color: var(--accent); }
+.list b { font: 800 20px var(--font-display); letter-spacing: -.02em; }
+.list p { color: var(--text-2); font-size: 14.5px; line-height: 1.6; }
+.fine { margin-top: 18px; color: var(--muted); font-size: 13.5px; }
+
+@media (max-width: 900px) { .list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .list { grid-template-columns: 1fr; } }

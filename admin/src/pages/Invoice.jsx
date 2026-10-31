@@ -78,7 +78,7 @@ export default function Invoice({ params, query }) {
             {o.items.map((l, i) => (
               <tr key={`${l.product_id}-${i}`}>
                 <td className="muted">{i + 1}</td>
-                <td><b>{l.name}</b>{l.sku && <small>SKU {l.sku}</small>}</td>
+                <td><b>{l.name}</b>{l.options?.length > 0 && <small>{l.options.map((x) => `${x.name}: ${x.value}`).join(' · ')}</small>}{l.sku && <small>SKU {l.sku}</small>}</td>
                 <td className="r">{money(l.unit_price)}</td>
                 <td className="r">{num(l.quantity)}</td>
                 <td className="r">{money(l.line_subtotal ?? l.unit_price * l.quantity)}</td>

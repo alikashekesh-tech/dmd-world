@@ -147,7 +147,7 @@ export const FILTERS_BY_TYPE = {
 };
 // The category is filtered as a tree of its own (ProductBrowser `categories`), not as one of these facets.
 export const FACET_LABELS = {
-  platform: 'Platform', brand: 'Brand', conn: 'Wired / Wireless', color: 'Color', connection: 'Connection', mic: 'Microphone',
+  condition: 'Condition', platform: 'Platform', brand: 'Brand', conn: 'Wired / Wireless', color: 'Color', connection: 'Connection', mic: 'Microphone',
   material: 'Material', maxKg: 'Maximum weight', size: 'Screen size', res: 'Resolution', hz: 'Refresh rate', panel: 'Panel type',
   layout: 'Layout', weight: 'Weight', storage: 'Storage', genre: 'Genre', screen: 'Screen', gpu: 'Graphics',
 };

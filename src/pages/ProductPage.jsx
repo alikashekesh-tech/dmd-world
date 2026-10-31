@@ -9,10 +9,12 @@ import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
 import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellIcon } from '../components/common/icons.jsx';
-import { getProduct, groupOf, PRODUCTS, COLORS, money, isNew, purchaseLimit, deliveryFee } from '../data/index.js';
+import { getProduct, groupOf, PRODUCTS, COLORS, money, isNew, purchaseLimit, variantLimit, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import RoomView from '../components/product/RoomView.jsx';
+import OptionPicker from '../components/product/OptionPicker.jsx';
+import { isVariable, findVariant, missingOptions, initialSelection, optionList, conditionOf, withVariantImage } from '../lib/variants.js';
 import { whatsAppUrl, productMessage, WhatsAppIcon } from '../components/layout/WhatsAppButton.jsx';
 import { CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
@@ -85,6 +87,8 @@ export default function ProductPage() {
   const nav = useNavigate();
   const { addToCart, toggleWish, isWished, catalogVersion, roomFor } = useStore();
   const [color, setColor] = useState(p?.colors[0]);
+  const [sel, setSel] = useState(() => initialSelection(p)); // the options chosen, for a product sold in variants
+  const [tried, setTried] = useState(false); // tried to add before choosing every option: say which is missing
   const [view, setView] = useState(0);
   const [qty, setQty] = useState(1);
   const [params] = useSearchParams();
@@ -100,7 +104,7 @@ export default function ProductPage() {
     return () => { live = false; };
   }, [slug]);
   useEffect(() => {
-    setColor(p?.colors[0]); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
+    setColor(p?.colors[0]); setSel(initialSelection(p)); setTried(false); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
     if (wantReview) setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 150); else window.scrollTo(0, 0);
     if (p) rememberView(p.id);
   }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps -- reset only when the product changes
@@ -119,10 +123,16 @@ export default function ProductPage() {
 
   const brand = p ? groupOf(p) : null; // its brand, or the category it's listed under
   const cat = p ? { slug: p.brand, name: catName(Number(p.cat)) } : null;
-  const out = p?.stock === 'out';
+  // Sold in variants: until every option is chosen the page shows the product's summary ("From $X"); then the variant.
+  const variable = isVariable(p);
+  const chosen = variable ? findVariant(p, sel) : null;
+  const missing = variable ? missingOptions(p, sel) : [];
+  const at = chosen ? { ...p, price: chosen.price, was: chosen.was, discount: chosen.discount, stock: chosen.stock, stockCount: chosen.stockCount } : p;
+  const out = at?.stock === 'out';
   const fee = p ? deliveryFee('delivery', [p]) : null; // its own delivery price, or the store's
   const catNames = (p?.cats || []).map((id) => catName(Number(id)));
-  const condition = catNames.includes('Used') ? 'Used' : catNames.includes('New') ? 'New' : null;
+  const used = conditionOf(p); // Buy Used: its grade, or "Used" for one filed under a Used category
+  const condition = used ? (used.key === 'used' ? 'Used' : `Used · ${used.label}`) : catNames.includes('New') ? 'New' : null;
   const blurb = details?.short || p?.blurb || '';
   usePageMeta(p ? {
     title: p.name,
@@ -135,27 +145,36 @@ export default function ProductPage() {
       offers: {
         '@type': 'Offer', priceCurrency: 'USD', price: p.price.toFixed(2), url: `${location.origin}/product/${p.slug}`,
         availability: out ? 'https://schema.org/OutOfStock' : p.stock === 'low' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
-        itemCondition: condition === 'Used' ? 'https://schema.org/UsedCondition' : 'https://schema.org/NewCondition',
+        itemCondition: used ? 'https://schema.org/UsedCondition' : 'https://schema.org/NewCondition',
         seller: { '@type': 'Organization', name: 'DMD World' },
       },
       ...(p.n > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(p.r).toFixed(1), reviewCount: p.n } } : {}),
     },
   } : { title: 'Product not found', noindex: true });
+  useEffect(() => { setView(0); }, [chosen?.id]); // a newly chosen variant opens on its own photo
 
   if (!p) return <NotFound />;
   const descParas = details?.description?.length ? details.description : (blurb || `${p.name} from ${brand.name}, available at DMD World. Ask DMD about compatibility, condition or what's in the box.`).split(/\n+/).map((x) => x.trim()).filter(Boolean);
   const specRows = [...(details?.attributes || []).map((a) => [a.name, a.value]), ...Object.entries(p.specs), ...(details?.dimensions ? [['Dimensions', details.dimensions]] : []), ...(details?.weight ? [['Weight', `${details.weight} kg`]] : [])];
   const platformGroup = ['playstation', 'nintendo-switch', 'xbox'].includes(p.brand) ? brand.name : null;
-  const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', out ? 'Out of stock' : p.stock === 'low' ? `Only ${p.stockCount} left` : 'In stock'], ...(p.sku ? [['SKU', p.sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
+  const sku = chosen?.sku || p.sku;
+  const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', variable && !chosen ? (out ? 'Out of stock' : 'Choose your options') : out ? 'Out of stock' : at.stock === 'low' ? `Only ${at.stockCount} left` : 'In stock'], ...(sku ? [['SKU', sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
   const wished = isWished(p.id);
   const bundle = p.bundle?.map(getProduct).filter(Boolean);
   // The stock left after what's already in the cart: 18 in stock with 15 in the cart leaves 3 to choose from.
-  const room = roomFor(p.id);
-  const full = !out && room < 1;
+  const room = roomFor(p.id, chosen?.id);
+  const full = !out && (!variable || chosen) && room < 1;
   const maxQty = Math.max(1, room);
-  const addLabel = full ? `All ${purchaseLimit(p)} in your cart` : 'Add to cart';
-  const buyNow = () => { if (!full) addToCart(p.id, Math.min(qty, maxQty), color, { open: false }); nav('/checkout'); };
-  const shots = p.img ? p.gallery || [p.img] : ART_VIEWS;
+  const choose = missing.length > 0 ? `Choose ${missing[0].toLowerCase()}` : null; // "Choose colour", "Choose dimensions"
+  const addLabel = choose || (full ? `All ${chosen ? variantLimit(chosen) : purchaseLimit(p)} in your cart` : 'Add to cart');
+  /** Adds what's chosen; with an option still missing, it says which instead. */
+  const add = (opts) => {
+    if (choose) { setTried(true); document.getElementById('options')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return false; }
+    return addToCart(p.id, Math.min(qty, maxQty), chosen ? { variant: chosen.id } : color, opts);
+  };
+  const buyNow = () => { if (full) { nav('/checkout'); return; } if (add({ open: false }) !== false) nav('/checkout'); };
+  const shown = withVariantImage(p, chosen); // a variant with its own photo shows it first
+  const shots = shown.img ? shown.gallery || [shown.img] : ART_VIEWS;
   const video = details?.video || null; // shown after the photos, as the last thumbnail
   const onVideo = !!video && view === shots.length;
   const tabs = TABS.filter(([k]) => k !== 'specs' || specRows.length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
@@ -177,15 +196,16 @@ export default function ProductPage() {
       <div className={s.top}>
         <div className={s.gallery}>
           <div className={s.stage}>
-            {onVideo ? <ProductVideo video={video} name={p.name} /> : <ProductImage product={p} color={color} view={view} eager className={s.stageImg} />}
-            {!onVideo && p.discount > 0 && <span className={s.badge}>{dealBadge(p)}</span>}
-            {!onVideo && isNew(p) && !p.discount && <span className={`${s.badge} ${s.new}`}>New</span>}
-            {!onVideo && p.img && <RoomView src={shots[view] || p.img} name={p.name} />}
+            {onVideo ? <ProductVideo video={video} name={p.name} /> : <ProductImage product={shown} color={color} view={view} eager className={s.stageImg} />}
+            {!onVideo && at.discount > 0 && <span className={s.badge}>{dealBadge(at)}</span>}
+            {!onVideo && used && <span className={`${s.badge} ${s.used}`}>{used.key === 'used' ? 'Used' : `Used · ${used.label}`}</span>}
+            {!onVideo && !used && isNew(p) && !at.discount && <span className={`${s.badge} ${s.new}`}>New</span>}
+            {!onVideo && shown.img && <RoomView src={shots[view] || shown.img} name={p.name} />}
           </div>
           {(shots.length > 1 || video) && (
             <ul className={s.thumbs} aria-label="Product photos and video">
               {shots.map((v, i) => (
-                <li key={typeof v === 'string' ? v : i}><button type="button" className={`${s.thumb} ${view === i ? s.on : ''}`} onClick={() => setView(i)} aria-label={p.img ? `Photo ${i + 1} of ${shots.length}` : `${v} view`} aria-pressed={view === i}><ProductImage product={p} color={color} view={i} className={s.thumbImg} /></button></li>
+                <li key={typeof v === 'string' ? v : i}><button type="button" className={`${s.thumb} ${view === i ? s.on : ''}`} onClick={() => setView(i)} aria-label={shown.img ? `Photo ${i + 1} of ${shots.length}` : `${v} view`} aria-pressed={view === i}><ProductImage product={shown} color={color} view={i} className={s.thumbImg} /></button></li>
               ))}
               {video && (
                 <li><button type="button" className={`${s.thumb} ${s.videoThumb} ${onVideo ? s.on : ''}`} onClick={() => setView(shots.length)} aria-label="Play video" aria-pressed={onVideo}>
@@ -209,10 +229,23 @@ export default function ProductPage() {
           {p.n > 0 && <a href="#reviews" className={s.rateLink} onClick={() => setTab('reviews')}><Rating value={p.r} count={p.n} /><span>Read reviews</span></a>}
 
           <div className={s.priceBox}>
-            {p.was ? <DropPrice key={p.id} p={p} /> : <Price price={p.price} size="lg" />}
-            <Stock p={p} />
+            {variable && !chosen
+              ? <span className={s.from}><small>From</small><Price price={p.price} size="lg" /></span>
+              : at.was ? <DropPrice key={`${p.id}-${chosen?.id || ''}`} p={at} /> : <Price price={at.price} size="lg" />}
+            <Stock p={at} />
           </div>
           {blurb && <p className={s.blurb}>{blurb}</p>}
+
+          {used && (
+            <div className={s.condition}>
+              <p><b>Condition: {used.label}</b>{used.key !== 'used' && <span> · Used, sold by DMD World</span>}</p>
+              <p>{used.description}</p>
+              {p.conditionNote && <p className={s.condNote}>{p.conditionNote}</p>}
+              <Link to="/buy-used#grades">What our condition grades mean</Link>
+            </div>
+          )}
+
+          {variable && <div id="options"><OptionPicker product={p} selected={sel} onChange={(next) => { setSel(next); setTried(false); }} invalid={tried} /></div>}
 
           {p.colors.length > 1 && (
             <div className={s.block}>
@@ -234,7 +267,7 @@ export default function ProductPage() {
             <>
               <div className={s.actions}>
                 <QtyStepper value={Math.min(qty, maxQty)} onChange={setQty} max={maxQty} label={p.name} />
-                <button type="button" className="btn btn--primary btn--lg" disabled={full} onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>{addLabel}</button>
+                <button type="button" className="btn btn--primary btn--lg" disabled={full} aria-describedby={choose ? 'options' : undefined} onClick={() => add()}>{addLabel}</button>
                 <button type="button" className={`${s.heart} ${wished ? s.hearted : ''}`} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><HeartIcon size={20} fill={wished ? 'currentColor' : 'none'} /></button>
               </div>
               <button type="button" className="btn btn--secondary btn--lg btn--block" onClick={buyNow}>Buy now</button>
@@ -247,7 +280,7 @@ export default function ProductPage() {
             <p className={s.askText}>Compatibility, condition or stock: a person at DMD World will answer.</p>
             <div className={s.askBtns}>
               <a href={`tel:${CONTACT.tel}`}><PhoneIcon size={16} />{CONTACT.phone}</a>
-              <a href={whatsAppUrl(productMessage(p, p.colors.length > 1 ? [['Colour', COLORS[color]?.label]] : []))} target="_blank" rel="noopener noreferrer" className={s.wa}><WhatsAppIcon size={16} />Ask on WhatsApp</a>
+              <a href={whatsAppUrl(productMessage(p, [...(chosen ? optionList(p, chosen) : Object.entries(sel)), ...(p.colors.length > 1 ? [['Colour', COLORS[color]?.label]] : []), ...(condition && used ? [['Condition', condition]] : [])]))} target="_blank" rel="noopener noreferrer" className={s.wa}><WhatsAppIcon size={16} />Ask on WhatsApp</a>
               <a href={`mailto:${CONTACT.email.toLowerCase()}?subject=${encodeURIComponent(`Question about ${p.name}`)}`}><MailIcon size={16} />Email</a>
             </div>
           </div>
@@ -317,9 +350,9 @@ export default function ProductPage() {
       )}
 
       <div className={s.sticky}>
-        <div><b>{p.name}</b><Price price={p.price} was={p.was} size="sm" /></div>
+        <div><b>{p.name}</b><Price price={at.price} was={at.was} size="sm" /></div>
         {out ? <a href="#top" className="btn btn--secondary" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Sold out</a>
-          : <button type="button" className="btn btn--primary" disabled={full} onClick={() => addToCart(p.id, Math.min(qty, maxQty), color)}>{addLabel}</button>}
+          : <button type="button" className="btn btn--primary" disabled={full} onClick={() => add()}>{addLabel}</button>}
       </div>
     </div>
   );

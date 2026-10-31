@@ -24,6 +24,11 @@
 .add { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: #0b1220; color: #fff; transition: background 0.2s, transform 0.15s; }
 .add:hover { background: var(--accent); }
 .add:active { transform: scale(0.94); }
+/* Ask on WhatsApp beside the cart button (as on the shop's cards): an outline, so the cart stays the main action */
+.acts { flex: none; display: flex; gap: 6px; }
+.wa { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; border: 1px solid #e2e8f1; color: #1a9e4b; transition: background 0.2s, border-color 0.2s, color 0.2s; }
+.wa:hover { background: #25d366; border-color: #25d366; color: #052e16; }
+.wa:focus-visible, .add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .compact .media { aspect-ratio: 5 / 4; }
 .compact .img { padding: 7% 12%; }
@@ -34,10 +39,13 @@
 .dark .name a:hover { color: #8fb8ff; }
 .dark .add { background: rgba(159, 178, 214, 0.12); }
 .dark .add:hover { background: var(--acc, #2f6bff); }
+.dark .wa { border-color: rgba(159, 178, 214, 0.22); color: #4ade80; }
+.dark .wa:hover { background: #25d366; border-color: #25d366; color: #052e16; }
 
 @media (max-width: 640px) {
   .body { padding: 10px 11px 12px; }
   .name { font-size: 13.5px; }
   .price b { font-size: 16px; }
-  .add { width: 34px; height: 34px; }
+  .add, .wa { width: 34px; height: 34px; }
+  .acts { gap: 4px; }
 }

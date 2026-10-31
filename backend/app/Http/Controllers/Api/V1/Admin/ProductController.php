@@ -26,7 +26,7 @@ class ProductController extends Controller
         $v = $request->validate([
             'q' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:draft,published'], 'category' => ['nullable', 'integer'],
             'brand' => ['nullable', 'integer'], 'stock' => ['nullable', 'in:out,low,in,untracked'], 'featured' => ['nullable', 'boolean'],
-            'on_sale' => ['nullable', 'boolean'], 'archived' => ['nullable', 'in:only,with'],
+            'on_sale' => ['nullable', 'boolean'], 'archived' => ['nullable', 'in:only,with'], 'condition' => ['nullable', 'in:used,new'],
             'sort' => ['nullable', 'in:updated,newest,name,price_asc,price_desc,stock,best'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $tree = ProductResource::$tree = CategoryTree::load(true);
@@ -56,6 +56,9 @@ class ProductController extends Controller
         }
         if ($request->boolean('on_sale')) {
             ProductQuery::onSale($q);
+        }
+        if (! empty($v['condition'])) {
+            $v['condition'] === 'used' ? $q->whereNotNull('condition') : $q->whereNull('condition');
         }
         ProductQuery::sort($q, $v['sort'] ?? 'updated');
 

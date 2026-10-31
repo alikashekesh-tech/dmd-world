@@ -10,6 +10,7 @@ import { TrashIcon, PhoneIcon, ArrowRight } from '../components/common/icons.jsx
 import { money, getBrand, COLORS, PRODUCTS, deliveryFee, deliveryLabel } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
 import { useQuote } from '../lib/useQuote.js';
+import { lineRef, lineDetails, withVariantImage } from '../lib/variants.js';
 import { usePageMeta } from '../lib/meta.js';
 import s from './Cart.module.css';
 
@@ -17,23 +18,24 @@ import s from './Cart.module.css';
    With a live quote it shows the store's own prices and discount; without one, the catalog's. */
 export function OrderSummary({ children, showItems, quote, checking, method = 'delivery' }) {
   const { lines, subtotal: shown, savings, count } = useStore();
-  const live = (id) => quote?.lines.find((q) => q.id === Number(id));
+  const live = (l) => quote?.lines.find((q) => q.ref === lineRef(l.id, l.variant));
   const subtotal = quote ? quote.subtotal : shown;
   const discount = quote?.discount || 0;
   const fee = quote ? quote.shipping : deliveryFee(method, lines.map((l) => l.product)); // null = confirmed by DMD after the order
   const total = quote ? quote.total : shown + (fee || 0);
-  const changed = quote && lines.some((l) => { const q = live(l.id); return q && !q.problem && Math.abs(q.price - l.product.price) > 0.004; });
+  const changed = quote && lines.some((l) => { const q = live(l); return q && !q.problem && Math.abs(q.price - l.price) > 0.004; });
   return (
     <aside className={s.summary} aria-label="Order summary" aria-busy={checking || undefined}>
       <p className={s.sumHud}>Order summary <span>{count} {count === 1 ? 'item' : 'items'}</span></p>
       {showItems && (
         <ul className={s.mini}>{lines.map((l) => {
-          const q = live(l.id);
-          const unit = q && !q.problem ? q.price : l.product.price;
+          const q = live(l);
+          const unit = q && !q.problem ? q.price : l.price;
+          const details = lineDetails(l);
           return (
             <li key={l.key} className={q?.problem ? s.miniBad : undefined}>
-              <span className={s.miniThumb}><ProductImage product={l.product} color={l.color} /><i>{l.qty}</i></span>
-              <span><b>{l.product.name}</b><small>{q?.problem ? q.code === 'low_stock' ? `Only ${q.max} left` : 'Not available' : getBrand(l.product.brand).name}{l.color && COLORS[l.color] ? ` · ${COLORS[l.color].label}` : ''}</small></span>
+              <span className={s.miniThumb}><ProductImage product={withVariantImage(l.product, l.variantInfo)} color={l.color} /><i>{l.qty}</i></span>
+              <span><b>{l.product.name}</b><small>{q?.problem ? q.code === 'low_stock' ? `Only ${q.max} left` : q.code === 'options_required' ? 'Choose its options' : 'Not available' : getBrand(l.product.brand).name}{details ? ` · ${details}` : ''}{l.color && COLORS[l.color] ? ` · ${COLORS[l.color].label}` : ''}</small></span>
               <em>{money(l.qty * unit)}</em>
             </li>
           );
@@ -57,10 +59,12 @@ export default function Cart() {
   usePageMeta({ title: 'Your cart', noindex: true });
   const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast, lineMax } = useStore();
   const [quote, checking] = useQuote(lines);
-  const problemOf = (id) => quote?.lines.find((q) => q.id === Number(id) && q.problem);
-  const blocked = lines.some((l) => problemOf(l.id));
-  const suggestions = PRODUCTS.filter((p) => p.price < 30 && p.stock !== 'out' && !lines.some((l) => l.id === p.id)).sort((a, b) => b.sold - a.sold).slice(0, 4);
-  const snapshot = () => lines.map(({ key, id, color, qty }) => ({ key, id, color, qty }));
+  const liveOf = (l) => quote?.lines.find((q) => q.ref === lineRef(l.id, l.variant));
+  const problemOf = (l) => { const q = liveOf(l); return q?.problem ? q : null; };
+  const blocked = lines.some((l) => problemOf(l));
+  // Products sold in options are left out: they need their options chosen on their own page.
+  const suggestions = PRODUCTS.filter((p) => p.price < 30 && p.stock !== 'out' && !p.attributes?.length && !lines.some((l) => l.id === p.id)).sort((a, b) => b.sold - a.sold).slice(0, 4);
+  const snapshot = () => lines.map(({ key, id, variant, color, qty }) => ({ key, id, variant, color, qty }));
   const clear = () => { const before = snapshot(); clearCart(); setToast({ text: 'Cart cleared', undo: () => restoreCart(before) }); };
   const remove = (l) => { const before = snapshot(); removeLine(l.key); setToast({ text: `Removed ${l.product.name}`, undo: () => restoreCart(before) }); };
   return (
@@ -85,21 +89,24 @@ export default function Cart() {
             <div>
               <ul className={s.lines}>
                 {lines.map((l, i) => {
-                  const bad = problemOf(l.id);
-                  const live = quote?.lines.find((q) => q.id === Number(l.id));
-                  const unit = live && !live.problem ? live.price : l.product.price;
+                  const bad = problemOf(l);
+                  const live = liveOf(l);
+                  const unit = live && !live.problem ? live.price : l.price;
+                  const at = l.variantInfo || l.product; // a variant has its own stock
+                  const details = lineDetails(l);
                   return (
                     <li key={l.key} className={`${s.line} ${bad ? s.lineBad : ''}`} style={{ '--i': i }}>
-                      <Link to={`/product/${l.product.slug}`} className={s.thumb}><ProductImage product={l.product} color={l.color} /></Link>
+                      <Link to={`/product/${l.product.slug}`} className={s.thumb}><ProductImage product={withVariantImage(l.product, l.variantInfo)} color={l.color} /></Link>
                       <div className={s.info}>
                         <small>{getBrand(l.product.brand).name}</small>
                         <Link to={`/product/${l.product.slug}`}>{l.product.name}</Link>
+                        {details && <span className={s.variant}>{details}</span>}
                         {l.color && COLORS[l.color] && <span className={s.variant}><i style={{ background: COLORS[l.color].hex }} />{COLORS[l.color].label}</span>}
                         {bad ? (
-                          <span className={s.warn}>{bad.code === 'low_stock' ? `Only ${bad.max} left` : bad.code === 'sold_out' ? 'Sold out' : bad.code === 'too_large' ? 'Too many to order online' : 'No longer available'}
+                          <span className={s.warn}>{bad.code === 'low_stock' ? `Only ${bad.max} left` : bad.code === 'sold_out' ? 'Sold out' : bad.code === 'too_large' ? 'Too many to order online' : bad.code === 'options_required' ? 'Choose its options on the product page' : 'No longer available'}
                             {bad.code === 'low_stock' && bad.max > 0 ? <button type="button" className={s.fixBtn} onClick={() => setQty(l.key, bad.max)}>Change to {bad.max}</button> : <button type="button" className={s.fixBtn} onClick={() => removeLine(l.key)}>Remove</button>}
                           </span>
-                        ) : <span className={l.product.stock === 'out' ? s.warn : s.ok}>{l.product.stock === 'out' ? 'Currently out of stock' : l.product.stock === 'low' ? `Only ${l.product.stockCount} left` : 'In stock'}</span>}
+                        ) : <span className={at.stock === 'out' ? s.warn : s.ok}>{at.stock === 'out' ? 'Currently out of stock' : at.stock === 'low' ? `Only ${at.stockCount} left` : 'In stock'}</span>}
                       </div>
                       <QtyStepper value={l.qty} max={bad?.code === 'low_stock' ? Math.max(1, bad.max) : lineMax(l.key)} onChange={(q) => setQty(l.key, q)} label={l.product.name} />
                       <div className={s.price}><b>{money(l.qty * unit)}</b>{l.qty > 1 && <small>{money(unit)} each</small>}</div>

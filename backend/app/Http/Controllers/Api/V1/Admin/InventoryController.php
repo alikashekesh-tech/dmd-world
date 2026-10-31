@@ -8,6 +8,7 @@ use App\Http\Resources\Admin\ProductResource;
 use App\Models\Activity;
 use App\Models\InventoryMovement;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\Inventory;
 use App\Services\ProductQuery;
 use Illuminate\Http\JsonResponse;
@@ -79,6 +80,37 @@ class InventoryController extends Controller
         });
 
         return new ProductResource($product->refresh()->load(['images:id,product_id,url,alt,position', 'brand:id,name']));
+    }
+
+    /**
+     * One variant's stock: { stock_quantity } sets an exact count (stocktake), { adjust } adds or removes; { note } says
+     * why. Recorded in the product's stock history with the variant, like any other change.
+     */
+    public function updateVariant(Request $request, ProductVariant $variant): ProductResource
+    {
+        $v = $request->validate([
+            'stock_quantity' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
+            'adjust' => ['sometimes', 'integer', 'between:-1000000,1000000', 'not_in:0'],
+            'note' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+        if (isset($v['stock_quantity']) === isset($v['adjust'])) {
+            throw new ApiException(422, 'ONE_CHANGE', 'Either set the stock or adjust it.');
+        }
+        $product = Product::withTrashed()->findOrFail($variant->product_id);
+        if (! $product->isVariable()) {
+            throw new ApiException(409, 'VARIANT_REMOVED', 'This variant is no longer sold. Reload the page.');
+        }
+        if (! $variant->track_stock) {
+            throw new ApiException(409, 'NOT_TRACKED', "Stock isn’t counted for {$product->name} ({$variant->label($product->variation_attributes)}): turn on stock tracking for it on the product page first.");
+        }
+        $admin = $request->user('admin');
+        if (isset($v['stock_quantity'])) {
+            $this->inventory->setVariant($variant, $v['stock_quantity'], 'adjustment', $admin, $v['note'] ?? null);
+        } else {
+            $this->inventory->adjustVariant($variant, $v['adjust'], $v['adjust'] > 0 ? 'restock' : 'adjustment', $admin, $v['note'] ?? null);
+        }
+
+        return new ProductResource($product->refresh()->load(['images:id,product_id,url,alt,position', 'brand:id,name', 'variants']));
     }
 
     public function movements(Request $request, Product $product): JsonResponse

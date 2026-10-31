@@ -35,7 +35,7 @@ final class StoreSettings
     ];
 
     /** Every link the top menu can show (the storefront knows their names and addresses). */
-    public const MENU_LINKS = ['home', 'shop', 'categories', 'offers', 'brands', 'about', 'contact'];
+    public const MENU_LINKS = ['home', 'shop', 'categories', 'offers', 'used', 'brands', 'about', 'contact'];
 
     /** Shown to everyone (in the storefront catalog); the rest are for the owner only. */
     public const PUBLIC = ['store_name', 'contact_phone', 'contact_email', 'reviews_enabled', 'coupons_enabled', 'delivery_fee', 'menu_links'];

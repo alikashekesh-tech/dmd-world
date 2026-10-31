@@ -8,7 +8,7 @@ import { Button, Chip, Notice, PageHeader, SkeletonRows, Toggle, useUi } from '.
    setting (owner only); the category and brand order is the catalog's own (the same as on those pages). */
 
 // The shop's top menu links, in the default order.
-const LINKS = [['home', 'Home'], ['shop', 'Shop'], ['categories', 'Categories (dropdown)'], ['offers', 'New Offers'], ['brands', 'Brands'], ['about', 'About Us'], ['contact', 'Contact Us']];
+const LINKS = [['home', 'Home'], ['shop', 'Shop'], ['categories', 'Categories (dropdown)'], ['offers', 'New Offers'], ['used', 'Buy Used'], ['brands', 'Brands'], ['about', 'About Us'], ['contact', 'Contact Us']];
 
 export default function Menu({ session }) {
   const owner = session?.owner?.role === 'owner';

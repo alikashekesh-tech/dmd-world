@@ -47,7 +47,7 @@ class StoreSettingsTest extends TestCase
         $now = $catalog();
         $this->assertSame('low_stock', collect($now['products'])->firstWhere('id', $p->id)['availability']);
         $this->assertSame(['store_name' => 'DMD World', 'contact_phone' => '+961 70 903 900', 'contact_email' => 'hello@dmdworld.store', 'reviews_enabled' => true, 'coupons_enabled' => true,
-            'menu_links' => ['home', 'shop', 'categories', 'offers', 'brands', 'about', 'contact'], 'delivery_fee' => null], $now['store']);
+            'menu_links' => ['home', 'shop', 'categories', 'offers', 'used', 'brands', 'about', 'contact'], 'delivery_fee' => null], $now['store']);
         $this->assertArrayNotHasKey('daily_revenue_target', $now['store'], 'owner-only settings stay private');
         $this->assertArrayNotHasKey('order_notification_email', $now['store'], 'where orders are emailed stays private');
 
@@ -82,5 +82,18 @@ class StoreSettingsTest extends TestCase
         $review()->assertForbidden()->assertJsonPath('error.code', 'REVIEWS_DISABLED');
         $owner->put('/api/v1/admin/settings', ['reviews_enabled' => true])->assertOk();
         $review()->assertCreated();
+    }
+
+    public function test_buy_used_joins_a_custom_menu_only_when_the_owner_adds_it(): void
+    {
+        $owner = $this->owner();
+        // A menu the owner chose before Buy Used existed stays exactly as it was.
+        $owner->put('/api/v1/admin/settings', ['menu_links' => ['shop', 'offers', 'categories', 'contact']])->assertOk();
+        $this->assertSame(['shop', 'offers', 'categories', 'contact'], $this->client()->get('/api/v1/catalog')->json('store.menu_links'));
+        $this->assertSame(['shop', 'offers', 'categories', 'contact'], $owner->get('/api/v1/admin/settings')->json('data.menu_links'));
+
+        // Switched on in Admin › Menu: added where the owner puts it, the rest untouched.
+        $owner->put('/api/v1/admin/settings', ['menu_links' => ['shop', 'offers', 'categories', 'contact', 'used']])->assertOk();
+        $this->assertSame(['shop', 'offers', 'categories', 'contact', 'used'], $this->client()->get('/api/v1/catalog')->json('store.menu_links'));
     }
 }

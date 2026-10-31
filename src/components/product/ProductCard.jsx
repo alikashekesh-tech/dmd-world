@@ -4,6 +4,8 @@ import { HeartIcon, BagIcon } from '../common/icons.jsx';
 import { Rating, Price, Compat, Stock } from '../common/bits.jsx';
 import { groupOf, isNew, money } from '../../data/index.js';
 import { useStore } from '../../context/StoreContext.jsx';
+import { whatsAppUrl, productMessage, WhatsAppIcon } from '../layout/WhatsAppButton.jsx';
+import { conditionOf } from '../../lib/variants.js';
 import s from './ProductCard.module.css';
 
 /* Rule of 100: under $100 a percentage reads bigger, above it the dollar amount does. */
@@ -14,6 +16,8 @@ export default function ProductCard({ product: p, priority }) {
   const wished = isWished(p.id);
   const href = `/product/${p.slug}`;
   const out = p.stock === 'out';
+  const used = conditionOf(p);
+  const options = p.attributes?.length > 0; // sold in options: they're chosen on its page
   return (
     <article className={`${s.card} ${out ? s.isOut : ''}`}>
       <div className={s.media}>
@@ -22,7 +26,8 @@ export default function ProductCard({ product: p, priority }) {
         </Link>
         <div className={s.badges}>
           {p.discount > 0 && <span className={`${s.badge} ${s.deal}`}>{dealBadge(p)}</span>}
-          {isNew(p) && p.tag === 'new' && <span className={`${s.badge} ${s.new}`}>New</span>}
+          {used && <span className={`${s.badge} ${s.used}`}>{used.key === 'used' ? 'Used' : `Used · ${used.label}`}</span>}
+          {!used && isNew(p) && p.tag === 'new' && <span className={`${s.badge} ${s.new}`}>New</span>}
         </div>
         <button type="button" className={`${s.wish} ${wished ? s.wished : ''}`} onClick={() => toggleWish(p.id)} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}>
           <HeartIcon size={17} fill={wished ? 'currentColor' : 'none'} />
@@ -44,9 +49,14 @@ export default function ProductCard({ product: p, priority }) {
             <Price price={p.price} was={p.was} size="sm" />
             <Stock p={p} />
           </div>
-          <button type="button" className={s.add} disabled={out} onClick={() => addToCart(p.id, 1, p.colors[0])} aria-label={out ? `${p.name} is out of stock` : `Add ${p.name} to cart`} title={out ? 'Out of stock' : 'Add to cart'}>
-            <BagIcon size={18} />
-          </button>
+          <div className={s.acts}>
+            <a className={s.wa} href={whatsAppUrl(productMessage(p))} target="_blank" rel="noopener noreferrer" aria-label={`Ask about ${p.name} on WhatsApp`} title="Ask on WhatsApp"><WhatsAppIcon size={18} /></a>
+            {options && !out
+              ? <Link to={href} className={s.add} aria-label={`Choose options for ${p.name}`} title="Choose options"><BagIcon size={18} /></Link>
+              : <button type="button" className={s.add} disabled={out} onClick={() => addToCart(p.id, 1, p.colors[0])} aria-label={out ? `${p.name} is out of stock` : `Add ${p.name} to cart`} title={out ? 'Out of stock' : 'Add to cart'}>
+                <BagIcon size={18} />
+              </button>}
+          </div>
         </div>
       </div>
     </article>
