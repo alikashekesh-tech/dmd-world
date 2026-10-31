@@ -15,6 +15,7 @@ import Reviews from '../components/product/Reviews.jsx';
 import RoomView from '../components/product/RoomView.jsx';
 import OptionPicker from '../components/product/OptionPicker.jsx';
 import NotifyMe from '../components/product/NotifyMe.jsx';
+import { CURRENCY, toItem, track } from '../lib/analytics.js';
 import AddonPanel from '../components/product/AddonPanel.jsx';
 import { isVariable, findVariant, missingOptions, initialSelection, optionList, variantLabel, conditionOf, withVariantImage } from '../lib/variants.js';
 import { whatsAppUrl, productMessage, WhatsAppIcon } from '../components/layout/WhatsAppButton.jsx';
@@ -134,6 +135,9 @@ export default function ProductPage() {
     },
   } : { title: 'Product not found', noindex: true });
   useEffect(() => { setView(0); }, [chosen?.id]); // a newly chosen variant opens on its own photo
+  useEffect(() => { // GA4: the product viewed (once per product, at the price shown)
+    if (p) track('view_item', { currency: CURRENCY, value: p.price, items: [toItem({ ...p, brandName: brand?.name }, {})] });
+  }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- once per product
 
   if (!p) return <NotFound />;
   const descParas = details?.description?.length ? details.description : (blurb || `${p.name} from ${brand.name}, available at DMD World. Ask DMD about compatibility, condition or what's in the box.`).split(/\n+/).map((x) => x.trim()).filter(Boolean);

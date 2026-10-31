@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Assistant\AssistantProvider;
+use App\Services\Assistant\NullAssistantProvider;
 use App\Services\Messaging\Messenger;
 use App\Services\Messaging\NullMessenger;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -22,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
         // WhatsApp/SMS: no provider is configured for the store yet, so nothing can be sent (see Messaging\Messenger).
         $this->app->singleton(Messenger::class, fn () => match (config('services.messaging.driver')) {
             default => new NullMessenger,
+        });
+        // The shopping assistant's AI: none approved yet, so it answers from the catalog alone (see Assistant\AssistantProvider).
+        $this->app->singleton(AssistantProvider::class, fn () => match (config('services.assistant.driver')) {
+            default => new NullAssistantProvider,
         });
     }
 
@@ -85,6 +91,12 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(8)->by('chat-burst:'.($request->user()?->getAuthIdentifier() ?: $request->ip()))->response($tooMany('You’re sending messages quickly. Please wait a moment.')),
             Limit::perHour(60)->by('chat:'.($request->user()?->getAuthIdentifier() ?: $request->ip()))->response($tooMany('You’ve sent a lot of messages. Please wait a little.')),
         ]);
+        // The shopping assistant: by address (guests ask too), a short burst and a daily ceiling.
+        RateLimiter::for('assistant', fn (Request $request) => [
+            Limit::perMinute(10)->by('assistant-burst:'.$request->ip())->response($tooMany('You’re asking quickly. Please wait a moment.')),
+            Limit::perDay(150)->by('assistant-day:'.$request->ip())->response($tooMany('You’ve asked a lot today. Our team can help in live chat or on WhatsApp.')),
+        ]);
+
         // Guests ask too (by email or phone), so by account or else by address, and a tighter ceiling per contact.
         RateLimiter::for('stock-alerts', function (Request $request) use ($tooMany) {
             $contact = mb_strtolower(trim((string) ($request->input('email') ?: $request->input('phone'))));

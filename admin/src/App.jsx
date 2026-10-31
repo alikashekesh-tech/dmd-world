@@ -23,6 +23,7 @@ const CustomerProfile = named(() => import('./pages/Customers.jsx'), 'CustomerPr
 const Messages = lazy(() => import('./pages/Messages.jsx'));
 const Reviews = lazy(() => import('./pages/Reviews.jsx'));
 const FollowUps = lazy(() => import('./pages/FollowUps.jsx'));
+const Analytics = lazy(() => import('./pages/Analytics.jsx'));
 const Homepage = lazy(() => import('./pages/Homepage.jsx'));
 const Notifications = lazy(() => import('./pages/Notifications.jsx'));
 const Trash = lazy(() => import('./pages/Trash.jsx'));
@@ -32,7 +33,7 @@ const Menu = lazy(() => import('./pages/Menu.jsx'));
 const Invoice = lazy(() => import('./pages/Invoice.jsx'));
 
 const ROUTES = [
-  ['/', Dashboard], ['/products', ProductsPage], ['/products/new', ProductEditor], ['/products/:id', ProductEditor],
+  ['/', Dashboard], ['/analytics', Analytics], ['/products', ProductsPage], ['/products/new', ProductEditor], ['/products/:id', ProductEditor],
   ['/categories', Categories], ['/brands', Brands], ['/inventory', Inventory], ['/offers', Offers],
   ['/orders', OrdersPage], ['/orders/:id', OrderDetail], ['/customers', CustomersPage], ['/customers/guest/:email', CustomerProfile], ['/customers/:id', CustomerProfile],
   ['/messages', Messages], ['/messages/:id', Messages], ['/reviews', Reviews], ['/follow-ups', FollowUps], ['/homepage', Homepage], ['/menu', Menu], ['/notifications', Notifications], ['/trash', Trash], ['/staff', Staff], ['/settings', Settings],

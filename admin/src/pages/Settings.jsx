@@ -4,7 +4,7 @@ import { useApi } from '../lib/hooks.js';
 import { num } from '../lib/format.js';
 import { Button, Field, Icon, Notice, PageHeader, PasswordInput, PasswordRules, SkeletonRows, Toggle, passwordOk, useUi } from '../ui/kit.jsx';
 
-const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'order_notification_phone', 'notify_customers_status', 'checkout_reminders_enabled', 'checkout_reminder_delay_minutes', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'whish_note', 'delivery_fee'];
+const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'order_notification_phone', 'notify_customers_status', 'checkout_reminders_enabled', 'checkout_reminder_delay_minutes', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'whish_note', 'delivery_fee', 'ga4_measurement_id', 'assistant_enabled', 'assistant_ai_budget_usd', 'assistant_ai_budget_period'];
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function Settings({ session }) {
@@ -28,7 +28,7 @@ export default function Settings({ session }) {
   if (error) return <Notice tone="coral" icon="alert">{error.message}</Notice>;
   if (!stored || !vals) return <SkeletonRows rows={8} />;
   // The delivery price is typed as text ("6", "6.50"); compare it as a number, so "6" is the stored 6.
-  const norm = (k, v) => (k === 'delivery_fee' ? (v === '' || v == null ? null : Number(v)) : v);
+  const norm = (k, v) => (k === 'delivery_fee' || k === 'assistant_ai_budget_usd' ? (v === '' || v == null ? null : Number(v)) : ['ga4_measurement_id', 'assistant_ai_budget_period'].includes(k) ? v || null : v);
   const changes = Object.fromEntries(KEYS.filter((k) => !same(norm(k, vals[k]), norm(k, stored[k]))).map((k) => [k, vals[k]]));
   const n = Object.keys(changes).length;
   const set = (k) => (v) => setVals((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
@@ -43,6 +43,9 @@ export default function Settings({ session }) {
       if ('whish_note' in body) body.whish_note = body.whish_note || null;
       if ('delivery_fee' in body) body.delivery_fee = body.delivery_fee === '' || body.delivery_fee == null ? null : Number(body.delivery_fee);
       if ('order_notification_email' in body) body.order_notification_email = body.order_notification_email?.trim() || null;
+      if ('ga4_measurement_id' in body) body.ga4_measurement_id = body.ga4_measurement_id?.trim().toUpperCase() || null;
+      if ('assistant_ai_budget_usd' in body) body.assistant_ai_budget_usd = body.assistant_ai_budget_usd === '' || body.assistant_ai_budget_usd == null ? null : Number(body.assistant_ai_budget_usd);
+      if ('assistant_ai_budget_period' in body) body.assistant_ai_budget_period = body.assistant_ai_budget_period || null;
       if ('order_notification_phone' in body) body.order_notification_phone = body.order_notification_phone?.trim() || null;
       if ('checkout_reminder_delay_minutes' in body) body.checkout_reminder_delay_minutes = Number(body.checkout_reminder_delay_minutes);
       const r = await api.put('/settings', body);
@@ -146,6 +149,26 @@ export default function Settings({ session }) {
                 </Field>
               )}
               <Toggle label="Discount codes can be used" checked={vals.coupons_enabled} onChange={set('coupons_enabled')} />
+            </div>
+          </section>
+          <section className="surface">
+            <div className="surface-head"><div><h3>Analytics &amp; assistant</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Google Analytics stays off until an ID is added, and then only for visitors who accept analytics cookies.</p></div></div>
+            <div className="surface-body stack">
+              <Field label="Google Analytics 4 Measurement ID" hint="From your GA4 web data stream, e.g. G-AB12CD34EF. Leave empty to keep analytics off.">
+                <input className="input mono" style={{ maxWidth: 240 }} value={vals.ga4_measurement_id || ''} onChange={set('ga4_measurement_id')} placeholder="G-…" spellCheck={false} />
+              </Field>
+              <Toggle label="Shopping assistant in the shop’s contact button (answers from your catalog and settings)" checked={vals.assistant_enabled} onChange={set('assistant_enabled')} />
+              <span className="label" style={{ marginTop: 6 }}>AI provider budget</span>
+              <p className="muted" style={{ fontSize: 12.5 }}>No AI provider is connected, so nothing is spent. If one is approved and connected later, it is used only while both a budget and its period are set here.</p>
+              <div className="grid-2">
+                <Field label="Budget (USD)"><span className="input-affix"><span>$</span><input className="input mono" inputMode="decimal" value={vals.assistant_ai_budget_usd ?? ''} onChange={set('assistant_ai_budget_usd')} placeholder="none" /></span></Field>
+                <Field label="Per">
+                  <select className="select" value={vals.assistant_ai_budget_period || ''} onChange={set('assistant_ai_budget_period')}>
+                    <option value="">Not set</option><option value="day">Day</option><option value="month">Month</option><option value="total">In total</option>
+                  </select>
+                </Field>
+              </div>
+              <a className="linkish" href="#/analytics" style={{ fontSize: 13 }}>See analytics and assistant use</a>
             </div>
           </section>
           <section className="surface">

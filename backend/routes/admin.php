@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\AnalyticsController;
 use App\Http\Controllers\Api\V1\Admin\AuthController;
 use App\Http\Controllers\Api\V1\Admin\BrandController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
@@ -38,6 +39,7 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
 
     // Dashboard, sidebar badges, activity, notifications and search: computed from MySQL on each request.
     Route::get('dashboard', [DashboardController::class, 'show'])->name('dashboard');
+    Route::get('analytics', [AnalyticsController::class, 'show'])->name('analytics');
     Route::get('badges', [DashboardController::class, 'badges'])->name('badges');
     Route::get('activity', [DashboardController::class, 'activity'])->name('activity');
     Route::get('search', [DashboardController::class, 'search'])->name('search');

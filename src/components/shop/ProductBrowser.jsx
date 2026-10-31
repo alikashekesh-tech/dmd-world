@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import ProductCard from '../product/ProductCard.jsx';
 import FilterPanel from './FilterPanel.jsx';
@@ -11,6 +11,7 @@ import Breadcrumbs from '../ui/Breadcrumbs.jsx';
 import PageHero from '../ui/PageHero.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
 import LineArt from '../art/LineArt.jsx';
+import { toItem, track } from '../../lib/analytics.js';
 import s from './ProductBrowser.module.css';
 
 export { Breadcrumbs };
@@ -59,6 +60,13 @@ export default function ProductBrowser({ base, keysFor, categories = [], crumbs,
   const bounds = useMemo(() => ({ min: Math.floor(Math.min(...base.map((p) => p.price), 0)), max: Math.ceil(Math.max(...base.map((p) => p.price), 1)) }), [base, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const page = Number(params.get('page') || 1);
   const shown = filtered.slice(0, page * PAGE);
+  // GA4: the list a visitor sees (its first page), once per list and filter state.
+  const listName = state.q ? 'Search results' : typeof title === 'string' ? title : picked?.label || 'Products';
+  const listKey = `${listName}|${filtered.slice(0, PAGE).map((p) => p.id).join(',')}`;
+  useEffect(() => {
+    const items = filtered.slice(0, PAGE).map((p, i) => toItem(p, { list: listName, index: i }));
+    if (items.length) track('view_item_list', { item_list_name: listName, items });
+  }, [listKey]); // eslint-disable-line react-hooks/exhaustive-deps -- once per list shown
 
   const sheetRef = useDialog(sheet, () => setSheet(false));
 

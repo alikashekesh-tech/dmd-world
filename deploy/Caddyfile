@@ -8,10 +8,11 @@
 
 # The two React apps. Only this site's own scripts can run; fonts come from Google Fonts; product pictures may be on
 # any https address (the owner can link one); product videos are this site's own files or YouTube's no-cookie player;
-# the store map (About, Contact) is Google Maps. index.html is revalidated on every visit, so a release is seen at
+# the store map (About, Contact) is Google Maps; Google Analytics (gtag) loads only once the owner adds a GA4 ID and the
+# visitor accepts analytics cookies. index.html is revalidated on every visit, so a release is seen at
 # once; the content-hashed assets are cached for a year.
 (react_app) {
-	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self'; frame-src https://www.youtube-nocookie.com https://www.google.com; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	header Content-Security-Policy "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self'; frame-src https://www.youtube-nocookie.com https://www.google.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	@hashed path /assets/*
 	header @hashed Cache-Control "public, max-age=31536000, immutable"
 	@page not path /assets/*

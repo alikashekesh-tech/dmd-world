@@ -1,0 +1,7 @@
+/* The analytics cookie question: a slim bar at the bottom-left, clear of the contact button, never covering the page. */
+.bar { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: grid; gap: 10px; width: min(420px, calc(100vw - 112px)); padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 40px -16px rgba(11, 18, 32, .35); }
+.bar p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.btns { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 560px) {
+  .bar { left: 12px; right: 12px; bottom: 84px; width: auto; }
+}

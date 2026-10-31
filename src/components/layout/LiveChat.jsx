@@ -3,6 +3,9 @@ import { useLocation } from '../../router/index.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { laravelApi } from '../../lib/laravelApi.js';
 import { STORE_LOCATION } from '../../data/dmdMenu.js';
+import { STORE } from '../../data/index.js';
+import { useCatalog } from '../../data/live.js';
+import Assistant from './Assistant.jsx';
 import { CloseIcon } from '../common/icons.jsx';
 import { useWhatsAppLink, WhatsAppIcon } from './WhatsAppButton.jsx';
 import s from './LiveChat.module.css';
@@ -24,6 +27,8 @@ export default function LiveChat() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(() => new URLSearchParams(location.search).get('chat') === '1'); // from the reply email
   const [picking, setPicking] = useState(false); // the Live chat / WhatsApp choice is showing
+  const [asking, setAsking] = useState(false); // the shopping assistant is open
+  useCatalog(); // the assistant is offered once the store's settings say so
   const whatsApp = useWhatsAppLink();
   const picker = useRef(null);
   const [token, setToken] = useState(readToken);
@@ -62,14 +67,14 @@ export default function LiveChat() {
   }, [known, open, refresh]);
   useEffect(() => { if (open) end.current?.scrollIntoView({ block: 'end' }); }, [open, chat.messages.length]);
   useEffect(() => {
-    if (!open && !picking) return undefined;
-    const esc = (e) => { if (e.key === 'Escape') { setOpen(false); setPicking(false); } };
+    if (!open && !picking && !asking) return undefined;
+    const esc = (e) => { if (e.key === 'Escape') { setOpen(false); setPicking(false); setAsking(false); } };
     // A click anywhere else closes the choice (not the chat: people scroll and click around while waiting).
     const away = (e) => { if (picking && !picker.current?.contains(e.target)) setPicking(false); };
     window.addEventListener('keydown', esc);
     document.addEventListener('pointerdown', away);
     return () => { window.removeEventListener('keydown', esc); document.removeEventListener('pointerdown', away); };
-  }, [open, picking]);
+  }, [open, picking, asking]);
   useEffect(() => { setPicking(false); }, [pathname]);
 
   const send = async (e) => {
@@ -89,13 +94,21 @@ export default function LiveChat() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const raised = pathname.startsWith('/product/'); // above the product page's buy bar on phones
   // Closes the chat; or, with a reply waiting, goes straight back to it; otherwise offers Live chat or WhatsApp.
-  const toggle = () => { if (open) setOpen(false); else if (chat.unread) setOpen(true); else setPicking((p) => !p); };
+  const toggle = () => { if (open) setOpen(false); else if (asking) setAsking(false); else if (chat.unread) setOpen(true); else setPicking((p) => !p); };
+  // From the assistant to a person: the live chat opens with the question already written.
+  const toPerson = (question) => { setAsking(false); setOpen(true); if (question) setForm((f) => ({ ...f, body: f.body || question })); };
 
   return (
     <>
       <div ref={picker} className={s.launcher} data-raised={raised || undefined}>
         {picking && (
           <ul className={s.choices} aria-label="Contact DMD World">
+            {STORE.assistant && (
+              <li><button type="button" className={s.choice} onClick={() => { setPicking(false); setAsking(true); }}>
+                <span>Shopping assistant<small>Instant answers from our catalog</small></span>
+                <i className={s.chatIcon}><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /><path d="M11 8v6M8 11h6" /></svg></i>
+              </button></li>
+            )}
             <li><button type="button" className={s.choice} onClick={() => { setPicking(false); setOpen(true); }}>
               <span>Live chat<small>A person replies here</small></span>
               <i className={s.chatIcon}><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z" /><path d="M8 9.5h8M8 12.5h5" /></svg></i>
@@ -106,16 +119,18 @@ export default function LiveChat() {
             </a></li>
           </ul>
         )}
-        <button type="button" className={s.bubble} onClick={toggle} aria-expanded={open || picking} aria-controls={open ? 'live-chat' : undefined}
-          aria-label={open ? 'Close the chat' : picking ? 'Close' : chat.unread ? 'Contact DMD World (new reply in your chat)' : 'Contact DMD World'}>
-          {open || picking ? <CloseIcon size={24} /> : (
+        <button type="button" className={s.bubble} onClick={toggle} aria-expanded={open || picking || asking} aria-controls={open ? 'live-chat' : undefined}
+          aria-label={open ? 'Close the chat' : asking ? 'Close the assistant' : picking ? 'Close' : chat.unread ? 'Contact DMD World (new reply in your chat)' : 'Contact DMD World'}>
+          {open || picking || asking ? <CloseIcon size={24} /> : (
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 5h16v11H9l-5 4V5Z" /><path d="M8 9.5h8M8 12.5h5" />
             </svg>
           )}
-          {!open && !picking && chat.unread && <i className={s.dot} aria-hidden="true" />}
+          {!open && !picking && !asking && chat.unread && <i className={s.dot} aria-hidden="true" />}
         </button>
       </div>
+
+      {asking && !open && <Assistant onClose={() => setAsking(false)} onPerson={toPerson} />}
 
       {open && (
         <section id="live-chat" className={s.panel} data-raised={raised || undefined} data-started={chat.started || undefined} role="dialog" aria-label="Live chat with DMD World">

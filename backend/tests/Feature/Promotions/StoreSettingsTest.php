@@ -47,7 +47,9 @@ class StoreSettingsTest extends TestCase
         $now = $catalog();
         $this->assertSame('low_stock', collect($now['products'])->firstWhere('id', $p->id)['availability']);
         $this->assertSame(['store_name' => 'DMD World', 'contact_phone' => '+961 70 903 900', 'contact_email' => 'hello@dmdworld.store', 'reviews_enabled' => true, 'coupons_enabled' => true,
-            'menu_links' => ['home', 'shop', 'categories', 'offers', 'used', 'brands', 'about', 'contact'], 'delivery_fee' => null], $now['store']);
+            'menu_links' => ['home', 'shop', 'categories', 'offers', 'used', 'brands', 'about', 'contact'], 'delivery_fee' => null,
+            'assistant_enabled' => true, 'ga4_measurement_id' => null], $now['store']);
+        $this->assertArrayNotHasKey('assistant_ai_budget_usd', $now['store'], 'the AI budget stays private');
         $this->assertArrayNotHasKey('daily_revenue_target', $now['store'], 'owner-only settings stay private');
         $this->assertArrayNotHasKey('order_notification_email', $now['store'], 'where orders are emailed stays private');
 

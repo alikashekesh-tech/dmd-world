@@ -37,13 +37,18 @@ final class StoreSettings
         'menu_links' => self::MENU_LINKS,
         'delivery_fee' => null, // dollars, one price anywhere in Lebanon; null = DMD confirms the cost after the order, 0 = free
         'daily_revenue_target' => null, // dollars; the dashboard shows progress towards it when set
+        'assistant_enabled' => true, // the shopping assistant in the contact button (answers from the catalog; free)
+        // An AI provider for the assistant spends only within this budget; both must be set (nothing is assumed).
+        'assistant_ai_budget_usd' => null,
+        'assistant_ai_budget_period' => null, // day | month | total
+        'ga4_measurement_id' => null, // Google Analytics 4 ("G-…"); empty = analytics off
     ];
 
     /** Every link the top menu can show (the storefront knows their names and addresses). */
     public const MENU_LINKS = ['home', 'shop', 'categories', 'offers', 'used', 'brands', 'about', 'contact'];
 
     /** Shown to everyone (in the storefront catalog); the rest are for the owner only. */
-    public const PUBLIC = ['store_name', 'contact_phone', 'contact_email', 'reviews_enabled', 'coupons_enabled', 'delivery_fee', 'menu_links'];
+    public const PUBLIC = ['store_name', 'contact_phone', 'contact_email', 'reviews_enabled', 'coupons_enabled', 'delivery_fee', 'menu_links', 'assistant_enabled', 'ga4_measurement_id'];
 
     /** Validation for each key, used by the owner's settings screen. */
     public static function rules(): array
@@ -71,6 +76,10 @@ final class StoreSettings
             'menu_links.*' => ['distinct', Rule::in(self::MENU_LINKS)],
             'delivery_fee' => ['nullable', 'numeric', 'min:0', 'max:1000', 'decimal:0,2'],
             'daily_revenue_target' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'assistant_enabled' => ['boolean'],
+            'assistant_ai_budget_usd' => ['nullable', 'numeric', 'min:0', 'max:100000', 'decimal:0,2'],
+            'assistant_ai_budget_period' => ['nullable', Rule::in(['day', 'month', 'total'])],
+            'ga4_measurement_id' => ['nullable', 'string', 'regex:/^G-[A-Z0-9]{4,16}$/'],
         ];
     }
 

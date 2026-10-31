@@ -6,7 +6,7 @@ import { useApi, useDebounced, useHotkey } from '../lib/hooks.js';
 import { money } from '../lib/format.js';
 
 export const NAV = [
-  { group: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: 'dashboard' }] },
+  { group: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: 'dashboard' }, { to: '/analytics', label: 'Analytics', icon: 'heartbeat' }] },
   { group: 'Catalog', items: [
     { to: '/products', label: 'Products', icon: 'box' },
     { to: '/categories', label: 'Categories', icon: 'folder' },

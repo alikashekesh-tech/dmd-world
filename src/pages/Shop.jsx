@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import ProductBrowser from '../components/shop/ProductBrowser.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import { PRODUCTS, FILTERS_BY_TYPE, categoryBySlug } from '../data/index.js';
@@ -6,6 +6,7 @@ import { departmentOptions } from '../data/departments.js';
 import { useCatalog } from '../data/live.js';
 import { useSearchParams } from '../router/index.jsx';
 import { usePageMeta } from '../lib/meta.js';
+import { track } from '../lib/analytics.js';
 
 export const keysForType = (type, drop = []) => {
   const base = FILTERS_BY_TYPE[type] || FILTERS_BY_TYPE.default;
@@ -19,6 +20,7 @@ export default function Shop() {
   const q = params.get('q');
   const version = useCatalog();
   usePageMeta(q ? { title: `Search: ${q}`, noindex: true } : { title: 'Shop all gaming gear', description: 'Every product at DMD World: consoles, games, controllers, headsets, keyboards, mice, chairs, monitors and gadgets. Filter by category, brand and price.' });
+  useEffect(() => { if (q) track('search', { search_term: q.slice(0, 100) }); }, [q]);
   const categories = useMemo(() => departmentOptions(), [version]); // eslint-disable-line react-hooks/exhaustive-deps -- rebuilt with each catalog
   return (
     <ProductBrowser

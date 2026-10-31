@@ -4,6 +4,7 @@ import { groupBySlug, recountMenu, applyTaxonomy, NEW_OFFERS, CONTACT, catUrl } 
 import { MENU_LINKS, DEFAULT_MENU } from './nav.js';
 import { buildDepartments, isRetired, homeOf } from './departments.js';
 import { conditionOf, CONDITIONS, CONDITION_ORDER } from '../lib/variants.js';
+import { configure as configureAnalytics } from '../lib/analytics.js';
 export * from './meta.js';
 const FALLBACK_BRAND = { slug: 'dmd', name: 'DMD World' };
 export const getBrand = (slug) => (groupBySlug[slug] ? { slug, name: groupBySlug[slug].name } : brandBySlug[slug] || FALLBACK_BRAND);
@@ -41,7 +42,7 @@ export const catalog = {
     `sections` stays null until the first catalog, so the home page shows its built-in order. */
 export const HOMEPAGE = { sections: null, picks: {}, banners: [], announcement: null };
 /** The public store settings (defaults until the first catalog). */
-export const STORE = { name: 'DMD World', couponsEnabled: true, reviewsEnabled: true, deliveryFee: null, menu: DEFAULT_MENU };
+export const STORE = { name: 'DMD World', couponsEnabled: true, reviewsEnabled: true, deliveryFee: null, menu: DEFAULT_MENU, assistant: false };
 /**
  * What delivery costs in dollars, as the server charges it: 0 for pickup; for delivery each product's own price or
  * else the store's, and an order (delivered once) pays the highest. null = no price known: DMD confirms it later.
@@ -89,7 +90,9 @@ function applyStore(home = {}, store = {}) {
     name: store.store_name || STORE.name, couponsEnabled: store.coupons_enabled !== false, reviewsEnabled: store.reviews_enabled !== false,
     deliveryFee: store.delivery_fee == null || Number.isNaN(Number(store.delivery_fee)) ? null : Number(store.delivery_fee),
     menu: Array.isArray(store.menu_links) ? store.menu_links.filter((k) => MENU_LINKS[k]) : DEFAULT_MENU,
+    assistant: store.assistant_enabled === true, // the shopping assistant in the contact button
   });
+  configureAnalytics(store.ga4_measurement_id || null); // GA4 stays off without an ID (and the visitor's consent)
 }
 
 /** Swaps in /api/v1/catalog ({ generated_at, products, categories, brands, homepage, store }) from MySQL. */

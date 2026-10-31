@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Account\ReviewController;
 use App\Http\Controllers\Api\V1\Account\StockAlertController;
 use App\Http\Controllers\Api\V1\Account\WishlistController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
 use App\Http\Controllers\Api\V1\BackInStockController;
 use App\Http\Controllers\Api\V1\BrandController;
@@ -100,6 +101,9 @@ Route::delete('stock-alerts/{token}', [BackInStockController::class, 'destroy'])
 /* ── live chat (guests too: a guest's browser sends its private key as X-Chat-Token) ── */
 Route::get('chat', [ChatController::class, 'show'])->name('chat.show');
 Route::post('chat/messages', [ChatController::class, 'send'])->middleware(['session', 'throttle:chat'])->name('chat.send');
+
+/* ── shopping assistant: answers from the store's own data (no session: nothing about the visitor is kept) ── */
+Route::post('assistant', [AssistantController::class, 'ask'])->middleware('throttle:assistant')->name('assistant.ask');
 
 /* ── catalog: what the storefront shows ─────────────────────────────── */
 Route::get('catalog', [ProductController::class, 'catalog'])->name('catalog');

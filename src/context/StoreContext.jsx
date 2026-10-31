@@ -6,6 +6,7 @@ import { guestOrders } from '../lib/storeApi.js';
 import { account } from '../lib/account.js';
 import { orders as orderApi } from '../lib/orders.js';
 import * as community from '../lib/community.js';
+import { CURRENCY, toItem, track, valueOf } from '../lib/analytics.js';
 
 const StoreCtx = createContext(null);
 const KEY = 'loadout:v1';
@@ -161,6 +162,11 @@ export function StoreProvider({ children }) {
       return false;
     }
     dispatch({ type: 'add', id: String(id), qty, color, variant });
+    if (p) { // GA4 (only with consent)
+      const v = variantOf(String(id), variant);
+      const item = toItem(p, { variant: v && { ...v, label: optionList(p, v).map(([, value]) => value).join(' / ') }, qty: Math.min(qty, room) });
+      track('add_to_cart', { currency: CURRENCY, value: valueOf([item]), items: [item] });
+    }
     if (qty > room) setToast(`Only ${limit} available: your cart now has all ${limit}`);
     if (open) setDrawer(true);
     return true;
@@ -212,7 +218,11 @@ export function StoreProvider({ children }) {
     ...state, lines, count, subtotal, savings, shipping, drawer, setDrawer, toast, setToast,
     addToCart,
     setQty: (key, qty) => dispatch({ type: 'qty', key, qty }),
-    removeLine: (key) => dispatch({ type: 'remove', key }),
+    removeLine: (key) => {
+      const l = lines.find((x) => x.key === key);
+      if (l) { const item = toItem(l.product, { variant: l.variantInfo && { ...l.variantInfo, label: l.options.map(([, value]) => value).join(' / ') }, qty: l.qty }); track('remove_from_cart', { currency: CURRENCY, value: valueOf([item]), items: [item] }); }
+      dispatch({ type: 'remove', key });
+    },
     clearCart: () => dispatch({ type: 'clear' }),
     restoreCart: (cart) => dispatch({ type: 'restore', cart }),
     // How many more of a product can go in the cart, and the most one cart line may be set to (both from stock).

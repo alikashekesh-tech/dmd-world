@@ -3,6 +3,7 @@ import Header from './Header.jsx';
 import Footer from './Footer.jsx';
 import CartDrawer from './CartDrawer.jsx';
 import LiveChat from './LiveChat.jsx';
+import AnalyticsConsent from './AnalyticsConsent.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { useLocation } from '../../router/index.jsx';
 import s from './Layout.module.css';
@@ -25,6 +26,7 @@ export default function Layout({ children }) {
       <Footer />
       <CartDrawer />
       <LiveChat />
+      <AnalyticsConsent />
       <div className={`${s.toast} ${t ? s.show : ''}`} role="status" aria-live="polite">
         {t?.text}
         {t?.undo && <button type="button" className={s.undo} onClick={() => { t.undo(); setToast(null); }}>Undo</button>}

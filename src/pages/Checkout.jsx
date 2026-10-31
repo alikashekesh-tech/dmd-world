@@ -8,6 +8,7 @@ import { OrderSummary } from './Cart.jsx';
 import { LockIcon, CheckIcon, ArrowRight, CloseIcon } from '../components/common/icons.jsx';
 import { account } from '../lib/account.js';
 import { orders, recovery } from '../lib/orders.js';
+import { CURRENCY, firstPurchase, toItem, track, valueOf } from '../lib/analytics.js';
 import { usePageMeta } from '../lib/meta.js';
 import { useQuote } from '../lib/useQuote.js';
 import { lineRef } from '../lib/variants.js';
@@ -120,6 +121,14 @@ export default function Checkout() {
     return () => clearTimeout(t);
   }, [remindOn, cartKey, f.email, f.firstName]); // eslint-disable-line react-hooks/exhaustive-deps -- lines follow cartKey
   const toggleRemind = (on) => { setRemind(on); if (!on) recovery.withdraw(); };
+  // GA4 (only with consent): the checkout started, once per visit to this page.
+  const begun = useRef(false);
+  useEffect(() => {
+    if (begun.current || !lines.length) return;
+    begun.current = true;
+    const items = lines.map((l) => toItem(l.product, { variant: l.variantInfo && { ...l.variantInfo, label: l.options.map(([, value]) => value).join(' / ') }, qty: l.qty }));
+    track('begin_checkout', { currency: CURRENCY, value: valueOf(items), items });
+  }, [lines.length]); // eslint-disable-line react-hooks/exhaustive-deps -- once
 
   if (lines.length === 0) return (
     <>
@@ -158,6 +167,7 @@ export default function Checkout() {
     if (stale.length) { setProblem('Some items changed since you added them. Fix them in the summary, then place your order.'); return; }
     if (coupon && quote?.coupon && !quote.coupon.ok) { setProblem(`${quote.coupon.message} Remove the code to continue.`); return; }
     setBusy(true);
+    const bought = lines.map((l) => toItem(l.product, { variant: l.variantInfo && { ...l.variantInfo, label: l.options.map(([, value]) => value).join(' / ') }, qty: l.qty })); // the cart is emptied once the order is placed
     try {
       const r = await placeOrder({
         idempotencyKey: attempt.current,
@@ -168,6 +178,8 @@ export default function Checkout() {
         recoveryToken: recovery.token() || undefined, updatesByPhone: offers.phoneUpdates && updatesByPhone,
       });
       recovery.forget(); // ordered: the server closed it, so no reminder goes
+      // GA4 (only with consent): reported once per order, at the total the server charged.
+      if (firstPurchase(r.id)) track('purchase', { transaction_id: String(r.number || r.id), currency: CURRENCY, value: Number(r.total) || valueOf(bought), items: bought });
       try { sessionStorage.removeItem(DRAFT); } catch { /* ignore */ }
       nav(`/order/${r.id}`);
     } catch (x) {

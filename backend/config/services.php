@@ -34,6 +34,12 @@ return [
         'driver' => env('MESSAGING_DRIVER', 'none'),
     ],
 
+    // The shopping assistant's AI provider. "none": it answers from the catalog only, and nothing is billed. A provider
+    // is added (with its key here, from .env) only once the store approves one and sets a budget in Settings.
+    'assistant' => [
+        'driver' => env('ASSISTANT_DRIVER', 'none'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
