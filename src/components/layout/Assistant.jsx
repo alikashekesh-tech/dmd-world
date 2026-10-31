@@ -9,8 +9,9 @@ import a from './Assistant.module.css';
 
 /* The shopping assistant, opened from the contact button beside Live chat and WhatsApp. It answers from DMD World's
    own catalog and settings (the server never makes up a price, stock or a policy) and hands anything else to a
-   person: live chat (the question is carried over) or WhatsApp. Nothing is saved: the conversation lasts this visit. */
-const SUGGESTIONS = ['Gaming chairs under $200', 'Headsets in stock', 'How much is delivery?', 'هل عندكم يد تحكم؟'];
+   person: live chat (the question is carried over) or WhatsApp. Nothing is saved: the conversation lasts this visit.
+   Follow-ups ("ps5", "cheaper") work because each question carries the last answer's `context` back to the server. */
+const SUGGESTIONS = ['PS5 games', 'Gaming chairs under $200', 'How much is delivery?', 'هل عندكم سماعات؟'];
 const STOCK = { in_stock: ['In stock', 'متوفر'], low_stock: ['Only a few left', 'كمية محدودة'], out_of_stock: ['Sold out', 'نفد'] };
 
 export default function Assistant({ onClose, onPerson }) {
@@ -20,15 +21,17 @@ export default function Assistant({ onClose, onPerson }) {
   const [error, setError] = useState('');
   const end = useRef(null);
   const lastQuestion = [...messages].reverse().find((m) => m.from === 'you')?.text || '';
+  const lastAnswer = messages.at(-1)?.from === 'assistant' ? messages.at(-1) : null;
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [messages.length, busy]);
 
   const ask = async (question) => {
     const q = question.trim();
     if (q.length < 2 || busy) return;
+    const context = [...messages].reverse().find((m) => m.from === 'assistant')?.context;
     setMessages((m) => [...m, { id: Date.now(), from: 'you', text: q }]);
     setText(''); setBusy(true); setError('');
     try {
-      const { data } = await laravelApi.post('/assistant', { message: q });
+      const { data } = await laravelApi.post('/assistant', context ? { message: q, context } : { message: q });
       setMessages((m) => [...m, { id: Date.now() + 1, from: 'assistant', ...data }]);
     } catch (x) { setError(x.fields?.message || x.message); }
     setBusy(false);
@@ -71,6 +74,11 @@ export default function Assistant({ onClose, onPerson }) {
             <small>{m.source === 'ai' ? 'Assistant · from our catalog' : 'Assistant'}</small>
           </div>
         )))}
+        {lastAnswer?.suggestions?.length > 0 && !busy && (
+          <div className={`${a.suggest} ${a.replies}`} role="group" aria-label={lastAnswer.locale === 'ar' ? 'ردود مقترحة' : 'Suggested replies'} dir={lastAnswer.locale === 'ar' ? 'rtl' : 'ltr'}>
+            {lastAnswer.suggestions.map((q) => <button key={q} type="button" dir="auto" onClick={() => ask(q)}>{q}</button>)}
+          </div>
+        )}
         {busy && <p className={s.wait}>Looking in the store…</p>}
         {messages.length > 0 && (
           <div className={a.person}>

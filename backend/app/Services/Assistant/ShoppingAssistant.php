@@ -2,10 +2,7 @@
 
 namespace App\Services\Assistant;
 
-use App\Http\Resources\ProductResource;
 use App\Models\AssistantUsage;
-use App\Models\Product;
-use App\Services\ProductQuery;
 use App\Services\StoreSettings;
 use App\Support\Money;
 use Illuminate\Support\Facades\Log;
@@ -13,40 +10,31 @@ use Throwable;
 
 /**
  * The shopping assistant in the storefront's contact button. It answers from DMD World's own data only: products
- * found in MySQL (with their real prices and stock) and the store's settings (delivery, payment, contact). Anything
- * else (returns, warranty, an order, a question it can't match) goes to a person: live chat or WhatsApp. It never
- * makes up a price, a spec, stock or a policy. English and Arabic.
+ * found in MySQL (with their real prices, stock and links) and the store's settings (delivery, payment, contact).
+ * Returns, warranty, an order, or a question it can't match go to a person: live chat or WhatsApp. It never makes
+ * up a price, a spec, stock or a policy. English and Arabic.
  *
- * Without an AI provider (the default) the answer is written from templates. With one approved and within its
- * budget, the provider only words the same facts. Usage is counted per day (AssistantUsage), never the questions.
+ * It greets, asks which console or which kind of product when a question is too broad, and follows up ("ps5",
+ * "cheaper", "more") using the previous answer's context, which the browser sends back: nothing about the visitor
+ * or the conversation is stored. Without an AI provider (the default) every answer is written from templates; an
+ * approved provider within its budget only rewords the same facts. Usage is counted per day, never the questions.
  */
 class ShoppingAssistant
 {
-    public const MAX_PRODUCTS = 4;
-
-    /** Arabic shop words → the English words product names use. */
-    private const ARABIC = [
-        'كرسي' => 'chair', 'كراسي' => 'chair', 'سماعة' => 'headset', 'سماعات' => 'headset', 'ماوس' => 'mouse', 'فارة' => 'mouse',
-        'كيبورد' => 'keyboard', 'لوحة مفاتيح' => 'keyboard', 'لابتوب' => 'laptop', 'لاب توب' => 'laptop', 'حاسوب' => 'laptop', 'كمبيوتر' => 'pc',
-        'بلايستيشن' => 'playstation', 'بلاي ستيشن' => 'playstation', 'سوني' => 'playstation', 'اكس بوكس' => 'xbox', 'نينتندو' => 'nintendo',
-        'يد تحكم' => 'controller', 'ذراع' => 'controller', 'جويستيك' => 'controller', 'شاشة' => 'monitor', 'طاولة' => 'table', 'مكتب' => 'desk',
-        'لعبة' => 'game', 'ألعاب' => 'game', 'العاب' => 'game', 'مروحة' => 'fan', 'شاحن' => 'charger', 'كابل' => 'cable', 'ميكروفون' => 'microphone',
-        'كاميرا' => 'camera', 'ساعة' => 'watch', 'هاتف' => 'phone', 'موبايل' => 'phone',
-    ];
-
-    private const STOP = ['a', 'an', 'the', 'i', 'im', 'me', 'my', 'you', 'your', 'do', 'does', 'have', 'has', 'is', 'are', 'any', 'some', 'for', 'with', 'and', 'or',
-        'to', 'of', 'in', 'on', 'want', 'need', 'looking', 'look', 'find', 'show', 'buy', 'get', 'please', 'can', 'could', 'would', 'what', 'which', 'how', 'much',
-        'price', 'prices', 'cost', 'available', 'stock', 'cheap', 'cheapest', 'best', 'good', 'new', 'sell', 'selling', 'there', 'it', 'one', 'ones', 'something',
-        'hi', 'hello', 'hey', 'thanks', 'thank', 'under', 'below', 'less', 'than', 'over', 'above', 'more', 'max', 'up', 'usd', 'dollars', 'dollar', 'sale', 'offer',
-        'offers', 'discount', 'deal', 'deals', 'used', 'second', 'hand', 'about', 'tell', 'like', 'gaming', 'game', 'deliver', 'delivery', 'shipping', 'ship',
-        'pay', 'payment', 'cash', 'card', 'transfer', 'whish', 'lebanon', 'store', 'shop', 'dmd', 'world'];
+    public const MAX_PRODUCTS = CatalogSearch::PAGE;
 
     private const TOPICS = [
-        'delivery' => ['deliver', 'delivery', 'shipping', 'ship', 'توصيل', 'شحن', 'دليفري'],
-        'payment' => ['pay', 'payment', 'cash', 'whish', 'card', 'transfer', 'دفع', 'كاش', 'ويش', 'تحويل', 'بطاقة'],
-        'contact' => ['contact', 'phone', 'call', 'number', 'email', 'address', 'location', 'where are', 'hours', 'open', 'اتصال', 'رقم', 'تلفون', 'عنوان', 'موقع', 'وين', 'دوام'],
-        'person' => ['return', 'refund', 'warranty', 'guarantee', 'exchange', 'my order', 'order status', 'complaint', 'ارجاع', 'إرجاع', 'استرجاع', 'كفالة', 'ضمان', 'طلبي', 'تبديل', 'شكوى'],
+        'person' => ['return', 'refund', 'warranty', 'guarantee', 'exchange', 'my order', 'order status', 'track my order', 'where is my order', 'complaint', 'broken', 'damaged', 'not working',
+            'ارجاع', 'استرجاع', 'استرداد', 'كفاله', 'ضمان', 'طلبي', 'طلبيتي', 'تبديل', 'شكوي', 'مكسور', 'خربان', 'معطل'],
+        'delivery' => ['deliver', 'delivery', 'shipping', 'ship to', 'shipped', 'توصيل', 'دليفري', 'ديليفري', 'شحن'],
+        'payment' => ['pay', 'payment', 'paying', 'cash on delivery', 'cash', 'whish', 'wish money', 'bank transfer', 'transfer', 'credit card', 'visa', 'mastercard', 'installment',
+            'دفع', 'كاش', 'ويش', 'تحويل', 'فيزا', 'تقسيط', 'بطاقه ائتمان'],
+        'contact' => ['contact', 'phone number', 'your number', 'your phone', 'call you', 'whatsapp number', 'address', 'location', 'where are you', 'where is your store', 'where is the shop',
+            'opening hours', 'working hours', 'are you open', 'email', 'اتصال', 'رقم', 'تلفون', 'تليفون', 'عنوان', 'موقع', 'وين', 'دوام', 'ساعات العمل', 'ايميل'],
     ];
+
+    /** Quick replies: broad gaming kinds, and the start of a search. */
+    private const START = ['en' => ['PS5 games', 'Controllers', 'Headsets', 'Gaming chairs'], 'ar' => ['ألعاب بلايستيشن 5', 'أيادي تحكم', 'سماعات', 'كراسي ألعاب']];
 
     public function __construct(private AssistantProvider $provider) {}
 
@@ -56,122 +44,291 @@ class ShoppingAssistant
     }
 
     /**
-     * @return array{reply: string, locale: string, products: list<array>, handoff: bool, source: string}
+     * @param  array  $context  the previous answer's `context`, as the browser sent it back (checked here)
+     * @return array{reply: string, locale: string, products: list<array>, handoff: bool, source: string, kind: string, suggestions: list<string>, context: array}
      */
-    public function answer(string $message): array
+    public function answer(string $message, array $context = []): array
     {
         $message = trim(preg_replace('/\s+/u', ' ', $message));
-        $locale = preg_match('/\p{Arabic}/u', $message) ? 'ar' : 'en';
-        $text = mb_strtolower(strtr($message, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']));
-
-        $topic = $this->topic($text);
-        $products = $topic === null || $topic === 'delivery' || $topic === 'payment' ? $this->search($text) : [];
+        $ctx = self::context($context);
+        $search = new CatalogSearch;
+        $p = Lexicon::parse($message, $search->words(), self::topicWords());
+        $locale = $p['arabic'] ? 'ar' : ($ctx['locale'] === 'ar' && ! $p['english'] ? 'ar' : 'en');
+        $ar = $locale === 'ar';
+        $topic = $this->topic(Lexicon::normalize($message));
         $store = $this->storeFacts();
-        $handoff = $topic === 'person' || ($topic === null && ! $products);
-        $reply = $this->template($locale, $topic, $products, $store);
-        $source = 'catalog';
+        $hasQuery = $p['kinds'] || $p['platforms'] || $p['words'] || $p['sale'] || $p['used'] || $p['stock'] || $p['cheap'] || $p['more'] || $p['min'] !== null || $p['max'] !== null;
+        $out = ['reply' => '', 'locale' => $locale, 'products' => [], 'handoff' => false, 'source' => 'catalog', 'kind' => 'products', 'suggestions' => [], 'context' => ['locale' => $locale] + $ctx];
 
-        if (! $handoff && $this->provider->available() && AssistantBudget::allows()) {
+        if ($topic === 'person') {
+            return $this->done($message, ['kind' => 'person', 'handoff' => true, 'reply' => $ar
+                ? 'هذا سؤال يجيب عنه فريقنا مباشرة. تحدّث معنا في الدردشة المباشرة أو على واتساب.'
+                : 'That’s one for our team. Ask them in live chat or on WhatsApp and a person will answer.'] + $out, $store);
+        }
+        if (! $hasQuery && ! $topic && ($p['greet'] || $p['howru'] || $p['thanks'] || $p['bye'] || $p['help'])) {
+            return $this->done($message, $this->social($p, $ar) + $out, $store);
+        }
+        if (! $hasQuery && $topic) {
+            $hello = $p['greet'] || $p['howru'] ? [$ar ? 'أهلاً بك!' : 'Hi there!'] : [];
+
+            return $this->done($message, ['kind' => 'info', 'reply' => implode("\n", [...$hello, ...$this->topicLines($topic, $ar, $store)])] + $out, $store);
+        }
+
+        $lines = [];
+        if ($p['greet'] || $p['howru']) {
+            $lines[] = $ar ? 'أهلاً بك!' : 'Hi there!';
+        }
+        if ($topic) {
+            $lines = array_merge($lines, $this->topicLines($topic, $ar, $store));
+        }
+        if ($p['corrected']) {
+            $fixed = implode('، ', array_map(fn ($w) => "«{$w}»", array_unique(array_values($p['corrected']))));
+            $lines[] = $ar ? "عرض النتائج لـ {$fixed}." : 'Showing results for '.str_replace(['«', '»', '، '], ['“', '”', ', '], $fixed).'.';
+        }
+
+        $q = $this->query($p, $p['greet'] ? self::context(['locale' => $locale]) : $ctx); // a greeting starts afresh
+        if (! $q['kinds'] && ! $q['platforms'] && ! $q['words'] && ! $q['sale'] && ! $q['used'] && $q['min'] === null && $q['max'] === null) {
+            if ($topic) {
+                return $this->done($message, ['kind' => 'info', 'reply' => implode("\n", $lines)] + $out, $store);
+            }
+            if ($p['gaming']) {
+                $lines[] = $ar
+                    ? 'يسعدني مساعدتك! ما الذي تبحث عنه: ألعاب، يد تحكم، سماعة، ماوس أو كيبورد، أم كرسي ألعاب؟'
+                    : 'Happy to help you gear up! What are you after: games, a controller, a headset, a mouse or keyboard, or a gaming chair?';
+
+                return $this->done($message, ['kind' => 'clarify', 'reply' => implode("\n", $lines), 'suggestions' => self::START[$locale]] + $out, $store);
+            }
+            if (! $p['unknown'] && ! $p['corrected']) {
+                return $this->done($message, $this->social(['help' => true] + $p, $ar) + $out, $store);
+            }
+
+            return $this->done($message, $this->nothing($lines, [], $ar, $locale) + $out, $store);
+        }
+
+        $r = $search->find($q);
+        $note = null;
+        // Words that match nothing in the last answer's subject are a new subject ("flux capacitor" after chairs).
+        if ($q['fromContext'] && $p['words'] && (! $r['total'] || ! array_diff($p['words'], $r['unmatched']))) {
+            $q = $this->query($p, self::context(['locale' => $locale]));
+            $r = $search->find($q);
+        }
+        if (! $r['total'] && $q['platforms'] && $q['kinds']) {
+            $wider = $search->find(['platforms' => []] + $q);
+            if ($wider['total']) {
+                $note = $ar
+                    ? 'لم أجد '.$this->label($q['kinds'], [], true).' لـ '.$this->platformList($q['platforms'], true).' حالياً، لكن إليك ما لدينا:'
+                    : 'I didn’t find '.$this->label($q['kinds'], [], false).' for '.$this->platformList($q['platforms'], false).' right now, but here’s what we have:';
+                [$r, $q['platforms']] = [$wider, []];
+            }
+        }
+        if (! $r['total'] && ($q['min'] !== null || $q['max'] !== null || $q['sale'] || $q['stock'] || $q['used']) && ($q['kinds'] || $q['words'] || $q['platforms'])) {
+            $wider = $search->find(['min' => null, 'max' => null, 'sale' => false, 'stock' => false, 'used' => false, 'sort' => 'price', 'offset' => 0] + $q);
+            if ($wider['total']) {
+                $what = $this->label($q['kinds'], $q['platforms'], $ar) ?: implode(' ', $q['words']);
+                $note = $ar ? "لم أجد {$what} ".$this->limits($q, true).' حالياً. إليك الأقرب لدينا:'
+                    : 'I couldn’t find '.($q['used'] ? 'used ' : '')."{$what} ".$this->limits($q, false).' right now. Here’s the closest we have:';
+                $note = preg_replace('/\s+/u', ' ', $note);
+                $r = $wider;
+                $q = ['min' => null, 'max' => null, 'sale' => false, 'stock' => false, 'used' => false, 'sort' => 'price'] + $q;
+            }
+        }
+        if (! $r['total']) {
+            return $this->done($message, $this->nothing($lines, $q, $ar, $locale) + $out, $store);
+        }
+
+        $label = $this->label($q['kinds'], $q['platforms'], $ar);
+        $gamingKinds = array_filter($q['kinds'], fn ($k) => ! empty(Lexicon::KINDS[$k]['gaming']));
+        if (! $note && $q['gaming'] && $gamingKinds && ! $r['gaming'] && ! $q['words']) {
+            $note = $ar ? "لا يوجد لدينا {$label} مخصصة للألعاب حالياً، لكن إليك ما لدينا:" : "None of our {$label} is sold as a gaming model right now, but here’s what we have:";
+        }
+        if ($note) {
+            $lines[] = $note;
+        } elseif ($r['unmatched'] && $q['kinds']) {
+            $missing = implode(' ', $r['unmatched']);
+            $lines[] = $ar ? "لم أجد «{$missing}» ضمن {$label}، لكن إليك ما لدينا:" : "I couldn’t find “{$missing}” among our {$label}, but here’s what we have:";
+        } else {
+            $total = $r['total'] > count($r['products']) ? ($ar ? " (العدد الكلي: {$r['total']})" : " ({$r['total']} in total)") : '';
+            $lines[] = match (true) {
+                $q['offset'] > 0 => $ar ? 'إليك المزيد'.($label ? " من {$label}" : '').':' : 'Here are more'.($label ? " {$label}" : '').':',
+                $q['sort'] === 'price' => $ar ? 'إليك الأقل سعراً'.($label ? " من {$label}" : '').$total.':' : 'Here are the lowest prices'.($label ? " for {$label}" : '').$total.':',
+                default => $ar ? 'إليك ما وجدته في متجرنا'.($label ? " من {$label}" : '').$total.':' : 'Here’s what I found in our store'.($label ? " for {$label}" : '').$total.':',
+            };
+        }
+        foreach ($r['products'] as $prod) {
+            $lines[] = $this->line($prod, $ar);
+        }
+        $lines[] = $ar ? 'الأسعار والمخزون من المتجر الآن. للأسئلة عن التوافق أو الحالة، اسأل فريقنا.' : 'Prices and stock are live from the store. For compatibility or condition questions, ask our team.';
+
+        // Too broad to be sure: ask which console, or what kind of thing.
+        $kind = 'products';
+        $suggestions = [];
+        $platformed = array_filter($q['kinds'], fn ($k) => ! empty(Lexicon::KINDS[$k]['platformed']));
+        $consoles = array_values(array_diff($r['platforms'], array_intersect($r['platforms'], ['ps4', 'ps5']) ? ['playstation'] : []));
+        if ($q['offset'] === 0 && $platformed && ! $q['platforms'] && count($consoles) >= 2) {
+            $names = array_map(fn ($k) => Lexicon::PLATFORMS[$k]['label'], $consoles);
+            $lines[] = $ar ? 'لأي جهاز تريدها: '.$this->either($names, true).'؟' : 'Which console are they for: '.$this->either($names, false).'?';
+            [$kind, $suggestions] = ['clarify', $names];
+        } elseif ($q['offset'] === 0 && $q['platforms'] && ! $q['kinds'] && ! $q['words']) {
+            $pl = $this->platformList($q['platforms'], $ar);
+            $lines[] = $ar ? "ما الذي تبحث عنه لـ {$pl}: ألعاب، أيادي تحكم أم إكسسوارات؟" : "What are you looking for for {$pl}: games, controllers or accessories?";
+            [$kind, $suggestions] = ['clarify', $ar ? ['ألعاب', 'أيادي تحكم', 'إكسسوارات'] : ['Games', 'Controllers', 'Accessories']];
+        } else {
+            if ($r['total'] > $q['offset'] + CatalogSearch::PAGE) {
+                $suggestions[] = $ar ? 'المزيد' : 'Show more';
+            }
+            if ($q['sort'] !== 'price' && $r['total'] > 1) {
+                $suggestions[] = $ar ? 'الأرخص أولاً' : 'Cheapest first';
+            }
+        }
+
+        $next = array_intersect_key($q, array_flip(['kinds', 'platforms', 'words', 'min', 'max', 'sale', 'used', 'stock', 'gaming', 'sort', 'offset']));
+
+        return $this->done($message, ['kind' => $kind, 'reply' => implode("\n", $lines), 'products' => $r['products'], 'suggestions' => $suggestions,
+            'context' => ['locale' => $locale] + $next] + $out, $store);
+    }
+
+    /** The search: this question, or this question refining the last one ("ps5", "under $30", "cheaper", "more"). */
+    private function query(array $p, array $ctx): array
+    {
+        $base = ['kinds' => [], 'platforms' => [], 'words' => [], 'said' => [], 'min' => null, 'max' => null, 'sale' => false, 'used' => false, 'stock' => false, 'gaming' => false, 'sort' => null, 'offset' => 0, 'fromContext' => false];
+        if (! ($p['kinds'] || $p['platforms'] || $p['words'] || $p['sale'] || $p['used'] || $p['stock'] || $p['cheap'] || $p['more'] || $p['min'] !== null || $p['max'] !== null)) {
+            return ['gaming' => $p['gaming']] + $base;
+        }
+        $had = $ctx['kinds'] || $ctx['words'] || $ctx['platforms'];
+        $own = ['min' => $p['min'], 'max' => $p['max'], 'sale' => $p['sale'], 'used' => $p['used'], 'stock' => $p['stock'], 'gaming' => $p['gaming']];
+
+        if ($had && $p['more'] && ! $p['kinds'] && ! $p['words']) {
+            return ['offset' => $ctx['offset'] + CatalogSearch::PAGE, 'fromContext' => true] + $ctx + $base;
+        }
+        if ($had && ! $p['kinds']) { // a refinement: keep the subject, change what was said
+            $q = ['fromContext' => true, 'offset' => 0] + $ctx + $base;
+            if ($p['platforms']) {
+                $q['platforms'] = $p['platforms'];
+            }
+            if ($p['words']) {
+                $q['words'] = array_values(array_unique([...$ctx['words'], ...$p['words']]));
+            }
+            foreach (['min', 'max'] as $k) {
+                $q[$k] = $p[$k] ?? $q[$k];
+            }
+            foreach (['sale', 'used', 'stock', 'gaming'] as $k) {
+                $q[$k] = $p[$k] || $q[$k];
+            }
+            $q['sort'] = $p['cheap'] ? 'price' : $q['sort'];
+
+            return $q;
+        }
+        $q = ['kinds' => $p['kinds'], 'platforms' => $p['platforms'], 'words' => $p['words'], 'said' => $p['said'], 'sort' => $p['cheap'] ? 'price' : null] + $own + $base;
+        // "and controllers?" after "PS5 games": the same console. Asking for games again is asking more broadly.
+        if (! $q['platforms'] && $ctx['platforms'] && array_diff($q['kinds'], $ctx['kinds']) && array_filter($q['kinds'], fn ($k) => ! empty(Lexicon::KINDS[$k]['platformed']))) {
+            $q['platforms'] = $ctx['platforms'];
+        }
+
+        return $q;
+    }
+
+    /** The previous answer's context from the browser, reduced to what the assistant itself could have sent. */
+    public static function context(array $c): array
+    {
+        $pick = fn ($v, array $allowed, int $max) => array_slice(array_values(array_unique(array_intersect(is_array($v) ? array_map(fn ($x) => is_scalar($x) ? (string) $x : '', $v) : [], $allowed))), 0, $max);
+        $num = fn ($v) => is_numeric($v) ? max(0.0, min(1000000.0, (float) $v)) : null;
+        $words = array_filter(array_map(fn ($w) => is_string($w) ? Lexicon::normalize($w) : '', is_array($c['words'] ?? null) ? $c['words'] : []), fn ($w) => mb_strlen($w) <= 30 && preg_match('/^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u', $w));
+
+        return [
+            'kinds' => $pick($c['kinds'] ?? [], array_keys(Lexicon::KINDS), 4),
+            'platforms' => $pick($c['platforms'] ?? [], array_keys(Lexicon::PLATFORMS), 5),
+            'words' => array_slice(array_values(array_unique($words)), 0, 6),
+            'min' => $num($c['min'] ?? null),
+            'max' => $num($c['max'] ?? null),
+            'sale' => ($c['sale'] ?? false) === true,
+            'used' => ($c['used'] ?? false) === true,
+            'stock' => ($c['stock'] ?? false) === true,
+            'gaming' => ($c['gaming'] ?? false) === true,
+            'sort' => ($c['sort'] ?? null) === 'price' ? 'price' : null,
+            'offset' => is_numeric($c['offset'] ?? null) ? max(0, min(200, (int) $c['offset'])) : 0,
+            'locale' => ($c['locale'] ?? null) === 'ar' ? 'ar' : 'en',
+        ];
+    }
+
+    private function social(array $p, bool $ar): array
+    {
+        if ($p['thanks']) {
+            return ['kind' => 'social', 'reply' => $ar ? 'على الرحب والسعة! هل تريد أن أبحث لك عن شيء آخر؟' : 'You’re welcome! Anything else I can look up for you?'];
+        }
+        if ($p['bye']) {
+            return ['kind' => 'social', 'reply' => $ar ? 'شكراً لزيارتك DMD World. نحن هنا متى احتجتنا!' : 'Thanks for visiting DMD World. We’re here whenever you need us!'];
+        }
+        if ($p['help'] && ! $p['greet'] && ! $p['howru']) {
+            return ['kind' => 'social', 'suggestions' => self::START[$ar ? 'ar' : 'en'], 'reply' => $ar
+                ? 'يمكنني البحث عن المنتجات في متجرنا بأسعارها ومخزونها الحالي، والإجابة عن أسئلة التوصيل والدفع والتواصل. جرّب «ألعاب PS5» أو «سماعة لاسلكية أقل من 50 دولار» أو «كراسي ألعاب».'
+                : 'I can look up products in our store with their live prices and stock, and answer delivery, payment and contact questions. Try “PS5 games”, “wireless headset under $50” or “gaming chairs”.'];
+        }
+        $how = $p['howru'] ? ($ar ? 'بخير، شكراً لسؤالك! ' : 'I’m doing well, thanks for asking! ') : '';
+
+        return ['kind' => 'social', 'suggestions' => self::START[$ar ? 'ar' : 'en'], 'reply' => $ar
+            ? "أهلاً وسهلاً! {$how}أنا مساعد التسوّق في DMD World. أخبرني بما تبحث عنه، مثل لعبة PS5 أو يد تحكم أو كرسي ألعاب، وسأبحث لك في متجرنا."
+            : "Hi! {$how}I’m DMD World’s shopping assistant. Tell me what you’re looking for, like a PS5 game, a controller or a gaming chair, and I’ll check our store."];
+    }
+
+    /** Nothing found: say so plainly, say what the store does carry, and offer a person. */
+    private function nothing(array $lines, array $q, bool $ar, string $locale): array
+    {
+        $label = $q ? $this->label($q['kinds'], $q['platforms'], $ar) : '';
+        $lines[] = $label
+            ? ($ar ? "لا يوجد لدينا {$label} في المتجر حالياً." : "We don’t have any {$label} in the store right now.")
+            : ($ar ? 'لم أجد ذلك في متجرنا.' : 'I couldn’t find that in our store.');
+        $lines[] = $ar
+            ? 'لدينا ألعاب وأجهزة ألعاب وأيادي تحكم وسماعات وكراسي ألعاب وكيبوردات وماوسات والمزيد. جرّب أحد الاقتراحات، أو اسأل فريقنا في الدردشة المباشرة أو على واتساب.'
+            : 'We carry games, consoles, controllers, headsets, gaming chairs, keyboards, mice and more. Try one of the suggestions, or ask our team in live chat or on WhatsApp.';
+
+        return ['kind' => 'none', 'handoff' => true, 'reply' => implode("\n", $lines), 'suggestions' => self::START[$locale]];
+    }
+
+    /** Counts the question and lets an approved AI provider reword a product or store answer (never a hand-off). */
+    private function done(string $message, array $out, array $store): array
+    {
+        if (in_array($out['kind'], ['products', 'info'], true) && $this->provider->available() && AssistantBudget::allows()) {
             try {
-                $ai = $this->provider->reply($message, $locale, ['products' => $products, 'store' => $store]);
-                $reply = trim($ai['text']) !== '' ? trim($ai['text']) : $reply;
-                $source = 'ai';
+                $ai = $this->provider->reply($message, $out['locale'], ['products' => $out['products'], 'store' => $store]);
+                $out['reply'] = trim($ai['text']) !== '' ? trim($ai['text']) : $out['reply'];
+                $out['source'] = 'ai';
                 AssistantUsage::add(['ai_requests' => 1, 'ai_input_tokens' => $ai['input_tokens'], 'ai_output_tokens' => $ai['output_tokens'], 'ai_cost_usd' => (float) $ai['cost_usd']]);
             } catch (Throwable $e) {
                 Log::warning("Shopping assistant provider failed: {$e->getMessage()}");
                 AssistantUsage::add(['ai_requests' => 1, 'ai_failures' => 1]); // the catalog answer stands
             }
         }
-        AssistantUsage::add(['questions' => 1, $handoff ? 'unanswered' : 'answered' => 1]);
+        AssistantUsage::add(['questions' => 1, $out['handoff'] ? 'unanswered' : 'answered' => 1]);
 
-        return ['reply' => $reply, 'locale' => $locale, 'products' => $products, 'handoff' => $handoff, 'source' => $source];
+        return $out;
+    }
+
+    /** The single English words of the store topics (delivery, payment, contact…). */
+    private static function topicWords(): array
+    {
+        $words = [];
+        foreach (self::TOPICS as $list) {
+            foreach ($list as $phrase) {
+                foreach (Lexicon::tokens(Lexicon::normalize($phrase)) as $w) {
+                    $words[$w] = true;
+                }
+            }
+        }
+
+        return array_keys(array_diff_key($words, array_flip(['my', 'your', 'you', 'is', 'the', 'are', 'where', 'to', 'on', 'not'])));
     }
 
     private function topic(string $text): ?string
     {
         foreach (self::TOPICS as $topic => $words) {
             foreach ($words as $w) {
-                if (preg_match('/(^|[^\p{L}])'.preg_quote($w, '/').'/u', $text)) {
+                if (preg_match('/(?:^|[^\p{L}])(?:وال|بال|ال|لل|و|ب|ل)?'.preg_quote(Lexicon::normalize($w), '/').'/u', $text)) {
                     return $topic;
                 }
             }
         }
 
         return null;
-    }
-
-    /** Products that match the question, best first: real prices and stock, from MySQL. */
-    private function search(string $text): array
-    {
-        $max = preg_match('/(?:under|below|less than|max|up to|cheaper than|<|أقل من|اقل من|تحت|حتى|لحد)\s*\$?\s*(\d+(?:\.\d+)?)/u', $text, $m) ? (float) $m[1] : null;
-        $min = preg_match('/(?:over|above|more than|from|>|أكثر من|اكثر من|فوق)\s*\$?\s*(\d+(?:\.\d+)?)/u', $text, $m) ? (float) $m[1] : null;
-        $onSale = (bool) preg_match('/\b(sale|offer|offers|discount|deal|deals)\b|عرض|عروض|تخفيض|خصم/u', $text);
-        $used = (bool) preg_match('/\bused\b|second[- ]hand|مستعمل/u', $text);
-
-        $words = [];
-        foreach (self::ARABIC as $ar => $en) {
-            if (mb_strpos($text, $ar) !== false) {
-                $words[] = $en;
-                $text = str_replace($ar, ' ', $text);
-            }
-        }
-        foreach (preg_split('/[^\p{L}\p{N}]+/u', preg_replace('/\$?\d+(\.\d+)?/', ' ', $text)) as $w) {
-            if (mb_strlen($w) >= 2 && ! in_array($w, self::STOP, true) && ! preg_match('/\p{Arabic}/u', $w)) {
-                $words[] = $w;
-                if (mb_strlen($w) > 3 && str_ends_with($w, 's')) {
-                    $words[] = mb_substr($w, 0, -1); // chairs → chair
-                }
-            }
-        }
-        $words = array_values(array_unique(array_slice($words, 0, 8)));
-        if (! $words && ! $onSale && ! $used && $max === null && $min === null) {
-            return [];
-        }
-
-        $q = Product::published()->with(['images:id,product_id,url,position', 'categories:id,name', 'variants', 'brand:id,name']);
-        if ($words) {
-            $q->where(function ($w) use ($words) {
-                foreach ($words as $word) {
-                    $like = '%'.addcslashes($word, '%_\\').'%';
-                    $w->orWhere('name', 'like', $like)
-                        ->orWhereHas('brand', fn ($b) => $b->where('name', 'like', $like))
-                        ->orWhereHas('categories', fn ($c) => $c->where('name', 'like', $like));
-                }
-            });
-        }
-        ProductQuery::priceBetween($q, $min, $max);
-        if ($onSale) {
-            ProductQuery::onSale($q);
-        }
-        if ($used) {
-            $q->whereNotNull('condition');
-        }
-        $found = $q->limit(60)->get();
-
-        // Best first: more of the words in its name, then in stock, then cheaper.
-        $scored = $found->map(function (Product $p) use ($words) {
-            $name = mb_strtolower($p->name.' '.($p->brand?->name ?? ''));
-            $hits = count(array_filter($words, fn ($w) => str_contains($name, $w)));
-            $cats = mb_strtolower($p->categories->pluck('name')->implode(' '));
-            $hits += array_filter($words, fn ($w) => str_contains($cats, $w)) ? 0.5 : 0; // a category word counts for less than the name
-
-            return ['p' => $p, 'score' => $hits, 'in' => $p->stock_status !== 'out_of_stock' && (! $p->track_stock || $p->stock_quantity > 0)];
-        });
-        // When some products match by name, ones that only share a category word (a desk in "Chairs and Tables") go.
-        if ($scored->max('score') >= 1) {
-            $scored = $scored->filter(fn ($s) => $s['score'] >= 1);
-        }
-        $scored = $scored->sortBy([['score', 'desc'], ['in', 'desc']])->take(self::MAX_PRODUCTS);
-
-        return $scored->map(function ($s) {
-            $r = (new ProductResource($s['p']))->resolve();
-
-            return [
-                'id' => $r['id'], 'name' => $r['name'], 'price' => $r['price'], 'regular_price' => $r['regular_price'], 'on_sale' => $r['on_sale'],
-                'availability' => $r['availability'], 'from' => $r['type'] === 'variable', 'image' => $r['image'],
-                'url' => '/product/'.$r['id'], 'condition' => $r['condition'],
-            ];
-        })->values()->all();
     }
 
     /** What the store has set (never more): delivery, payment and how to reach it. */
@@ -190,10 +347,9 @@ class ShoppingAssistant
         ];
     }
 
-    private function template(string $locale, ?string $topic, array $products, array $store): string
+    private function topicLines(string $topic, bool $ar, array $store): array
     {
-        $ar = $locale === 'ar';
-        $money = fn ($v) => '$'.number_format((float) $v, (float) $v == floor((float) $v) ? 0 : 2);
+        $money = fn ($v) => $this->money($v);
         $lines = [];
         if ($topic === 'delivery') {
             $lines[] = $ar
@@ -207,26 +363,73 @@ class ShoppingAssistant
             $lines[] = $ar ? 'لا يُطلب أي دفع بالبطاقة على الموقع.' : 'Nothing is charged online.';
         } elseif ($topic === 'contact') {
             $lines[] = $ar ? "يمكنك الاتصال بنا على {$store['phone']} أو مراسلتنا على {$store['email']}." : "You can call DMD World on {$store['phone']} or email {$store['email']}.";
-        } elseif ($topic === 'person') {
-            return $ar
-                ? 'هذا سؤال يجيب عنه فريقنا مباشرة. تحدّث معنا في الدردشة المباشرة أو على واتساب.'
-                : 'That’s one for our team. Ask them in live chat or on WhatsApp and a person will answer.';
         }
 
-        if ($products) {
-            $lines[] = $ar ? 'إليك ما وجدته في متجرنا:' : 'Here’s what I found in our store:';
-            foreach ($products as $p) {
-                $stock = match ($p['availability']) { 'out_of_stock' => $ar ? 'نفد من المخزون' : 'sold out', 'low_stock' => $ar ? 'كمية محدودة' : 'only a few left', default => $ar ? 'متوفر' : 'in stock' };
-                $price = ($p['from'] ? ($ar ? 'من ' : 'from ') : '').$money($p['price']);
-                $lines[] = "• {$p['name']}: {$price} ({$stock})";
-            }
-            $lines[] = $ar ? 'الأسعار والمخزون من المتجر الآن. للأسئلة عن التوافق أو الحالة، اسأل فريقنا.' : 'Prices and stock are live from the store. For compatibility or condition questions, ask our team.';
-        } elseif ($topic === null) {
-            return $ar
-                ? 'لم أجد ذلك في متجرنا. جرّب كلمة أخرى (مثل "كرسي" أو "سماعة")، أو اسأل فريقنا في الدردشة أو على واتساب.'
-                : 'I couldn’t find that in our store. Try another word (like “chair” or “headset”), or ask our team in live chat or on WhatsApp.';
+        return $lines;
+    }
+
+    private function line(array $p, bool $ar): string
+    {
+        $stock = match ($p['availability']) {
+            'out_of_stock' => $ar ? 'نفد من المخزون' : 'sold out', 'low_stock' => $ar ? 'كمية محدودة' : 'only a few left', default => $ar ? 'متوفر' : 'in stock'
+        };
+        $price = ($p['from'] ? ($ar ? 'من ' : 'from ') : '').$this->money($p['price']);
+        if ($ar) { // keep the English name and the price in their own direction inside an Arabic line
+            return "• \u{2068}{$p['name']}\u{2069}: \u{2068}{$price}\u{2069} ({$stock})";
         }
 
-        return implode("\n", $lines);
+        return "• {$p['name']}: {$price} ({$stock})";
+    }
+
+    private function money($v): string
+    {
+        return '$'.number_format((float) $v, (float) $v == floor((float) $v) ? 0 : 2);
+    }
+
+    /** "PS5 games", "ألعاب PS5", "headsets and headphones". */
+    private function label(array $kinds, array $platforms, bool $ar): string
+    {
+        $names = array_map(fn ($k) => Lexicon::KINDS[$k]['label'][$ar ? 1 : 0], $kinds);
+        $what = $ar ? implode(' و', $names) : implode(' and ', $names);
+        if (! $platforms) {
+            return $what;
+        }
+        $pl = $this->platformList($platforms, $ar);
+        if ($what === '') {
+            return $ar ? "منتجات {$pl}" : "{$pl} products";
+        }
+
+        return $ar ? "{$what} {$pl}" : "{$pl} {$what}";
+    }
+
+    /** "under $50", "on sale", "in stock"; "مستعملة بأقل من $50". */
+    private function limits(array $q, bool $ar): string
+    {
+        $m = fn ($v) => $this->money($v);
+        $parts = $ar ? array_filter([$q['used'] ? 'مستعملة' : null, $q['sale'] ? 'عليها عروض' : null, $q['stock'] ? 'متوفرة' : null]) : array_filter([$q['sale'] ? 'on sale' : null, $q['stock'] ? 'in stock' : null]);
+        if ($q['min'] !== null && $q['max'] !== null) {
+            $parts[] = $ar ? "بين {$m($q['min'])} و{$m($q['max'])}" : "between {$m($q['min'])} and {$m($q['max'])}";
+        } elseif ($q['max'] !== null) {
+            $parts[] = $ar ? "بأقل من {$m($q['max'])}" : "under {$m($q['max'])}";
+        } elseif ($q['min'] !== null) {
+            $parts[] = $ar ? "بأكثر من {$m($q['min'])}" : "over {$m($q['min'])}";
+        }
+
+        return implode(' ', $parts);
+    }
+
+    private function platformList(array $platforms, bool $ar): string
+    {
+        return $this->either(array_map(fn ($k) => Lexicon::PLATFORMS[$k]['label'], $platforms), $ar);
+    }
+
+    private function either(array $names, bool $ar): string
+    {
+        if (count($names) < 2) {
+            return (string) ($names[0] ?? '');
+        }
+        $last = array_pop($names);
+
+        return implode($ar ? '، ' : ', ', $names).($ar ? ' أو ' : ' or ').$last;
     }
 }
