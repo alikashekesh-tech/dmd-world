@@ -18,20 +18,56 @@ class ProductVariant extends Model
 {
     use SoftDeletes;
 
+    /** @var array<string, bool> per connection and database: is live_options_key computed by the database? */
+    private static array $liveKeyGenerated = [];
+
     protected static function booted(): void
     {
+        // live_options_key is options_key while the variant is live and NULL once removed, so the unique index
+        // (product_id, live_options_key) stops a live combination being sold twice. Databases migrated with the first
+        // version of the migration compute it (a stored generated column, which refuses any written value); the
+        // others have a plain column that the model fills.
         static::saving(function (ProductVariant $variant) {
-            $variant->live_options_key = $variant->deleted_at === null ? $variant->options_key : null;
+            if (! self::liveKeyIsGenerated()) {
+                $variant->live_options_key = $variant->deleted_at === null ? $variant->options_key : null;
+            } elseif (! $variant->exists) {
+                unset($variant->live_options_key);
+            } elseif ($variant->isDirty('live_options_key')) {
+                $variant->live_options_key = $variant->getOriginal('live_options_key');
+            }
         });
         static::saved(fn (ProductVariant $variant) => StockAlerts::afterVariantChange($variant)); // tells buyers waiting for it
         static::deleted(function (ProductVariant $variant) {
-            if (! $variant->isForceDeleting()) {
-                $variant->quietly()->update(['live_options_key' => null]);
+            if (! $variant->isForceDeleting() && ! self::liveKeyIsGenerated()) {
+                $variant->forceFill(['live_options_key' => null])->saveQuietly();
             }
         });
         static::restored(function (ProductVariant $variant) {
-            $variant->quietly()->update(['live_options_key' => $variant->options_key]);
+            if (! self::liveKeyIsGenerated()) {
+                $variant->forceFill(['live_options_key' => $variant->options_key])->saveQuietly();
+            }
         });
+    }
+
+    /** True when the database computes live_options_key itself (MySQL or MariaDB generated column). */
+    public static function liveKeyIsGenerated(): bool
+    {
+        $db = (new static)->getConnection();
+        $key = $db->getName().'|'.$db->getDatabaseName();
+        if (! isset(self::$liveKeyGenerated[$key])) {
+            self::$liveKeyGenerated[$key] = in_array($db->getDriverName(), ['mysql', 'mariadb'], true) && $db->selectOne(
+                "SELECT 1 AS found FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'live_options_key' AND COALESCE(GENERATION_EXPRESSION, '') <> ''",
+                [$db->getTablePrefix().(new static)->getTable()],
+            ) !== null;
+        }
+
+        return self::$liveKeyGenerated[$key];
+    }
+
+    /** Forgets what was found about the column (after the schema changes, e.g. in tests). */
+    public static function forgetLiveKeyColumn(): void
+    {
+        self::$liveKeyGenerated = [];
     }
 
     protected function casts(): array
