@@ -12,7 +12,7 @@ const FIELDS = { 'contact.first_name': 'firstName', 'contact.last_name': 'lastNa
 export const orderFromApi = (o) => ({
   id: o.id, number: o.number, status: o.status === 'on_hold' ? 'on-hold' : o.status, date: o.placed_at,
   total: o.total, subtotal: o.subtotal, shipping: o.shipping_total, discount: o.discount_total, coupons: o.coupon_code ? [o.coupon_code] : [],
-  payment: o.payment_method_label, method: o.delivery_method_label, note: o.customer_note || '',
+  payment: o.payment_method_label, paymentMethod: o.payment_method, paymentStatus: o.payment_status, method: o.delivery_method_label, note: o.customer_note || '',
   contact: { name: `${o.contact.first_name} ${o.contact.last_name}`.trim(), email: o.contact.email, phone: o.contact.phone },
   address: o.address
     ? { address_1: o.address.street || '', address_2: [o.address.building && `Building ${o.address.building}`, o.address.floor && `Floor ${o.address.floor}`].filter(Boolean).join(', '), city: [o.address.area, o.address.city].filter(Boolean).join(', ') }

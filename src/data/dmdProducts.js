@@ -27,6 +27,7 @@ export function fromApi(p, { brandSlug, offersId }) {
     ...BLANK,
     id: String(p.id), slug: String(p.id), name: p.name, brand: group, brandId: p.brand_id ?? null, cat: String(main ?? ''),
     price: p.price, was: p.on_sale ? p.regular_price : null, discount: p.on_sale ? p.discount_percent : 0, saleEndsAt: p.sale_ends_at || null,
+    offer: p.offer ? { id: p.offer.id, label: p.offer.label || '' } : null, // the running offer behind its price (Admin › Offers)
     stock: p.availability === 'out_of_stock' ? 'out' : p.availability === 'low_stock' ? 'low' : 'in', stockCount: p.stock_left ?? null,
     // How many can be bought: the stock in MySQL when tracked (0 when sold out), null when stock isn't tracked.
     maxQty: p.max_quantity ?? null,

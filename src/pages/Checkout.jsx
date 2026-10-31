@@ -39,6 +39,15 @@ const methods = (products) => {
 };
 const FALLBACK_PAYMENTS = [{ id: 'cod', title: 'Cash on delivery', description: 'Pay when your order arrives.' }];
 const DRAFT = 'dmd:checkout-draft';
+
+/* A payment method's official logo, when one has been added to public/images/payments/ (e.g. whish-money.svg).
+   Until then nothing is shown: no stand-in logo. */
+const LOGOS = { whish: '/images/payments/whish-money.svg' };
+function PaymentLogo({ id }) {
+  const [missing, setMissing] = useState(false);
+  if (!LOGOS[id] || missing) return null;
+  return <img className={s.payLogo} src={LOGOS[id]} alt="" height="22" onError={() => setMissing(true)} />;
+}
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`);
 const readDraft = () => { try { return JSON.parse(sessionStorage.getItem(DRAFT)) || {}; } catch { return {}; } };
 
@@ -220,7 +229,7 @@ export default function Checkout() {
                 <label key={p.id} className={`${s.method} ${payment === p.id ? s.on : ''}`}>
                   <input type="radio" name="payment" checked={payment === p.id} onChange={() => setPayment(p.id)} />
                   <span><b>{p.title}</b>{p.description && <small>{p.description}</small>}</span>
-                  <em />
+                  <em><PaymentLogo id={p.id} /></em>
                 </label>
               ))}
             </div>

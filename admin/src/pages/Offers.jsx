@@ -45,7 +45,7 @@ export default function Offers({ query }) {
         ]} />
       </div>
       {error && <Notice tone="coral" icon="alert">{error.message}</Notice>}
-      {tab === 'offers' && (!offers.data ? <div className="surface"><SkeletonRows /></div> : <OfferList list={offerList} />)}
+      {tab === 'offers' && (!offers.data ? <div className="surface"><SkeletonRows /></div> : <OfferList list={offerList} state={query.get('state') || 'all'} />)}
       {tab === 'coupons' && (!coupons.data ? <div className="surface"><SkeletonRows /></div> : <Coupons list={couponList} />)}
       {tab === 'sales' && (!sale.data ? <div className="surface"><SkeletonRows /></div> : <Sales list={paged(sale.data, productFromApi).items} />)}
       {offer && lists.ready && <OfferForm key={offer.id || 'new'} o={offer} brands={lists.brands} categories={lists.categories} onClose={close} />}
@@ -55,9 +55,19 @@ export default function Offers({ query }) {
 }
 
 /* ── offers ──────────────────────────────────────────────────────────── */
-function OfferList({ list }) {
+const STATE_TABS = [['all', 'All'], ['running', 'Running'], ['scheduled', 'Scheduled'], ['ended', 'Ended'], ['off', 'Off']];
+
+function OfferList({ list: all, state }) {
   const { toast, fail, confirm } = useUi();
   const [busy, setBusy] = useState(null);
+  const list = state === 'all' ? all : all.filter((o) => o.state === state);
+  const count = (k) => (k === 'all' ? all.length : all.filter((o) => o.state === k).length);
+  const filter = (
+    <div className="toolbar" style={{ alignItems: 'center' }}>
+      <Tabs label="Offer state" value={state} onChange={(v) => setQuery({ state: v === 'all' ? null : v })} items={STATE_TABS.map(([v, l]) => ({ value: v, label: l, count: count(v), led: v === 'running' && count(v) ? 'green' : undefined }))} />
+      <span className="muted" style={{ fontSize: 12.5 }}>Products in a running offer appear in Weekly Offers on the home page (unless you hand-pick them in Homepage).</span>
+    </div>
+  );
   const toggle = async (o, on) => {
     setBusy(o.id);
     try { await api.put(`/offers/${o.id}/active`, { is_active: on }); changed('offers'); toast(on ? `“${o.name}” is on` : `“${o.name}” is off. Prices are back to normal.`); } catch (e) { fail(e); }
@@ -69,8 +79,11 @@ function OfferList({ list }) {
     try { await api.del(`/offers/${o.id}`); changed('offers'); toast(`Deleted “${o.name}”`); } catch (e) { fail(e); }
     setBusy(null);
   };
+  if (all.length && !list.length) return <>{filter}<div className="surface"><Empty icon="percent" title={`No ${STATE_TABS.find(([v]) => v === state)?.[1].toLowerCase()} offers`}>Switch to All to see every offer.</Empty></div></>;
   if (!list.length) return <div className="surface"><Empty icon="percent" title="No offers yet" action={<Button variant="primary" icon="plus" onClick={() => setQuery({ new: 'offer' })}>Create offer</Button>}>An offer takes a percentage or an amount off any mix of products, brands and categories, or the entire store, for as long as you want.</Empty></div>;
   return (
+    <>
+    {filter}
     <div className="surface table-wrap">
       <table className="table cards">
         <thead><tr><th>Offer</th><th>Discount</th><th>Products</th><th>When</th><th>Status</th><th className="shrink" /></tr></thead>
@@ -97,6 +110,7 @@ function OfferList({ list }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

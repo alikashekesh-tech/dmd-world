@@ -5,6 +5,7 @@ import { useCatalog } from '../../data/live.js';
 import { group, catUrl, resolvePath, inNode, NEW_OFFERS, BRAND_GROUPS, DMD_GROUPS } from '../../data/dmdMenu.js';
 import { artFor } from '../art/CategoryArt.jsx';
 import { resolveDepartment } from '../../data/departments.js';
+import { weeklyOffers, isDiscounted } from '../../lib/offers.js';
 
 export const usd = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const from = (list) => (list.length ? Math.min(...list.map((p) => p.price)) : null);
@@ -99,10 +100,10 @@ function build() {
     },
   ];
 
-  /* Offers, deepest real discount first; or the owner's hand-picked ones, in their order (while they're discounted). */
-  const dropped = (p) => p && p.stock !== 'out' && p.was && p.was > p.price;
-  const picked = (HOMEPAGE.picks.price_drops || []).map((id) => getProduct(String(id))).filter(dropped);
-  const OFFERS = picked.length ? picked.slice(0, 8) : LIVE.filter(dropped).sort((a, b) => b.discount - a.discount || b.was - b.price - (a.was - a.price)).slice(0, 8);
+  /* Weekly Offers: the owner's hand-picked products (while discounted), else those in a running offer, deepest first. */
+  const OFFERS = weeklyOffers(LIVE, HOMEPAGE.picks.price_drops || [], { byId: getProduct });
+  // Everything "See all offers" lists: the New Offers category and every product on offer now.
+  const OFFER_COUNT = PRODUCTS.filter((p) => inNode(p, NEW_OFFERS) || isDiscounted(p)).length;
 
   /* Budget stops for the coin stack: most product for the money, closest to the budget first, one per brand before repeats. */
   const underBudget = (max) => {
@@ -136,7 +137,7 @@ function build() {
   const WORLD = [...pickedTiles, ...builtIn.filter((t) => !pickedTiles.some((p) => p.slug === t.slug))].slice(0, AREAS.length)
     .map((t, i) => ({ ...t, area: AREAS[i], size: SIZES[i] || null }));
 
-  return { HOTSPOTS, PLATFORMS, OFFERS, OFFER_COUNT: NEW_OFFERS.count, underBudget, WORLD, BRANDS };
+  return { HOTSPOTS, PLATFORMS, OFFERS, OFFER_COUNT, underBudget, WORLD, BRANDS };
 }
 
 let cache = { v: -1, data: null };

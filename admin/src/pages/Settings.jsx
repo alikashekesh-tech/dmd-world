@@ -4,7 +4,7 @@ import { useApi } from '../lib/hooks.js';
 import { num } from '../lib/format.js';
 import { Button, Field, Icon, Notice, PageHeader, PasswordInput, PasswordRules, SkeletonRows, Toggle, passwordOk, useUi } from '../ui/kit.jsx';
 
-const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'delivery_fee'];
+const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'whish_note', 'delivery_fee'];
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function Settings({ session }) {
@@ -39,6 +39,7 @@ export default function Settings({ session }) {
       const body = { ...changes };
       if ('low_stock_threshold' in body) body.low_stock_threshold = Number(body.low_stock_threshold);
       if ('bank_transfer_note' in body) body.bank_transfer_note = body.bank_transfer_note || null;
+      if ('whish_note' in body) body.whish_note = body.whish_note || null;
       if ('delivery_fee' in body) body.delivery_fee = body.delivery_fee === '' || body.delivery_fee == null ? null : Number(body.delivery_fee);
       if ('order_notification_email' in body) body.order_notification_email = body.order_notification_email?.trim() || null;
       const r = await api.put('/settings', body);
@@ -128,6 +129,7 @@ export default function Settings({ session }) {
               <span className="label">Payment</span>
               {methods('payment_methods', data.meta.payment_methods)}
               {vals.payment_methods.includes('bank_transfer') && <Field label="Bank transfer note" hint="Shown under “Direct bank transfer” at checkout."><input className="input" maxLength={300} value={vals.bank_transfer_note || ''} onChange={set('bank_transfer_note')} /></Field>}
+              {vals.payment_methods.includes('whish') && <Field label="Whish Money note" hint="Shown under “Whish Money” at checkout. Orders paid by Whish stay unpaid until you mark them paid on the order."><input className="input" maxLength={300} value={vals.whish_note || ''} onChange={set('whish_note')} placeholder="DMD sends you the Whish Money payment details…" /></Field>}
               <span className="label" style={{ marginTop: 6 }}>Delivery</span>
               {methods('delivery_methods', data.meta.delivery_methods)}
               {vals.delivery_methods.includes('delivery') && (

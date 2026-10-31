@@ -29,6 +29,7 @@
 .method input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .method b { display: block; font-size: 15px; }
 .method small { color: var(--muted); font-size: 13px; }
+.payLogo { display: block; height: 22px; width: auto; }
 .method em { font: 700 12px var(--font-mono); font-style: normal; letter-spacing: .08em; text-transform: uppercase; }
 @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }

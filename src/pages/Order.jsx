@@ -123,6 +123,10 @@ export default function Order() {
           {Number(o.discount) > 0 && <div className={`${s.total} ${s.discount}`}><span>Discount{o.coupons?.length ? ` · ${o.coupons.join(', ')}` : ''}</span><b>−{money(Number(o.discount))}</b></div>}
           <div className={s.total}><span>{o.method || 'Delivery'}</span><b>{Number(o.shipping) > 0 ? money(Number(o.shipping)) : o.method?.startsWith('Pick') ? 'Free' : 'Confirmed by DMD'}</b></div>
           <div className={`${s.total} ${s.grand}`}><span>Total · {o.payment}</span><b>{money(Number(o.total))}</b></div>
+          {/* Paid outside the site (Whish Money, bank transfer): DMD confirms the payment by hand. */}
+          {['whish', 'bank_transfer'].includes(o.paymentMethod) && o.status !== 'cancelled' && (
+            <p className={s.payNote} role="status">{o.paymentStatus === 'paid' ? `Payment received by DMD World (${o.payment}).` : o.paymentStatus === 'refunded' ? 'Payment refunded.' : `Awaiting payment: DMD World will send you the ${o.payment} details when confirming your order. It is processed once the payment is received.`}</p>
+          )}
           {(where || o.note) && (
             <dl className={s.facts}>
               {where && <div><dt>Deliver to</dt><dd>{where}</dd></div>}

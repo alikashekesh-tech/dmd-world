@@ -29,7 +29,11 @@ class CheckoutController extends Controller
 
         return response()->json(['data' => [
             'payment_methods' => collect(StoreSettings::paymentMethods())->map(fn ($title, $id) => ['id' => $id, 'title' => $title,
-                'description' => $id === 'cod' ? 'Pay when your order arrives.' : (StoreSettings::get('bank_transfer_note') ?: 'DMD sends the bank details when confirming your order.')])->values(),
+                'description' => match ($id) {
+                    'cod' => 'Pay when your order arrives.',
+                    'whish' => StoreSettings::get('whish_note') ?: StoreSettings::DEFAULTS['whish_note'],
+                    default => StoreSettings::get('bank_transfer_note') ?: StoreSettings::DEFAULTS['bank_transfer_note'],
+                }])->values(),
             'delivery_methods' => collect(StoreSettings::deliveryMethods())->map(fn ($title, $id) => ['id' => $id, 'title' => $delivery[$id][0], 'description' => $delivery[$id][1]])->values(),
             'coupons_enabled' => (bool) StoreSettings::get('coupons_enabled'),
         ]]);

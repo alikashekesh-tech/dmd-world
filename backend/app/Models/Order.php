@@ -33,7 +33,8 @@ class Order extends Model
         'failed' => ['pending', 'cancelled'],
     ];
 
-    public const PAYMENT_METHODS = ['cod' => 'Cash on delivery', 'bank_transfer' => 'Direct bank transfer'];
+    // Whish Money is paid outside the site (no gateway): DMD sends the details and marks the order paid once it arrives.
+    public const PAYMENT_METHODS = ['cod' => 'Cash on delivery', 'bank_transfer' => 'Direct bank transfer', 'whish' => 'Whish Money'];
 
     public const DELIVERY_METHODS = ['delivery' => 'Delivery', 'pickup' => 'Pick up from store'];
 

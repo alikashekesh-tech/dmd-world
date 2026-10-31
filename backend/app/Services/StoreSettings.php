@@ -25,9 +25,10 @@ final class StoreSettings
         'reviews_enabled' => true,
         'reviews_require_purchase' => false, // when true, only buyers with a paid order for the product can review it
         'coupons_enabled' => true,
-        'payment_methods' => ['cod', 'bank_transfer'],
+        'payment_methods' => ['cod', 'bank_transfer', 'whish'],
         'delivery_methods' => ['delivery', 'pickup'],
         'bank_transfer_note' => 'DMD sends the bank details when confirming your order.',
+        'whish_note' => 'DMD sends you the Whish Money payment details when confirming your order. It is processed once the payment is received.',
         // The top menu (header and phone menu): the links shown, in order. One left out is hidden.
         'menu_links' => self::MENU_LINKS,
         'delivery_fee' => null, // dollars, one price anywhere in Lebanon; null = DMD confirms the cost after the order, 0 = free
@@ -57,6 +58,7 @@ final class StoreSettings
             'delivery_methods' => ['array', 'min:1'],
             'delivery_methods.*' => ['distinct', Rule::in(array_keys(Order::DELIVERY_METHODS))],
             'bank_transfer_note' => ['nullable', 'string', 'max:300'],
+            'whish_note' => ['nullable', 'string', 'max:300'],
             'menu_links' => ['array', 'min:1', 'max:'.count(self::MENU_LINKS)],
             'menu_links.*' => ['distinct', Rule::in(self::MENU_LINKS)],
             'delivery_fee' => ['nullable', 'numeric', 'min:0', 'max:1000', 'decimal:0,2'],

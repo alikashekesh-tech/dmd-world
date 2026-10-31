@@ -39,7 +39,7 @@ function Finder({ type, categories, exclude, onPick, full }) {
   );
 }
 
-/** Hand-picked items for a section (products for Price drops, categories for Beyond the console), in order. */
+/** Hand-picked items for a section (products for Weekly Offers, categories for Beyond the console), in order. */
 export default function Picks({ section, title, categories, onSaved }) {
   const { toast, fail } = useUi();
   const type = section.picks;

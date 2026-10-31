@@ -17,7 +17,7 @@ class StoreSettingsTest extends TestCase
     public function test_the_owner_reads_defaults_and_changes_only_what_is_sent(): void
     {
         $owner = $this->owner();
-        $owner->get('/api/v1/admin/settings')->assertOk()->assertJsonPath('data.low_stock_threshold', 2)->assertJsonPath('data.payment_methods', ['cod', 'bank_transfer']);
+        $owner->get('/api/v1/admin/settings')->assertOk()->assertJsonPath('data.low_stock_threshold', 2)->assertJsonPath('data.payment_methods', ['cod', 'bank_transfer', 'whish']);
 
         $owner->put('/api/v1/admin/settings', ['contact_phone' => '+961 1 234 567', 'low_stock_threshold' => 5])->assertOk()
             ->assertJsonPath('data.contact_phone', '+961 1 234 567')->assertJsonPath('data.low_stock_threshold', 5)->assertJsonPath('data.store_name', 'DMD World');

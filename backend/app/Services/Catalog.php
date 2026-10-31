@@ -7,6 +7,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Banner;
 use App\Models\Brand;
+use App\Models\Offer;
 use App\Models\Product;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -31,8 +32,9 @@ final class Catalog
     }
 
     /**
-     * Seconds the cached catalog may live: the usual TTL, or less when a banner starts or ends sooner, so banners
-     * appear and disappear on time rather than up to a minute late. Worked out only when the catalog is rebuilt.
+     * Seconds the cached catalog may live: the usual TTL, or less when a banner or an offer (Weekly Offers) starts or
+     * ends sooner, so they appear and disappear on time rather than up to a minute late. Worked out only when the
+     * catalog is rebuilt.
      */
     private static function ttl(): int
     {
@@ -40,6 +42,8 @@ final class Catalog
         $next = collect([
             Banner::query()->where('is_active', true)->where('starts_at', '>', $now)->min('starts_at'),
             Banner::query()->where('is_active', true)->where('ends_at', '>', $now)->min('ends_at'),
+            Offer::query()->where('is_active', true)->where('starts_at', '>', $now)->min('starts_at'),
+            Offer::query()->where('is_active', true)->where('ends_at', '>', $now)->min('ends_at'),
         ])->filter()->map(fn ($at) => (int) ceil($now->diffInSeconds(Carbon::parse($at, 'UTC'))))->min();
 
         return max(1, min(self::TTL, $next ?? self::TTL));

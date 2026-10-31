@@ -8,6 +8,7 @@ import { useCatalog } from '../data/live.js';
 import { usePageMeta } from '../lib/meta.js';
 import { resolvePath, catUrl, inNode } from '../data/dmdMenu.js';
 import { resolveDepartment, departmentOf, nodeOptions, subOptions, isRetired } from '../data/departments.js';
+import { isDiscounted } from '../lib/offers.js';
 import NotFound from './NotFound.jsx';
 
 /* Each platform keeps the colour it has in the home page's "What do you play on?" picker. */
@@ -26,7 +27,8 @@ export default function ProductCategory() {
   const [d, sub] = dept || [];
   const here = sub || d;
   // A brand's page lists everything of that brand; a category's page lists it and everything below it.
-  const base = useMemo(() => (node ? PRODUCTS.filter((p) => inNode(p, node)) : here ? PRODUCTS.filter((p) => here.ids.has(p.id)) : []), [node, here, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // New Offers lists its own category and everything on offer now (Weekly Offers' "See all").
+  const base = useMemo(() => (node ? PRODUCTS.filter((p) => inNode(p, node) || (node.slug === 'new-offers' && isDiscounted(p))) : here ? PRODUCTS.filter((p) => here.ids.has(p.id)) : []), [node, here, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const categories = useMemo(() => (node ? nodeOptions(node, base) : d && !sub ? subOptions(d) : []), [node, d, sub, base]);
   const count = (n) => (n > 0 ? `${n.toLocaleString()} products` : null);
 

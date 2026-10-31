@@ -13,7 +13,7 @@ const SECTION = {
   banners: ['Promo banners', 'Your home page banners. Shows nothing while none are running.'],
   recently_viewed: ['Recently viewed', 'Each visitor’s own recent products (only once they have some).'],
   platforms: ['Your platform', 'PlayStation, Switch, Xbox and PC, with their best sellers.'],
-  price_drops: ['Price drops', 'Discounted products: the deepest first, or the ones you pick.'],
+  price_drops: ['Weekly Offers', 'Products in a running offer (Offers page), deepest discount first, or the ones you pick while they’re discounted.'],
   budget: ['Your budget', 'The coin stack: what the visitor can get for their money.'],
   world: ['Beyond the console', 'The grid of other categories: the built-in ones, or the ones you pick.'],
   ask_us: ['Ask first', 'Call or email before you buy.'],
@@ -213,7 +213,7 @@ export default function Homepage() {
               <Sections sections={d.sections} onSaved={() => reload(true)} />
               <div className="stack">
                 <Notice icon="info">Featured products are set on each product (Products → Featured). The order of categories in menus is on the Categories screen.</Notice>
-                <Notice icon="sparkle">“Price drops” and “Beyond the console” can show products and categories you choose: see the Hand-picked tab.</Notice>
+                <Notice icon="sparkle">“Weekly Offers” and “Beyond the console” can show products and categories you choose: see the Hand-picked tab.</Notice>
               </div>
             </div>
           )}

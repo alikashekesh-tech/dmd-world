@@ -237,6 +237,7 @@ export function OrderDetail({ params }) {
             <div className="surface-head"><h3><Icon name="card" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />Payment</h3>{o.payment_status === 'paid' ? <Chip tone="green" led>Paid</Chip> : o.payment_status === 'refunded' ? <Chip tone="muted">Refunded</Chip> : <Chip tone="amber" led>Not paid yet</Chip>}</div>
             <div className="surface-body stack" style={{ gap: 6, fontSize: 13.5 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}><span className="muted">Method</span><span>{o.payment_method_label}</span></div>
+              {o.payment_method === 'whish' && o.payment_status === 'unpaid' && o.status !== 'cancelled' && <Notice icon="info">Awaiting a Whish Money payment. Send the customer the payment details, then mark it paid once it shows in the Whish account. Nothing is marked paid on its own.</Notice>}
               <div className="row" style={{ justifyContent: 'space-between' }}><span className="muted">Total</span><b className="num">{money(o.total)} <span className="muted mono" style={{ fontSize: 11 }}>{o.currency}</span></b></div>
               {o.payment_status === 'unpaid' && <Button size="sm" icon="check" loading={busy} onClick={() => setPaid('paid')}>Mark as paid</Button>}
               {o.payment_status === 'paid' && o.status !== 'completed' && <Button size="sm" variant="quiet" loading={busy} onClick={() => setPaid('unpaid')}>Mark as not paid</Button>}
