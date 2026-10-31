@@ -61,6 +61,7 @@
 .askBtns a { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 11px; border: 1px solid rgba(159, 178, 214, .28); font-size: 14px; font-weight: 600; color: #fff; transition: border-color .2s, background .2s; }
 .askBtns a:first-child { background: var(--accent); border-color: var(--accent); }
 .askBtns a:hover { border-color: #fff; }
+.askBtns .wa { background: #25d366; border-color: #25d366; color: #052e16; }
 
 .bundle { margin-top: 56px; padding: 28px; border-radius: var(--radius-xl); background: var(--surface); border: 1px solid var(--line-soft); }
 .bundle h2 { margin-bottom: 18px; font-size: 24px; }

@@ -2,16 +2,22 @@ import { useLocation } from '../../router/index.jsx';
 import { CONTACT } from '../../data/dmdMenu.js';
 import { getProduct } from '../../data/index.js';
 
+/** A wa.me link to the store's WhatsApp (the contact number set in the admin) with this message typed in. */
+export const whatsAppUrl = (text) => `https://wa.me/${CONTACT.tel.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
+
+/** The message about a product: its name, the options chosen ([['Colour', 'Black']]) and its link. */
+export function productMessage(product, options = []) {
+  const chosen = options.filter(([, value]) => value).map(([name, value]) => `${name}: ${value}`).join(', ');
+  return `Hi DMD World, I'm interested in ${product.name}${chosen ? ` (${chosen})` : ''}: ${location.origin}/product/${product.slug}`;
+}
+
 /* WhatsApp with the store (offered by the contact button, LiveChat.jsx). On a product page the message already names
    the product and its link, so the team knows what it's about; everywhere else it's a plain hello. */
 export function useWhatsAppLink() {
   const { pathname } = useLocation();
   const slug = pathname.startsWith('/product/') ? decodeURIComponent(pathname.slice('/product/'.length)) : null;
   const product = slug ? getProduct(slug) : null;
-  const text = product
-    ? `Hi DMD World, I'm interested in ${product.name}: ${location.origin}/product/${product.slug}`
-    : 'Hi DMD World, I have a question.';
-  return `https://wa.me/${CONTACT.tel.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
+  return whatsAppUrl(product ? productMessage(product) : 'Hi DMD World, I have a question.');
 }
 
 export function WhatsAppIcon({ size = 24 }) {

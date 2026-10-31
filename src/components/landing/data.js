@@ -14,7 +14,6 @@ const oneOfEach = (list, key, n) => {
   for (const p of list) if (out.length < n && !out.includes(p)) out.push(p);
   return out.slice(0, n);
 };
-const PC_BRANDS = ['razer', 'hyperx', 'logitech', 'marvo', 'fantech', 'e-yooso', 'onikuma', 'megavolt', 'pc-parts'];
 export const OFFERS_URL = catUrl('new-offers');
 /* The bento grid's places, in reading order (see WorldGrid.module.css), and the size of the first two. */
 const AREAS = ['fig', 'retro', 'spk', 'phone', 'lap', 'net', 'car', 'watch'];
@@ -61,6 +60,7 @@ function build() {
   ];
   const HOTSPOTS = SPOTS.map(({ list, ...s }) => ({ ...s, from: from(list) }));
 
+  const laptops = group('laptops');
   const PLATFORMS = [
     {
       id: 'playstation', name: 'PlayStation', short: 'PlayStation', accent: '#4f8dff',
@@ -84,11 +84,13 @@ function build() {
       products: best(LIVE.filter((p) => p.brand === 'xbox')),
     },
     {
-      id: 'pc', name: 'PC', short: 'PC', accent: '#a78bfa',
-      count: null, to: catUrl('pc-parts'),
-      line: 'Keyboards, mice, headsets, chairs and monitors from Razer, HyperX, Logitech, Marvo and more.',
-      links: [['Chairs & tables', catUrl('pc-parts', 'chair-and-table')], ['Monitors', catUrl('pc-parts', 'monitors')], ['Laptops', catUrl('laptops')], ['Storage', catUrl('pc-parts', 'hard-disk-and-flash')]],
-      products: oneOfEach(sortProducts(LIVE.filter((p) => PC_BRANDS.includes(p.brand)), 'best'), 'brand', 8),
+      // Was "PC" (id 'pc'); PlatformPicker maps a remembered 'pc' to this one.
+      id: 'laptop', name: 'Laptop', short: 'Laptop', accent: '#a78bfa',
+      count: laptops.count, to: catUrl('laptops'),
+      line: 'Laptops for gaming, work and study, and the accessories that go with them.',
+      // The Laptops category's own sub-categories, as the owner manages them (the empty ones left out).
+      links: laptops.children.filter((c) => c.count > 0).slice(0, 4).map((c) => [c.name, catUrl('laptops', c.slug)]),
+      products: best(LIVE.filter((p) => inNode(p, laptops))),
     },
   ];
 

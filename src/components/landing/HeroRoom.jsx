@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '../../router/index.jsx';
 import { group, BRAND_GROUPS } from '../../data/dmdMenu.js';
-import { PRODUCTS } from '../../data/index.js';
 import { useLanding, usd } from './data.js';
 import useInView, { prefersReducedMotion } from './useInView.js';
 import useTween from './useTween.js';
@@ -117,10 +116,7 @@ export default function HeroRoom() {
               <svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16 C60 6 120 6 170 12 S260 20 296 8" pathLength="1" /></svg>
             </em>
           </h1>
-          <p className={s.lead}>
-            Consoles, games, chairs, headsets and the small things in between, from PlayStation, Nintendo, Xbox,
-            Razer, HyperX, Logitech and more. {PRODUCTS.length.toLocaleString('en-US')} products in one place.
-          </p>
+          <p className={s.lead}>Discover Marvo, Megavolt, laptops, gaming gear, and much more — all in one place.</p>
           <div className={s.ctas}>
             <a href="#platform" className={s.primary}>
               Pick your platform

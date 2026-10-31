@@ -147,7 +147,48 @@ function PC() {
   );
 }
 
-const ART = { playstation: PlayStation, switch: Switch, xbox: Xbox, pc: PC };
+/* A gaming laptop: angled lid running a shooter, WASD lit, rear exhaust breathing heat, an RGB strip and mouse. */
+function Laptop() {
+  return (
+    <>
+      <Shadow cx="215" w="175" />
+      <g className={s.heat}>{[[86, 0], [93, 1], [327, 2], [334, 3]].map(([cx, i]) => <circle key={cx} cx={cx} cy="198" r="2" style={{ animationDelay: `${i * 0.55}s` }} />)}</g>
+      <g style={{ '--d': '0s' }}>
+        <path d="M114 42 H306 L322 58 V196 H98 V58 Z" {...D} className={`${s.d} ${s.dark}`} />
+        <rect x="108" y="54" width="204" height="132" rx="2" {...DN} />
+      </g>
+      <rect x="108" y="54" width="204" height="132" rx="2" className={s.screenGlow} />
+      <path d="M108 54 L188 104 M312 54 L232 104 M108 186 L188 134 M312 186 L232 134" {...DN} className={`${s.dn} ${s.faint}`} />
+      <rect x="188" y="104" width="44" height="30" {...DN} className={`${s.dn} ${s.faint}`} />
+      <circle cx="292" cy="74" r="11" {...DN} className={`${s.dn} ${s.faint}`} />
+      <circle cx="294" cy="72" r="2" className={s.home} />
+      <path d="M210 109 v6 M210 123 v6 M200 119 h6 M214 119 h6" className={s.glowLine} />
+      <circle cx="210" cy="119" r="1.5" className={s.home} />
+      <rect x="118" y="172" width="52" height="6" rx="1" {...DN} />
+      <rect x="119.5" y="173.5" width="34" height="3" className={s.hp} />
+      <text x="302" y="178" className={s.tag} textAnchor="end">30 / 90</text>
+      <path d="M203 193 L210 189 L217 193" className={s.glowLine} />
+      <g style={{ '--d': '.2s' }}>
+        <path d="M98 196 H322 L370 254 H50 Z" {...D} className={`${s.d} ${s.light}`} />
+        <path d="M50 254 H370 L362 276 H58 Z" {...D} className={`${s.d} ${s.dark}`} />
+        <path d={Array.from({ length: 23 }, (_, i) => `M${120 + i * 8} 200 v6`).join(' ')} {...DN} className={`${s.dn} ${s.faint}`} />
+        <path d="M182 243 H238 L241 251 H179 Z" {...DN} className={`${s.dn} ${s.faint}`} />
+      </g>
+      <path d="M108 213 H312 M101 222 H319 M93 231 H327" className={s.keys} />
+      <path d="M170 239 H250" className={s.keys} style={{ strokeDasharray: 'none' }} />
+      {[[133, 210.5], [126, 219.5], [138.5, 219.5], [151, 219.5]].map(([x, y]) => <rect key={x} x={x} y={y} width="9" height="5" rx="1" className={s.wasd} />)}
+      <path d="M74 266 H346" className={s.gpuLed} />
+      <circle cx="316" cy="202" r="2.5" className={s.power} />
+      <g style={{ '--d': '.35s' }}>
+        <path d="M386 250 C386 236 410 236 410 250 V270 C410 284 386 284 386 270 Z" {...D} />
+        <path d="M398 239 V254 M386 256 H410" {...DN} />
+      </g>
+      <path d="M389 276 Q398 282 407 276" className={s.gpuLed} />
+    </>
+  );
+}
+
+const ART = { playstation: PlayStation, switch: Switch, xbox: Xbox, pc: PC, laptop: Laptop };
 
 export default function PlatformArt({ id }) {
   const Art = ART[id];
@@ -168,6 +209,7 @@ export function PlatformIcon({ id }) {
       {id === 'switch' && <><rect x="6.5" y="6.5" width="11" height="11" rx="1" /><path d="M6.5 6.5H5a2.5 2.5 0 0 0-2.5 2.5v6A2.5 2.5 0 0 0 5 17.5h1.5M17.5 6.5H19a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5h-1.5" /><circle cx="4.6" cy="9.4" r=".6" fill="currentColor" /><circle cx="19.4" cy="14.6" r=".6" fill="currentColor" /></>}
       {id === 'xbox' && <><path d="M6 6.5 9 4h9l-3 2.5" /><path d="M15 6.5 18 4v14.5L15 21" /><rect x="6" y="6.5" width="9" height="14.5" rx=".8" /><ellipse cx="12" cy="5.2" rx="2.4" ry=".6" /></>}
       {id === 'pc' && <><rect x="5" y="2.5" width="14" height="19" rx="1.6" /><circle cx="9" cy="8" r="2.4" /><circle cx="9" cy="14.5" r="2.4" /><path d="M13.5 12h3.5M13.5 18.5h3.5" /></>}
+      {id === 'laptop' && <><rect x="5" y="4.5" width="14" height="10" rx="1.2" /><path d="M3 18.5 4.8 14.5h14.4l1.8 4z" /><path d="M10.5 16.6h3" /></>}
     </svg>
   );
 }

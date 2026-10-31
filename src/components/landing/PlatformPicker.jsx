@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { Link } from '../../router/index.jsx';
-import { BRAND_GROUPS } from '../../data/dmdMenu.js';
 import { ArrowRight } from '../common/icons.jsx';
 import { useLanding } from './data.js';
 import PlatformArt, { PlatformIcon } from './PlatformArt.jsx';
@@ -11,7 +10,8 @@ import s from './PlatformPicker.module.css';
 
 /* One question instead of 112 categories. The answer is remembered, so a returning visitor lands on their own shelf. */
 const KEY = 'dmd:platform';
-const readSaved = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+const RENAMED = { pc: 'laptop' }; // "PC" became "Laptop": whoever picked it before still lands on it
+const readSaved = () => { try { const v = localStorage.getItem(KEY); return RENAMED[v] || v; } catch { return null; } };
 
 export default function PlatformPicker({ n = 1 }) {
   const { PLATFORMS } = useLanding();
@@ -20,7 +20,7 @@ export default function PlatformPicker({ n = 1 }) {
   const [ref, { seen, live }] = useInView({ threshold: 0.12 });
   const tabs = useRef([]);
   const p = PLATFORMS.find((x) => x.id === id);
-  const count = useTween(0, p.count ?? BRAND_GROUPS.length, seen, { duration: 900 });
+  const count = useTween(0, p.count, seen, { duration: 900 });
 
   const choose = (next) => {
     setId(next);
@@ -79,7 +79,7 @@ export default function PlatformPicker({ n = 1 }) {
           </div>
           <div className={s.info} key={id}>
             <h3 className={s.name}>{p.name}</h3>
-            <p className={s.count}><b>{Math.round(count)}</b><span>{p.count != null ? 'products in store' : 'gear brands in store'}</span></p>
+            <p className={s.count}><b>{Math.round(count)}</b><span>products in store</span></p>
             <p className={s.line}>{p.line}</p>
             <ul className={s.links}>{p.links.map(([label, to]) => <li key={label}><Link to={to}>{label}</Link></li>)}</ul>
             <Link to={p.to} className={s.cta}>Shop {p.name} <ArrowRight size={17} /></Link>

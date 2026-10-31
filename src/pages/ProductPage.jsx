@@ -13,6 +13,7 @@ import { getProduct, getBrand, PRODUCTS, COLORS, money, isNew, purchaseLimit, de
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import RoomView from '../components/product/RoomView.jsx';
+import { whatsAppUrl, productMessage, WhatsAppIcon } from '../components/layout/WhatsAppButton.jsx';
 import { catUrl, CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
@@ -246,6 +247,7 @@ export default function ProductPage() {
             <p className={s.askText}>Compatibility, condition or stock: a person at DMD World will answer.</p>
             <div className={s.askBtns}>
               <a href={`tel:${CONTACT.tel}`}><PhoneIcon size={16} />{CONTACT.phone}</a>
+              <a href={whatsAppUrl(productMessage(p, p.colors.length > 1 ? [['Colour', COLORS[color]?.label]] : []))} target="_blank" rel="noopener noreferrer" className={s.wa}><WhatsAppIcon size={16} />Ask on WhatsApp</a>
               <a href={`mailto:${CONTACT.email.toLowerCase()}?subject=${encodeURIComponent(`Question about ${p.name}`)}`}><MailIcon size={16} />Email</a>
             </div>
           </div>

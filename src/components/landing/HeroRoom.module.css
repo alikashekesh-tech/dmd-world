@@ -70,6 +70,7 @@
   font-size: clamp(15.5px, 1.2vw, 17.5px);
   line-height: 1.6;
   color: #4a5d70;
+  text-wrap: balance;
   animation: rise 0.9s 0.35s both cubic-bezier(.2, .7, .2, 1);
 }
 

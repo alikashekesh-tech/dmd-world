@@ -10,7 +10,7 @@ import { resolvePath, catUrl, inNode } from '../data/dmdMenu.js';
 import NotFound from './NotFound.jsx';
 
 /* Each platform keeps the colour it has in the home page's "What do you play on?" picker. */
-const ACCENT = { playstation: '#4f8dff', 'nintendo-switch': '#ff4b55', xbox: '#3ccf6e', 'pc-parts': '#a78bfa', 'new-offers': '#ff6b57' };
+const ACCENT = { playstation: '#4f8dff', 'nintendo-switch': '#ff4b55', xbox: '#3ccf6e', 'pc-parts': '#a78bfa', laptops: '#a78bfa', 'new-offers': '#ff6b57' };
 
 /* /product-category/<group>/<sub>/<sub> — mirrors dmdworld.store URLs. */
 export default function ProductCategory() {

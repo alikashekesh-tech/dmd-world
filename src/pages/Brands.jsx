@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from '../router/index.jsx';
 import PageHero from '../components/ui/PageHero.jsx';
 import CategoryArt, { artFor } from '../components/art/CategoryArt.jsx';
@@ -7,6 +8,16 @@ import { ArrowRight } from '../components/common/icons.jsx';
 import { BRAND_GROUPS, catUrl } from '../data/dmdMenu.js';
 import { usePageMeta } from '../lib/meta.js';
 import s from './Brands.module.css';
+
+/* Brands are drawn, not shown by logo (README: licensed logos only with each brand's permission). These brands' logos
+   may be shown; the file is the one set in the admin (Brands → Logo). Without one, or if it fails to load, the drawing. */
+const LOGO_BRANDS = new Set(['marvo']);
+
+function BrandArt({ brand }) {
+  const [failed, setFailed] = useState(false);
+  if (!LOGO_BRANDS.has(brand.slug) || !brand.img || failed) return <CategoryArt spec={artFor([brand])} className={s.art} />;
+  return <span className={`${s.art} ${s.logo}`}><img src={brand.img} alt="" loading="lazy" onError={() => setFailed(true)} /></span>;
+}
 
 export function BrandsIndex() {
   usePageMeta({ title: 'Brands', description: 'The gear brands DMD World stocks next to PlayStation, Nintendo and Xbox: Razer, HyperX, Logitech, Marvo, Fantech, Onikuma and more.' });
@@ -29,7 +40,7 @@ export function BrandsIndex() {
           {BRAND_GROUPS.map((b, i) => (
             <li key={b.slug} style={{ '--i': i }}>
               <Link to={catUrl(b.slug)} className={s.card}>
-                <CategoryArt spec={artFor([b])} className={s.art} />
+                <BrandArt brand={b} />
                 <span className={s.meta}>
                   <b>{b.name}</b>
                   <small>{b.count.toLocaleString()} products</small>
