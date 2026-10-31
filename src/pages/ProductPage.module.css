@@ -55,6 +55,7 @@
 
 .actions { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin: 28px 0 12px; }
 .actions :global(.btn) { width: 100%; min-width: 0; }
+.qtyNote { margin: -4px 0 12px; font-size: 13px; color: var(--warn); }
 .heart { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 14px; border: 1px solid #c5cfdf; color: var(--text); transition: all .15s; }
 .heart:hover { border-color: var(--deal); color: var(--deal); }
 .hearted { color: var(--deal); border-color: var(--deal); background: rgba(240, 83, 63, .08); }

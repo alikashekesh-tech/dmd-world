@@ -28,7 +28,8 @@ export function Price({ price, was, discount, size = 'md' }) {
 
 export function Stock({ p }) {
   if (p.stock === 'out') return <span className={`${s.stock} ${s.out}`}><i />Out of stock</span>;
-  if (p.stock === 'low') return <span className={`${s.stock} ${s.low}`}><i />Only {p.stockCount} left</span>;
+  // A number only when the store tracks it (the server sends it for low tracked stock); never a made-up one.
+  if (p.stock === 'low') return <span className={`${s.stock} ${s.low}`}><i />{p.stockCount > 0 ? `Only ${p.stockCount} left` : 'Low stock'}</span>;
   return <span className={`${s.stock} ${s.in}`}><i />In stock</span>;
 }
 

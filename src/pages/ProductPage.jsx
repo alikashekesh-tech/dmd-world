@@ -4,7 +4,8 @@ import { useStore } from '../context/StoreContext.jsx';
 import Breadcrumbs from '../components/ui/Breadcrumbs.jsx';
 import useTween from '../components/landing/useTween.js';
 import { dealBadge } from '../components/product/ProductCard.jsx';
-import { ProductImage } from '../components/art/Media.jsx';
+import { ProductImage, useImageHealth } from '../components/art/Media.jsx';
+import { photosOf } from '../lib/imageHealth.js';
 import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
@@ -75,6 +76,8 @@ export default function ProductPage() {
   const [tried, setTried] = useState(false); // tried to add before choosing every option: say which is missing
   const [view, setView] = useState(0);
   const [qty, setQty] = useState(1);
+  const [qtyNote, setQtyNote] = useState(''); // "Only 3 available" after asking for more
+  useImageHealth(); // a photo that fails to load is dropped and the next one shown
   const wantReview = params.get('review') === '1'; // from "Review" in order history
   const [tab, setTab] = useState(wantReview ? 'reviews' : 'overview');
   const [details, setDetails] = useState(null); // description and attributes from WooCommerce, loaded per product
@@ -87,7 +90,7 @@ export default function ProductPage() {
     return () => { live = false; };
   }, [slug]);
   useEffect(() => {
-    setColor(p?.colors[0]); setSel(initialSelection(p, params.get('variant'))); setTried(false); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
+    setColor(p?.colors[0]); setSel(initialSelection(p, params.get('variant'))); setTried(false); setView(0); setQty(1); setQtyNote(''); setTab(wantReview ? 'reviews' : 'overview');
     if (wantReview) setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 150); else window.scrollTo(0, 0);
     if (p) rememberView(p.id);
   }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps -- reset only when the product changes
@@ -144,13 +147,16 @@ export default function ProductPage() {
   const specRows = [...(details?.attributes || []).map((a) => [a.name, a.value]), ...Object.entries(p.specs), ...(details?.dimensions ? [['Dimensions', details.dimensions]] : []), ...(details?.weight ? [['Weight', `${details.weight} kg`]] : [])];
   const platformGroup = ['playstation', 'nintendo-switch', 'xbox'].includes(p.brand) ? brand.name : null;
   const sku = chosen?.sku || p.sku;
-  const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', variable && !chosen ? (out ? 'Out of stock' : 'Choose your options') : out ? 'Out of stock' : at.stock === 'low' ? `Only ${at.stockCount} left` : 'In stock'], ...(sku ? [['SKU', sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
+  const infoRows = [['Brand', brand.name], ['Category', cat.name], ['Availability', variable && !chosen ? (out ? 'Out of stock' : 'Choose your options') : out ? 'Out of stock' : at.stock === 'low' ? (at.stockCount > 0 ? `Only ${at.stockCount} left` : 'Low stock') : 'In stock'], ...(sku ? [['SKU', sku]] : []), ...(platformGroup ? [['Platform', platformGroup]] : []), ...(condition ? [['Condition', condition]] : [])];
   const wished = isWished(p.id);
   const bundle = p.bundle?.map(getProduct).filter(Boolean);
   // The stock left after what's already in the cart: 18 in stock with 15 in the cart leaves 3 to choose from.
   const room = roomFor(p.id, chosen?.id);
   const full = !out && (!variable || chosen) && room < 1;
   const maxQty = Math.max(1, room);
+  const limit = chosen ? variantLimit(chosen) : purchaseLimit(p);
+  const held = Number.isFinite(limit) ? Math.max(0, limit - room) : 0; // already in the cart
+  const tooMany = (n) => setQtyNote(n == null ? '' : held > 0 ? `Only ${n} more available: ${held} already in your cart.` : `Only ${n} available.`);
   const choose = missing.length > 0 ? `Choose ${missing[0].toLowerCase()}` : null; // "Choose colour", "Choose dimensions"
   const addLabel = choose || (full ? `All ${chosen ? variantLimit(chosen) : purchaseLimit(p)} in your cart` : 'Add to cart');
   /** Adds what's chosen; with an option still missing, it says which instead. */
@@ -160,9 +166,10 @@ export default function ProductPage() {
   };
   const buyNow = () => { if (full) { nav('/checkout'); return; } if (add({ open: false }) !== false) nav('/checkout'); };
   const shown = withVariantImage(p, chosen); // a variant with its own photo shows it first
-  const shots = shown.img ? shown.gallery || [shown.img] : ART_VIEWS;
+  const shots = shown.img ? photosOf(shown) : ART_VIEWS; // only photos that load (none: a placeholder)
   const video = details?.video || null; // shown after the photos, as the last thumbnail
-  const onVideo = !!video && view === shots.length;
+  const shot = view > Math.max(0, shots.length - (video ? 0 : 1)) ? 0 : view; // a photo that just failed may have left the list
+  const onVideo = !!video && shot === shots.length;
   const tabs = TABS.filter(([k]) => k !== 'specs' || specRows.length).map(([k, l]) => [k, k === 'reviews' && p.n > 0 ? `Reviews (${p.n.toLocaleString()})` : l]);
   const onTabKey = (e, i) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
@@ -182,16 +189,16 @@ export default function ProductPage() {
       <div className={s.top}>
         <div className={s.gallery}>
           <div className={s.stage}>
-            {onVideo ? <ProductVideo video={video} name={p.name} /> : <ProductImage product={shown} color={color} view={view} eager className={s.stageImg} />}
+            {onVideo ? <ProductVideo video={video} name={p.name} /> : <ProductImage product={shown} color={color} view={shot} eager className={s.stageImg} />}
             {!onVideo && at.discount > 0 && <span className={s.badge}>{dealBadge(at)}</span>}
             {!onVideo && used && <span className={`${s.badge} ${s.used}`}>{used.key === 'used' ? 'Used' : `Used · ${used.label}`}</span>}
             {!onVideo && !used && isNew(p) && !at.discount && <span className={`${s.badge} ${s.new}`}>New</span>}
-            {!onVideo && shown.img && <RoomView src={shots[view] || shown.img} name={p.name} />}
+            {!onVideo && shown.img && shots.length > 0 && <RoomView src={shots[shot]} name={p.name} />}
           </div>
           {(shots.length > 1 || video) && (
             <ul className={s.thumbs} aria-label="Product photos and video">
               {shots.map((v, i) => (
-                <li key={typeof v === 'string' ? v : i}><button type="button" className={`${s.thumb} ${view === i ? s.on : ''}`} onClick={() => setView(i)} aria-label={shown.img ? `Photo ${i + 1} of ${shots.length}` : `${v} view`} aria-pressed={view === i}><ProductImage product={shown} color={color} view={i} className={s.thumbImg} /></button></li>
+                <li key={typeof v === 'string' ? v : i}><button type="button" className={`${s.thumb} ${shot === i ? s.on : ''}`} onClick={() => setView(i)} aria-label={shown.img ? `Photo ${i + 1} of ${shots.length}` : `${v} view`} aria-pressed={shot === i}><ProductImage product={shown} color={color} view={i} className={s.thumbImg} /></button></li>
               ))}
               {video && (
                 <li><button type="button" className={`${s.thumb} ${s.videoThumb} ${onVideo ? s.on : ''}`} onClick={() => setView(shots.length)} aria-label="Play video" aria-pressed={onVideo}>
@@ -231,7 +238,7 @@ export default function ProductPage() {
             </div>
           )}
 
-          {variable && <div id="options"><OptionPicker product={p} selected={sel} onChange={(next) => { setSel(next); setTried(false); }} invalid={tried} /></div>}
+          {variable && <div id="options"><OptionPicker product={p} selected={sel} onChange={(next) => { setSel(next); setTried(false); setView(0); setQtyNote(''); }} invalid={tried} /></div>}
 
           {p.colors.length > 1 && (
             <div className={s.block}>
@@ -252,10 +259,11 @@ export default function ProductPage() {
           ) : (
             <>
               <div className={s.actions}>
-                <QtyStepper value={Math.min(qty, maxQty)} onChange={setQty} max={maxQty} label={p.name} />
+                <QtyStepper value={Math.min(qty, maxQty)} onChange={(n) => { setQty(n); setQtyNote(''); }} max={maxQty} label={p.name} onLimit={tooMany} />
                 <button type="button" className="btn btn--primary btn--lg" disabled={full} aria-describedby={choose ? 'options' : undefined} onClick={() => add()}>{addLabel}</button>
                 <button type="button" className={`${s.heart} ${wished ? s.hearted : ''}`} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><HeartIcon size={20} fill={wished ? 'currentColor' : 'none'} /></button>
               </div>
+              {qtyNote && <p className={s.qtyNote} role="status">{qtyNote}</p>}
               <button type="button" className="btn btn--secondary btn--lg btn--block" onClick={buyNow}>Buy now</button>
             </>
           )}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from '../../router/index.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { ProductImage } from '../art/Media.jsx';
@@ -6,17 +7,47 @@ import { money, getBrand, COLORS, deliveryFee, deliveryLabel } from '../../data/
 import { useDialog } from '../../lib/useDialog.js';
 import LineArt from '../art/LineArt.jsx';
 import { lineDetails, withVariantImage } from '../../lib/variants.js';
+import { liveQty, qtyDraft, settleQty } from '../../lib/quantity.js';
 import s from './CartDrawer.module.css';
 
-/** `max`: the most that can be chosen (the product's stock left); no stock limit when it isn't tracked. */
-export function QtyStepper({ value, onChange, size = 'md', max = Infinity, label }) {
+/**
+ * `max`: the most that can be chosen (the stock left after what's in the cart); no stock limit when it isn't tracked.
+ * The number can be typed: digits only, kept as typed until it's a valid quantity, settled when the box is left (empty:
+ * back to the last one; 0: 1; too many: `max`, and `onLimit(max)` is called, or the stepper says so itself).
+ */
+export function QtyStepper({ value, onChange, size = 'md', max = Infinity, label, onLimit }) {
   const top = Math.max(1, max);
+  const [draft, setDraft] = useState(String(value));
+  const [seen, setSeen] = useState(value);
+  const [note, setNote] = useState('');
+  if (seen !== value) { setSeen(value); setDraft(String(value)); } // changed from outside: the buttons, a new variant
+  const typed = liveQty(draft, top);
+  const shown = typed ?? value; // what the buttons count from
+  const say = (text) => (onLimit ? onLimit(text ? top : null) : setNote(text));
+  const change = (n) => { say(''); setDraft(String(n)); onChange(n); };
+  const settle = () => {
+    const { value: n, limited } = settleQty(draft, { max: top, current: value });
+    setDraft(String(n));
+    if (n !== value) onChange(n);
+    say(limited ? `Only ${top} available` : '');
+  };
+  const name = label ? `Quantity of ${label}` : 'Quantity';
   return (
-    <div className={`${s.qty} ${s[size]}`} role="group" aria-label={label ? `Quantity of ${label}` : 'Quantity'}>
-      <button type="button" aria-label="Decrease quantity" onClick={() => onChange(value - 1)} disabled={value <= 1}><MinusIcon size={15} /></button>
-      <span aria-live="polite" aria-atomic="true">{value}</span>
-      <button type="button" aria-label="Increase quantity" onClick={() => onChange(value + 1)} disabled={value >= top}><PlusIcon size={15} /></button>
-    </div>
+    <span className={s.qtyWrap}>
+      <span className={`${s.qty} ${s[size]}`} role="group" aria-label={name}>
+        <button type="button" aria-label="Decrease quantity" onClick={() => change(Math.max(1, shown - 1))} disabled={shown <= 1}><MinusIcon size={15} /></button>
+        <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="done" aria-label={name} value={draft}
+          onChange={(e) => { const d = qtyDraft(e.target.value); setDraft(d); const n = liveQty(d, top); if (n != null && n !== value) onChange(n); }}
+          onBlur={settle}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); settle(); }
+            else if (e.key === 'ArrowUp' && shown < top) { e.preventDefault(); change(shown + 1); }
+            else if (e.key === 'ArrowDown' && shown > 1) { e.preventDefault(); change(shown - 1); }
+          }} />
+        <button type="button" aria-label="Increase quantity" onClick={() => change(Math.min(top, shown + 1))} disabled={shown >= top}><PlusIcon size={15} /></button>
+      </span>
+      {!onLimit && note && <small className={s.qtyNote} role="status">{note}</small>}
+    </span>
   );
 }
 
