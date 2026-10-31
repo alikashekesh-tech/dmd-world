@@ -9,8 +9,8 @@ Local development only (branch `laravel-migration`). Nothing here has been pushe
 | 3 | Product variations, Buy Used, WhatsApp on product cards | Done | `bcb8ab3` |
 | 4 | Weekly Offers (homepage, admin state filter, exact offer timing), Whish Money (manual payment, admin confirmation) | Done | `504c6fe` |
 | 5 | Phone numbers, back-in-stock, abandoned checkout, order notifications, add-ons, messaging | Done | `08329c0` |
-| 6 | Shopping assistant (catalog-grounded, AI-ready), GA4, admin analytics | Done | the Phase 6 checkpoint commit |
-| 7 | Full QA and final report | Not started | — |
+| 6 | Shopping assistant (catalog-grounded, AI-ready), GA4, admin analytics | Done | `95b87f6` |
+| 7 | Full QA and final report (`docs/dmd-world-upgrade-report.md`) | Done | the Phase 7 commit |
 
 ## Known blockers and decisions
 

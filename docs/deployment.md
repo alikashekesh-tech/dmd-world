@@ -46,7 +46,9 @@ Start from `backend/.env.example`. Never commit it; `chmod 640`, owned by the de
 | `TRUSTED_PROXIES` | `127.0.0.1,::1` (Caddy on the same machine; its address otherwise) |
 | `DB_*` | the app's own MySQL account with rights on `dmd_world` only (`php artisan db:provision` creates it) |
 | `HASH_DRIVER` | `argon2id` |
-| `MAIL_MAILER` + `MAIL_*` | your SMTP provider. Until it is set, emails (resets, confirmations, replies, back-in-stock) are only logged |
+| `MAIL_MAILER` + `MAIL_*` | your SMTP provider. Until it is set, emails (resets, confirmations, order updates, replies, back-in-stock, checkout reminders) are only logged |
+| `MESSAGING_DRIVER` | `none` (default): no WhatsApp/SMS is sent. A provider driver and its credentials are added only once one is chosen (see `docs/enhancements-progress.md`) |
+| `ASSISTANT_DRIVER` | `none` (default): the shopping assistant answers from the catalog only and nothing is billed. An AI provider is added only once approved, with a budget set in Admin › Settings |
 | `LOG_LEVEL` | `warning` |
 | `STORE_TIMEZONE` | `Asia/Beirut` |
 | `IMPORT_WOO_*` | only during the go-live import (step 6); remove afterwards |
@@ -81,7 +83,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now dmd-world-scheduler.timer dmd-world-backup.timer
 ```
 
-- **Scheduler:** runs `php artisan schedule:run` every minute (today: `dmd:stock-alerts` every 10 minutes, which retries back-in-stock emails a mail failure left behind). No queue worker is needed: emails are sent during the request, after the data is saved.
+- **Scheduler:** runs `php artisan schedule:run` every minute (today, every 10 minutes: `dmd:stock-alerts`, which retries back-in-stock messages a failure left behind, and `dmd:checkout-reminders`, which sends the checkout reminders customers asked for once the owner switches them on). No queue worker is needed: emails are sent during the request, after the data is saved.
 - **Backups:** `deploy/dmd-backup.sh` dumps MySQL (`--single-transaction`, no shop downtime) and archives the uploads nightly into `/var/backups/dmd-world`, keeping 14 days. Give it its own read-only MySQL account in `/etc/dmd-world/backup.cnf` (see the script) and copy the backups off the server. **Test a restore** on another machine before go-live:
 
   ```bash
