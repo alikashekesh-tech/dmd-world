@@ -4,7 +4,7 @@ import { useApi } from '../lib/hooks.js';
 import { num } from '../lib/format.js';
 import { Button, Field, Icon, Notice, PageHeader, PasswordInput, PasswordRules, SkeletonRows, Toggle, passwordOk, useUi } from '../ui/kit.jsx';
 
-const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'whish_note', 'delivery_fee'];
+const KEYS = ['store_name', 'contact_phone', 'contact_email', 'order_notification_email', 'order_notification_phone', 'notify_customers_status', 'checkout_reminders_enabled', 'checkout_reminder_delay_minutes', 'low_stock_threshold', 'reviews_enabled', 'reviews_require_purchase', 'coupons_enabled', 'payment_methods', 'delivery_methods', 'bank_transfer_note', 'whish_note', 'delivery_fee'];
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function Settings({ session }) {
@@ -17,6 +17,7 @@ export default function Settings({ session }) {
   const [pwBusy, setPwBusy] = useState(false);
   const [pwErr, setPwErr] = useState('');
   const stored = data?.data;
+  const messaging = data?.meta?.messaging || {}; // which WhatsApp/SMS texts can actually go out
   const staff = session.owner?.role === 'staff';
   useEffect(() => {
     if (!stored) return;
@@ -42,6 +43,8 @@ export default function Settings({ session }) {
       if ('whish_note' in body) body.whish_note = body.whish_note || null;
       if ('delivery_fee' in body) body.delivery_fee = body.delivery_fee === '' || body.delivery_fee == null ? null : Number(body.delivery_fee);
       if ('order_notification_email' in body) body.order_notification_email = body.order_notification_email?.trim() || null;
+      if ('order_notification_phone' in body) body.order_notification_phone = body.order_notification_phone?.trim() || null;
+      if ('checkout_reminder_delay_minutes' in body) body.checkout_reminder_delay_minutes = Number(body.checkout_reminder_delay_minutes);
       const r = await api.put('/settings', body);
       setData(r);
       changed('settings');
@@ -108,11 +111,16 @@ export default function Settings({ session }) {
             </div>
           </section>
           <section className="surface">
-            <div className="surface-head"><div><h3>Order emails</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Private: never shown in the shop.</p></div></div>
-            <div className="surface-body">
+            <div className="surface-head"><div><h3>Order notifications</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Your email and number here are private: never shown in the shop, and separate from the public contact details above.</p></div></div>
+            <div className="surface-body stack">
               <Field label="Email me each new order at" hint="Every order placed in the shop is emailed here with the customer, items and total. Leave empty for no email.">
                 <input className="input" type="email" value={vals.order_notification_email || ''} onChange={set('order_notification_email')} placeholder="you@example.com" />
               </Field>
+              <Field label="WhatsApp me each new order at" hint={messaging.whatsapp ? 'A short WhatsApp message for every new order. Leave empty for none.' : 'Saved for when a WhatsApp provider is connected to the store. Until then nothing is sent to this number.'}>
+                <input className="input" type="tel" value={vals.order_notification_phone || ''} onChange={set('order_notification_phone')} placeholder="+961 70 123 456" />
+              </Field>
+              <Toggle label="Email customers when their order is confirmed, sent out, completed, cancelled or paid" checked={vals.notify_customers_status} onChange={set('notify_customers_status')} />
+              <p className="muted" style={{ fontSize: 12.5 }}>The order confirmation email always goes. {messaging.whatsapp ? 'Customers can also ask for updates on WhatsApp at checkout.' : 'WhatsApp and SMS updates need a messaging provider, which isn’t connected yet.'}</p>
             </div>
           </section>
           <section className="surface">
@@ -138,6 +146,18 @@ export default function Settings({ session }) {
                 </Field>
               )}
               <Toggle label="Discount codes can be used" checked={vals.coupons_enabled} onChange={set('coupons_enabled')} />
+            </div>
+          </section>
+          <section className="surface">
+            <div className="surface-head"><div><h3>Unfinished checkouts</h3><p className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Customers can tick “remind me” at checkout. Nothing is kept for anyone who doesn’t.</p></div></div>
+            <div className="surface-body stack">
+              <Toggle label="Offer one reminder email for an unfinished checkout" checked={vals.checkout_reminders_enabled} onChange={set('checkout_reminders_enabled')} />
+              {vals.checkout_reminders_enabled && (
+                <Field label="Send it after (minutes)" hint="Minutes since the customer’s last change, from 15 to 10080 (7 days). It never goes if they order first, and only once.">
+                  <input className="input mono" type="number" min="15" max="10080" style={{ maxWidth: 140 }} value={vals.checkout_reminder_delay_minutes} onChange={set('checkout_reminder_delay_minutes')} />
+                </Field>
+              )}
+              <a className="linkish" href="#/follow-ups?view=checkouts" style={{ fontSize: 13 }}>See unfinished checkouts and results</a>
             </div>
           </section>
           {n > 0 && (

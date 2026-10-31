@@ -64,8 +64,11 @@ export function chooseOption(p, selected, name, value) {
 }
 
 /** The first choice to show: the only value of an option, and nothing else (the buyer picks the rest). */
-export function initialSelection(p) {
+export function initialSelection(p, variantId = null) {
   if (!isVariable(p)) return {};
+  // A link to one variant (a back-in-stock email): that variant's options, when it's still sold.
+  const linked = variantId != null ? p.variants.find((v) => String(v.id) === String(variantId)) : null;
+  if (linked) return Object.fromEntries(p.attributes.map((a) => [a.name, valueOf(linked.options, a.name)]).filter(([, value]) => value != null));
   const sel = {};
   for (const a of p.attributes) {
     const values = a.values.filter((value) => p.variants.some((v) => same(valueOf(v.options, a.name), value)));

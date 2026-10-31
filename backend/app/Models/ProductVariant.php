@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\StockAlerts;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ class ProductVariant extends Model
         static::saving(function (ProductVariant $variant) {
             $variant->live_options_key = $variant->deleted_at === null ? $variant->options_key : null;
         });
+        static::saved(fn (ProductVariant $variant) => StockAlerts::afterVariantChange($variant)); // tells buyers waiting for it
         static::deleted(function (ProductVariant $variant) {
             if (! $variant->isForceDeleting()) {
                 $variant->quietly()->update(['live_options_key' => null]);

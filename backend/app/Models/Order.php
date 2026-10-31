@@ -44,7 +44,7 @@ class Order extends Model
     {
         return [
             'subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'shipping_total' => 'decimal:2', 'total' => 'decimal:2',
-            'placed_at' => 'datetime', 'completed_at' => 'datetime', 'cancelled_at' => 'datetime', 'user_id' => 'integer',
+            'placed_at' => 'datetime', 'completed_at' => 'datetime', 'cancelled_at' => 'datetime', 'dispatched_at' => 'datetime', 'updates_by_phone' => 'boolean', 'user_id' => 'integer',
         ];
     }
 

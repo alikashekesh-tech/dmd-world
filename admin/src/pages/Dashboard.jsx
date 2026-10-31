@@ -245,7 +245,7 @@ function NeedsYou({ a }) {
     { key: 'reviews', n: a.reviews, tone: 'violet', icon: 'star', label: 'Reviews to approve', text: 'Hidden until you approve them', to: '/reviews?status=pending' },
     { key: 'hold', n: a.onHold, tone: 'violet', icon: 'clock', label: 'Orders on hold', text: 'Waiting on payment or stock', to: '/orders?status=on_hold' },
     { key: 'ending', n: a.ending, tone: 'blue', icon: 'percent', label: 'Offers ending soon', text: 'Within the next 3 days', to: '/offers' },
-    { key: 'waiting', n: a.stockAlerts, tone: 'blue', icon: 'bell', label: 'Customers waiting on stock', text: 'Restocking emails them', to: '/inventory?level=out' },
+    { key: 'waiting', n: a.stockAlerts, tone: 'blue', icon: 'bell', label: 'Customers waiting on stock', text: 'Restocking tells them; see who asked', to: '/follow-ups' },
   ];
   const open = items.filter((i) => i.n > 0);
   const clear = items.filter((i) => !i.n);

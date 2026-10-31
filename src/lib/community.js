@@ -45,10 +45,17 @@ export const messages = {
   unread: async () => (await laravelApi.get('/account/conversations/unread')).unread,
 };
 
-/** Products the buyer is still waiting for (ones already emailed about drop out, as the email has gone). */
-const waiting = (rows) => rows.filter((a) => !a.notified_at).map((a) => String(a.product_id));
+/** "12|0" for the product itself, "12|40" for one of its variants. */
+export const alertKey = (id, variant) => `${id}|${variant || 0}`;
+/** What the buyer is still waiting for ({ key, id, variant, channel }); ones they were already told about drop out. */
+const waiting = (rows) => rows.filter((a) => !a.notified_at).map((a) => ({ key: alertKey(a.product_id, a.variant_id), id: String(a.product_id), variant: a.variant_id ?? null, channel: a.channel || 'email' }));
 export const alerts = {
   list: async () => waiting((await laravelApi.get('/account/stock-alerts')).data),
-  add: async (id) => waiting((await laravelApi.post('/account/stock-alerts', { product_id: Number(id) })).data),
-  remove: async (id) => { await laravelApi.del(`/account/stock-alerts/${encodeURIComponent(id)}`); return alerts.list(); },
+  add: async (id, variant = null) => waiting((await laravelApi.post('/account/stock-alerts', { product_id: Number(id), variant_id: variant ? Number(variant) : null })).data),
+  /** Stops waiting for the product (every variant), or only for one variant of it. */
+  remove: async (id, variant = null) => { await laravelApi.del(`/account/stock-alerts/${encodeURIComponent(id)}${variant ? `?variant_id=${encodeURIComponent(variant)}` : ''}`); return alerts.list(); },
+  /** "Notify me when it's available" from the product page, signed in or not: { product_id, variant_id, channel, email|phone, consent }. */
+  request: async (body) => (await laravelApi.post('/stock-alerts', body)).data,
+  /** Withdraws a request with its private token. */
+  cancel: async (token) => { await laravelApi.del(`/stock-alerts/${encodeURIComponent(token)}`); },
 };

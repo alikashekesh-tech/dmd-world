@@ -186,6 +186,11 @@ final class ProductService
             $product->categories()->sync(collect($ids)->mapWithKeys(fn ($id) => [$id => ['is_primary' => $id === (int) $primary]])->all());
         }
 
+        if (array_key_exists('addon_ids', $data)) {
+            $ids = array_values(array_diff(array_unique(array_map('intval', $data['addon_ids'] ?? [])), [$product->id]));
+            $product->addons()->sync(collect($ids)->mapWithKeys(fn ($id, $position) => [$id => ['position' => $position]])->all());
+        }
+
         if (array_key_exists('images', $data)) {
             $product->images()->delete();
             foreach (array_values($data['images']) as $position => $image) {

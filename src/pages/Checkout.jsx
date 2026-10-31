@@ -7,7 +7,7 @@ import LineArt from '../components/art/LineArt.jsx';
 import { OrderSummary } from './Cart.jsx';
 import { LockIcon, CheckIcon, ArrowRight, CloseIcon } from '../components/common/icons.jsx';
 import { account } from '../lib/account.js';
-import { orders } from '../lib/orders.js';
+import { orders, recovery } from '../lib/orders.js';
 import { usePageMeta } from '../lib/meta.js';
 import { useQuote } from '../lib/useQuote.js';
 import { lineRef } from '../lib/variants.js';
@@ -81,6 +81,10 @@ export default function Checkout() {
   const [busy, setBusy] = useState(false);
   const [codeInput, setCodeInput] = useState('');
   const [coupon, setCoupon] = useState('');
+  // Offered only when the owner switched them on (reminders) or a WhatsApp provider is set up (updates); never ticked for the buyer.
+  const [offers, setOffers] = useState({ reminders: false, phoneUpdates: false });
+  const [remind, setRemind] = useState(() => !!recovery.token());
+  const [updatesByPhone, setUpdatesByPhone] = useState(false);
   const attempt = useRef(newKey()); // one key per checkout: a retried submit can't create a second order
   // Laravel: a signed-in buyer delivers to one of their saved addresses (the default is preselected) or a new one.
   const [saved, setSaved] = useState([]);
@@ -103,9 +107,19 @@ export default function Checkout() {
   }, [buyer]);
   useEffect(() => {
     orders.options()
-      .then((r) => { setPayments(r.payments); setPayment(r.payments[0]?.id || 'cod'); setCouponsOn(r.coupons !== false); })
+      .then((r) => { setPayments(r.payments); setPayment(r.payments[0]?.id || 'cod'); setCouponsOn(r.coupons !== false); setOffers({ reminders: r.reminders, phoneUpdates: r.phoneUpdates }); })
       .catch(() => setPayments(FALLBACK_PAYMENTS));
   }, []);
+  // "Remind me": while ticked (and the email looks right) the checkout is saved a moment after each change; unticking
+  // withdraws it on the server.
+  const remindOn = offers.reminders && remind;
+  const cartKey = lines.map((l) => `${l.key}:${l.qty}`).join(',');
+  useEffect(() => {
+    if (!remindOn || !lines.length || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim())) return undefined;
+    const t = setTimeout(() => { recovery.save({ items: lines, firstName: f.firstName.trim(), email: f.email.trim() }).catch(() => {}); }, 1200);
+    return () => clearTimeout(t);
+  }, [remindOn, cartKey, f.email, f.firstName]); // eslint-disable-line react-hooks/exhaustive-deps -- lines follow cartKey
+  const toggleRemind = (on) => { setRemind(on); if (!on) recovery.withdraw(); };
 
   if (lines.length === 0) return (
     <>
@@ -151,7 +165,9 @@ export default function Checkout() {
         method, payment, note: f.note, saveAddress: !!buyer && saveAddress, coupon: coupon || undefined,
         address: { address_1: f.address_1, address_2: f.address_2, city: f.city, country: 'LB' },
         addressId: addressId !== 'new' ? addressId : undefined,
+        recoveryToken: recovery.token() || undefined, updatesByPhone: offers.phoneUpdates && updatesByPhone,
       });
+      recovery.forget(); // ordered: the server closed it, so no reminder goes
       try { sessionStorage.removeItem(DRAFT); } catch { /* ignore */ }
       nav(`/order/${r.id}`);
     } catch (x) {
@@ -178,6 +194,13 @@ export default function Checkout() {
               <Field label="Last name" name="lastName" value={f.lastName} onChange={set} error={errors.lastName} auto="family-name" />
               <Field label="Email" name="email" type="email" value={f.email} onChange={set} error={errors.email} auto="email" inputMode="email" />
               <Field label="Phone" name="phone" type="tel" value={f.phone} onChange={set} error={errors.phone} auto="tel" placeholder="+961 …" inputMode="tel" />
+              {offers.phoneUpdates && <label className={`${s.check} ${s.wide}`}><input type="checkbox" checked={updatesByPhone} onChange={(e) => setUpdatesByPhone(e.target.checked)} />Send me updates about this order on WhatsApp too</label>}
+              {offers.reminders && (
+                <label className={`${s.check} ${s.consent} ${s.wide}`}>
+                  <input type="checkbox" checked={remind} onChange={(e) => toggleRemind(e.target.checked)} />
+                  <span>Email me one reminder if I don’t finish this order<small>Only your first name, email and cart are kept for it, until you order or untick this.</small></span>
+                </label>
+              )}
               {!buyer && <p className={`${s.hint} ${s.wide}`}>Have an account? <Link to={authUrl(SIGN_IN, '/checkout')} className={s.a}>Sign in</Link> to use saved details and see this order in your history.</p>}
             </div>
           </section>

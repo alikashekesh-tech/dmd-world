@@ -33,6 +33,9 @@ class Product extends Model
 
     public const TYPES = ['simple', 'variable'];
 
+    /** Recommended add-ons per product: a short, chosen list, not a second catalog. */
+    public const MAX_ADDONS = 8;
+
     /**
      * A used product's condition (Buy Used), best first; a product without one is new. The descriptions are what the
      * storefront shows buyers: how the item looks, nothing more (its condition notes say the rest), the same on every product.
@@ -91,6 +94,12 @@ class Product extends Model
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class)->withPivot('is_primary');
+    }
+
+    /** Recommended add-ons the owner picked ("Complete your setup"), in their order. Only ever added by the buyer. */
+    public function addons(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'product_addons', 'product_id', 'addon_id')->withPivot('position')->orderBy('product_addons.position');
     }
 
     public function images(): HasMany

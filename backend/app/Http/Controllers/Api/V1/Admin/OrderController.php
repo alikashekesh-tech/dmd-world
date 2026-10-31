@@ -83,6 +83,14 @@ class OrderController extends Controller
         return new OrderResource($order->load(['items', 'history.admin:id,name']));
     }
 
+    /** Out for delivery (or ready to collect): noted on the order and the buyer is told. */
+    public function dispatch(Request $request, Order $order): OrderResource
+    {
+        $this->orders->dispatch($order, $request->user('admin'));
+
+        return new OrderResource($order->load(['items', 'history.admin:id,name']));
+    }
+
     /** The order's delivery price (the total follows). Not for pickup orders, which are free. */
     public function delivery(Request $request, Order $order): OrderResource
     {

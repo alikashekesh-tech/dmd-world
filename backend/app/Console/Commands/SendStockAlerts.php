@@ -19,7 +19,7 @@ class SendStockAlerts extends Command
     public function handle(StockAlerts $alerts): int
     {
         $sent = $alerts->sendAll();
-        $pruned = StockAlert::whereNotNull('notified_at')->where('notified_at', '<', now()->subDays(90))->delete();
+        $pruned = StockAlert::where(fn ($q) => $q->where('notified_at', '<', now()->subDays(90))->orWhere('cancelled_at', '<', now()->subDays(90)))->delete();
         $this->info("Sent {$sent} back-in-stock email(s); pruned {$pruned} old alert(s).");
 
         return self::SUCCESS;

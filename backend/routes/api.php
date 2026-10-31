@@ -8,10 +8,12 @@ use App\Http\Controllers\Api\V1\Account\StockAlertController;
 use App\Http\Controllers\Api\V1\Account\WishlistController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
+use App\Http\Controllers\Api\V1\BackInStockController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\CheckoutController;
+use App\Http\Controllers\Api\V1\CheckoutRecoveryController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -82,10 +84,18 @@ Route::middleware('auth:sanctum')->group(function () {
 /* ── cart, checkout and orders (guests too: a guest opens their order with the private token from checkout) ── */
 Route::get('checkout/options', [CheckoutController::class, 'options'])->name('checkout.options');
 Route::post('cart/quote', [CheckoutController::class, 'quote'])->middleware('throttle:quote')->name('cart.quote');
+// "Remind me if I don't finish": saved only with the customer's consent, under a private token.
+Route::put('checkout/recovery', [CheckoutRecoveryController::class, 'save'])->middleware(['session', 'throttle:quote'])->name('checkout.recovery.save');
+Route::get('checkout/recovery/{token}', [CheckoutRecoveryController::class, 'show'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:quote')->name('checkout.recovery.show');
+Route::delete('checkout/recovery/{token}', [CheckoutRecoveryController::class, 'destroy'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:quote')->name('checkout.recovery.destroy');
 Route::post('orders', [CheckoutController::class, 'store'])->middleware(['session', 'throttle:orders'])->name('orders.store');
 Route::get('orders', [OrderController::class, 'index'])->middleware('auth:sanctum')->name('orders.index');
 Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('orders.show');
 Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id')->middleware(['session', 'throttle:cancel'])->name('orders.cancel');
+
+/* ── back in stock: "notify me when it's available", for guests too (by email or phone, with their consent) ── */
+Route::post('stock-alerts', [BackInStockController::class, 'store'])->middleware(['session', 'throttle:stock-alerts'])->name('back-in-stock.store');
+Route::delete('stock-alerts/{token}', [BackInStockController::class, 'destroy'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:stock-alerts')->name('back-in-stock.destroy');
 
 /* ── live chat (guests too: a guest's browser sends its private key as X-Chat-Token) ── */
 Route::get('chat', [ChatController::class, 'show'])->name('chat.show');

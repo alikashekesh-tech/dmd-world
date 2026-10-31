@@ -56,3 +56,6 @@
 .couponOn b { font-family: var(--font-mono); letter-spacing: .08em; }
 .couponOn button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; color: #b9f5cf; }
 .couponOn button:hover { background: rgba(255, 255, 255, .1); }
+.consent { align-items: flex-start; }
+.consent input { margin-top: 2px; }
+.consent small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--muted); }

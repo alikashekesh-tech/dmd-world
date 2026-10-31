@@ -43,6 +43,8 @@ export function fromApi(p, { brandSlug, offersId }) {
     condition: p.condition || null,
     conditionNote: p.condition_note || '',
     used: !!p.condition || detail.some((n) => n.trim().toLowerCase() === 'used'),
+    // Recommended add-ons the owner picked, in order: offered beside it, only ever added by the buyer.
+    addons: Array.isArray(p.addon_ids) ? p.addon_ids.map(String) : [],
   };
 }
 

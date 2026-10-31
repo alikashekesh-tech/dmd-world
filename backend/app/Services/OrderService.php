@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class OrderService
 {
-    public function __construct(private Inventory $inventory) {}
+    public function __construct(private Inventory $inventory, private OrderNotifier $notifier) {}
 
     /** $restock: for a refund, whether the goods came back and can be sold again (cancelling always returns stock). */
     public function changeStatus(Order $order, string $to, string $actor, ?Admin $admin = null, ?string $note = null, ?User $buyer = null, bool $restock = true): Order
@@ -70,6 +70,9 @@ final class OrderService
 
             $order->setRawAttributes($locked->getAttributes(), true);
             Catalog::bust(); // best-seller counts follow paid and cancelled orders
+            if ($actor !== 'buyer') { // the buyer who cancelled knows; the owner's changes are told to the buyer
+                DB::afterCommit(fn () => $this->notifier->statusChanged($locked, $from, $to));
+            }
 
             return $locked;
         });
@@ -83,9 +86,34 @@ final class OrderService
 
     public function setPayment(Order $order, string $status, Admin $admin): Order
     {
+        $was = $order->payment_status;
         $order->forceFill(['payment_status' => $status])->save();
+        if ($status === 'paid' && $was === 'unpaid' && $order->payment_method !== 'cod') {
+            $this->notifier->paymentReceived($order); // a Whish Money or bank transfer that arrived
+        }
         (new OrderStatusEvent)->forceFill(['order_id' => $order->id, 'actor' => 'admin', 'admin_id' => $admin->id, 'note' => "Payment marked {$status}"])->save();
         Activity::record('order.payment', "Marked order #{$order->number} as {$status}", $order, $admin);
+
+        return $order;
+    }
+
+    /**
+     * The order left for delivery (or, for pickup, is ready to collect): noted once, and the buyer is told. Only for an
+     * order being prepared (confirmed), never one still waiting, cancelled or already finished.
+     */
+    public function dispatch(Order $order, Admin $admin): Order
+    {
+        if ($order->dispatched_at) {
+            return $order;
+        }
+        if ($order->status !== 'processing') {
+            throw new ApiException(409, 'NOT_DISPATCHABLE', 'Confirm the order (mark it processing) before sending it out.');
+        }
+        $pickup = $order->delivery_method === 'pickup';
+        $order->forceFill(['dispatched_at' => now()])->save();
+        (new OrderStatusEvent)->forceFill(['order_id' => $order->id, 'actor' => 'admin', 'admin_id' => $admin->id, 'note' => $pickup ? 'Ready to collect' : 'Out for delivery'])->save();
+        Activity::record('order.dispatched', "Marked order #{$order->number} ".($pickup ? 'ready to collect' : 'out for delivery'), $order, $admin);
+        $this->notifier->dispatched($order);
 
         return $order;
     }

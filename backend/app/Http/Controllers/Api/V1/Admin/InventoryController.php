@@ -26,7 +26,7 @@ class InventoryController extends Controller
     {
         $v = $request->validate(['level' => ['nullable', 'in:out,low,in,untracked'], 'q' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
         $q = Product::query()->with(['images:id,product_id,url,alt,position', 'brand:id,name', 'variants'])
-            ->withCount(['stockAlerts as waiting' => fn ($a) => $a->whereNull('notified_at')]);
+            ->withCount(['stockAlerts as waiting' => fn ($a) => $a->waiting()]);
         if (! empty($v['level'])) {
             ProductQuery::stockLevel($q, $v['level']);
         }

@@ -54,6 +54,8 @@ class ProductResource extends JsonResource
                 : null,
             'published_at' => $this->published_at?->toDateString(),
             'type' => $this->type ?? 'simple',
+            // Recommended add-ons the owner picked, in order (the storefront shows those it can sell, never adds them itself).
+            'addon_ids' => $this->relationLoaded('addons') ? $this->addons->pluck('id')->values() : [],
             // Buy Used: like_new | excellent | good | fair, or null for a new product; the note describes this one item.
             'condition' => $this->condition,
             'condition_note' => $this->condition !== null ? $this->condition_note : null,

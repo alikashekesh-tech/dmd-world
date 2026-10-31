@@ -40,6 +40,12 @@ test('a value no variant uses is not offered at all', () => {
   assert.deepEqual(initialSelection(desk), {}); // otherwise the buyer chooses
 });
 
+test('a link to one variant opens with its options chosen', () => {
+  assert.deepEqual(initialSelection(desk, '4'), { Colour: 'White', Width: '160 cm' }); // the sold-out one a buyer waited for
+  assert.deepEqual(initialSelection(desk, 4), { Colour: 'White', Width: '160 cm' });
+  assert.deepEqual(initialSelection(desk, '99'), {}); // no longer sold: the buyer chooses
+});
+
 test('labels follow the product’s option order', () => {
   assert.deepEqual(optionList(desk, desk.variants[2]), [['Colour', 'White'], ['Width', '140 cm']]);
   assert.equal(variantLabel(desk, desk.variants[2]), 'White / 140 cm');

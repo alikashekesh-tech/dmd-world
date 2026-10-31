@@ -70,7 +70,7 @@ function InvRow({ p: initial, focus }) {
   return (
     <>
     <tr ref={ref} className={focus ? 'focus' : ''}>
-      <td><div className="cell-main"><Thumb src={p.image} /><div style={{ minWidth: 0 }}><b><a href={`#/products/${p.id}`}>{p.name}</a></b><small>{p.sku ? `SKU ${p.sku}` : `ID ${p.id}`} · {money(p.price)}{p.status !== 'published' ? ` · ${p.status}` : ''}</small>{p.waiting > 0 && <small className="waiting" title="Customers who asked to be emailed when it's back in stock. Restocking emails them automatically.">{p.waiting} customer{p.waiting === 1 ? '' : 's'} waiting for it</small>}</div></div></td>
+      <td><div className="cell-main"><Thumb src={p.image} /><div style={{ minWidth: 0 }}><b><a href={`#/products/${p.id}`}>{p.name}</a></b><small>{p.sku ? `SKU ${p.sku}` : `ID ${p.id}`} · {money(p.price)}{p.status !== 'published' ? ` · ${p.status}` : ''}</small>{p.waiting > 0 && <small className="waiting" title="Customers who asked to hear when it's back in stock. Email requests go automatically when you restock; WhatsApp ones are listed in Follow-ups.">{p.waiting} customer{p.waiting === 1 ? '' : 's'} waiting for it</small>}</div></div></td>
       <td data-label="Health"><Hp qty={p.stock_quantity} level={p.level} scale={Math.max(20, p.effective_low_stock_threshold * 6)} /></td>
       <td data-label="Stock">
         {variable ? <span className="muted">{p.variants?.length || 0} variants · {p.stock_quantity} in all</span> : tracked ? (
@@ -123,7 +123,7 @@ export default function Inventory({ query }) {
   return (
     <>
       <PageHeader hud={<><span className={`led ${c.out ? 'coral pulse' : c.low ? 'amber' : 'green'}`} />Catalog</>} title="Inventory"
-        text={data ? `${num(c.out || 0)} out of stock, ${num(c.low || 0)} running low.${threshold != null ? ` Alerts start at ${threshold} units unless a product sets its own.` : ''}${waiting ? ` ${num(waiting)} back-in-stock request${waiting === 1 ? '' : 's'} on this page: restocking emails those customers automatically.` : ''}` : 'Stock levels across the catalog.'} />
+        text={data ? `${num(c.out || 0)} out of stock, ${num(c.low || 0)} running low.${threshold != null ? ` Alerts start at ${threshold} units unless a product sets its own.` : ''}${waiting ? ` ${num(waiting)} back-in-stock request${waiting === 1 ? '' : 's'} on this page: restocking emails those customers automatically (WhatsApp requests are in Follow-ups).` : ''}` : 'Stock levels across the catalog.'} />
       <div className="toolbar">
         <Tabs label="Stock level" value={level} onChange={(v) => setQuery({ level: v === 'all' ? null : v, page: null, focus: null })} items={LEVELS.map(([v, l, led]) => ({ value: v, label: l, count: v === 'all' ? undefined : c[v], led: c[v] ? led : undefined }))} />
       </div>

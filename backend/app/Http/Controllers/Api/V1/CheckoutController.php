@@ -7,6 +7,8 @@ use App\Http\Requests\Checkout\PlaceOrderRequest;
 use App\Http\Requests\Checkout\QuoteRequest;
 use App\Http\Resources\OrderResource;
 use App\Services\Checkout;
+use App\Services\CheckoutRecoveries;
+use App\Services\Messaging\Outbox;
 use App\Services\StoreSettings;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +38,8 @@ class CheckoutController extends Controller
                 }])->values(),
             'delivery_methods' => collect(StoreSettings::deliveryMethods())->map(fn ($title, $id) => ['id' => $id, 'title' => $delivery[$id][0], 'description' => $delivery[$id][1]])->values(),
             'coupons_enabled' => (bool) StoreSettings::get('coupons_enabled'),
+            'reminders' => CheckoutRecoveries::enabled(), // offer "remind me if I don't finish"
+            'phone_updates' => app(Outbox::class)->available('whatsapp'), // offer order updates by WhatsApp
         ]]);
     }
 

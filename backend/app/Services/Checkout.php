@@ -192,6 +192,9 @@ final class Checkout
         if ($owner = StoreSettings::get('order_notification_email')) {
             rescue(fn () => Notification::route('mail', $owner)->notify(new NewOrderForOwner($order)));
         }
+        rescue(fn () => app(OrderNotifier::class)->placed($order)); // the owner's WhatsApp, the buyer's if they asked
+        // The checkout they asked to be reminded about (and any other open one of theirs) is done: no reminder follows.
+        rescue(fn () => app(CheckoutRecoveries::class)->ordered($order, $data['recovery_token'] ?? null));
 
         return ['order' => $order, 'guest_token' => $user ? null : $this->guestToken($order, $key), 'replayed' => false];
     }
@@ -228,6 +231,7 @@ final class Checkout
             'delivery_method' => $delivery,
             'first_name' => $contact['first_name'], 'last_name' => $contact['last_name'],
             'email' => User::normalizeEmail($contact['email']), 'phone' => $contact['phone'],
+            'updates_by_phone' => (bool) ($data['updates_by_phone'] ?? false), // order updates by WhatsApp too, if offered
             'ship_country' => $ship['country'] ?? null, 'ship_city' => $ship['city'] ?? null, 'ship_area' => $ship['area'] ?? null,
             'ship_street' => $ship['street'] ?? null, 'ship_building' => $ship['building'] ?? null, 'ship_floor' => $ship['floor'] ?? null,
             'ship_notes' => $ship['notes'] ?? null,

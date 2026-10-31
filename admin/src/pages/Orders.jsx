@@ -119,6 +119,12 @@ export function OrderDetail({ params }) {
     try { const { data } = await api.put(`/orders/${o.id}/payment`, { payment_status: payment }); setO(data); changed('orders'); toast(payment === 'paid' ? 'Marked as paid' : 'Marked as not paid'); } catch (x) { fail(x); }
     setBusy(false);
   };
+  // Out for delivery, or ready to collect: noted on the order, and the customer is emailed (once).
+  const dispatch = async () => {
+    setBusy(true);
+    try { const { data } = await api.post(`/orders/${o.id}/dispatch`); setO(data); changed('orders'); toast(o.delivery_method === 'pickup' ? 'Marked ready to collect' : 'Marked out for delivery'); } catch (x) { fail(x); }
+    setBusy(false);
+  };
   const addNote = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -232,6 +238,13 @@ export function OrderDetail({ params }) {
           <section className="surface">
             <div className="surface-head"><h3><Icon name="truck" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />{o.delivery_method_label}</h3>{lines.length > 0 && <Button size="sm" variant="quiet" icon="link" onClick={() => copy([...lines, o.contact.phone].filter(Boolean))}>Copy</Button>}</div>
             <div className="surface-body address">{lines.map((l, i) => <div key={i}>{l}</div>)}{!lines.length && <span className="muted">{o.delivery_method === 'pickup' ? 'Collects from the store.' : 'No address given.'}</span>}</div>
+            {(o.dispatched_at || o.status === 'processing') && (
+              <div className="surface-body" style={{ paddingTop: 0 }}>
+                {o.dispatched_at
+                  ? <Chip tone="blue">{o.delivery_method === 'pickup' ? 'Ready to collect' : 'Out for delivery'} · {ago(o.dispatched_at)}</Chip>
+                  : <Button size="sm" icon="truck" loading={busy} onClick={dispatch}>{o.delivery_method === 'pickup' ? 'Mark ready to collect' : 'Mark out for delivery'}</Button>}
+              </div>
+            )}
           </section>
           <section className="surface">
             <div className="surface-head"><h3><Icon name="card" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />Payment</h3>{o.payment_status === 'paid' ? <Chip tone="green" led>Paid</Chip> : o.payment_status === 'refunded' ? <Chip tone="muted">Refunded</Chip> : <Chip tone="amber" led>Not paid yet</Chip>}</div>

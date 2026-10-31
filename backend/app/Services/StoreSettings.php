@@ -21,6 +21,10 @@ final class StoreSettings
         'contact_phone' => '+961 70 903 900',
         'contact_email' => 'info@dmdworld.store',
         'order_notification_email' => null, // private: where each new order is emailed (empty = no email)
+        'order_notification_phone' => null, // private: the owner's WhatsApp/SMS number for new orders (needs a messaging provider)
+        'notify_customers_status' => true, // email the buyer when their order is confirmed, sent out, completed, cancelled or paid
+        'checkout_reminders_enabled' => false, // remind buyers who agreed to it about a checkout they didn't finish
+        'checkout_reminder_delay_minutes' => 60, // how long after their last change
         'low_stock_threshold' => 2,
         'reviews_enabled' => true,
         'reviews_require_purchase' => false, // when true, only buyers with a paid order for the product can review it
@@ -49,6 +53,10 @@ final class StoreSettings
             'contact_phone' => ['string', 'max:30', 'regex:/^\+?[0-9][0-9\s().\-]{5,28}$/'],
             'contact_email' => ['string', 'email', 'max:254'],
             'order_notification_email' => ['nullable', 'string', 'email', 'max:254'],
+            'order_notification_phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9][0-9\s().\-]{5,28}$/'],
+            'notify_customers_status' => ['boolean'],
+            'checkout_reminders_enabled' => ['boolean'],
+            'checkout_reminder_delay_minutes' => ['integer', 'min:15', 'max:10080'],
             'low_stock_threshold' => ['integer', 'min:0', 'max:10000'],
             'reviews_enabled' => ['boolean'],
             'reviews_require_purchase' => ['boolean'],

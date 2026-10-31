@@ -49,6 +49,8 @@ class PlaceOrderRequest extends QuoteRequest
             'address.notes' => $text(300),
             'save_address' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:1000'],
+            'recovery_token' => ['nullable', 'string', 'regex:/^[A-Za-z0-9]{40}$/'], // the "remind me" checkout this order completes
+            'updates_by_phone' => ['sometimes', 'boolean'],
         ];
     }
 

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
+use App\Services\StoreSettings;
 use App\Support\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -35,7 +36,12 @@ class OrderPlaced extends Notification
             $mail->line('Delivery: $'.Money::decimal(Money::cents($o->shipping_total)));
         }
 
-        return $mail->line('Total: $'.Money::decimal(Money::cents($o->total)).' ('.(Order::PAYMENT_METHODS[$o->payment_method] ?? $o->payment_method).')')
-            ->action('View your order', config('dmd.frontend_url')."/order/{$o->id}");
+        $mail->line('Total: $'.Money::decimal(Money::cents($o->total)).' ('.(Order::PAYMENT_METHODS[$o->payment_method] ?? $o->payment_method).')');
+        // Paid outside the site: the buyer waits for DMD's details, and the order is processed once the payment arrives.
+        if (in_array($o->payment_method, ['whish', 'bank_transfer'], true) && $o->payment_status === 'unpaid') {
+            $mail->line('Payment: '.(StoreSettings::get($o->payment_method.'_note') ?: StoreSettings::DEFAULTS[$o->payment_method.'_note']));
+        }
+
+        return $mail->action('View your order', config('dmd.frontend_url')."/order/{$o->id}");
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Messaging\Messenger;
+use App\Services\Messaging\NullMessenger;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +19,10 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // WhatsApp/SMS: no provider is configured for the store yet, so nothing can be sent (see Messaging\Messenger).
+        $this->app->singleton(Messenger::class, fn () => match (config('services.messaging.driver')) {
+            default => new NullMessenger,
+        });
     }
 
     public function boot(): void
@@ -80,7 +85,14 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(8)->by('chat-burst:'.($request->user()?->getAuthIdentifier() ?: $request->ip()))->response($tooMany('You’re sending messages quickly. Please wait a moment.')),
             Limit::perHour(60)->by('chat:'.($request->user()?->getAuthIdentifier() ?: $request->ip()))->response($tooMany('You’ve sent a lot of messages. Please wait a little.')),
         ]);
-        RateLimiter::for('stock-alerts', fn (Request $request) => Limit::perHour(40)->by('user:'.$request->user()?->getAuthIdentifier())
-            ->response($tooMany('Too many requests. Please wait a little.')));
+        // Guests ask too (by email or phone), so by account or else by address, and a tighter ceiling per contact.
+        RateLimiter::for('stock-alerts', function (Request $request) use ($tooMany) {
+            $contact = mb_strtolower(trim((string) ($request->input('email') ?: $request->input('phone'))));
+
+            return array_filter([
+                Limit::perHour(40)->by('user:'.($request->user()?->getAuthIdentifier() ?: 'guest:'.$request->ip()))->response($tooMany('Too many requests. Please wait a little.')),
+                $contact !== '' ? Limit::perHour(15)->by('contact:'.sha1($contact))->response($tooMany('Too many requests for this contact. Please wait a little.')) : null,
+            ]);
+        });
     }
 }

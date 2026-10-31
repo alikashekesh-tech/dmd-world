@@ -51,7 +51,8 @@ class ProductResource extends JsonResource
             'image' => $this->relationLoaded('images') ? $this->images->first()?->url : null,
             'images' => $this->relationLoaded('images') ? $this->images->map(fn ($i) => ['id' => $i->id, 'url' => $i->url, 'alt' => $i->alt, 'position' => $i->position])->values() : [],
             'video_url' => $this->video_url,
-            'specifications' => $detail ? $this->specifications->map(fn ($s) => ['name' => $s->name, 'value' => $s->value])->values() : null,
+            'addon_ids' => $this->when($detail, fn () => $this->addons()->pluck('products.id')->values()), // recommended add-ons, in order
+            'specifications' => $detail ?$this->specifications->map(fn ($s) => ['name' => $s->name, 'value' => $s->value])->values() : null,
             'short_description' => $this->when($detail, $this->short_description),
             'description' => $this->when($detail, $this->description),
             'weight_kg' => $this->weight_kg !== null ? (float) $this->weight_kg : null,

@@ -176,12 +176,15 @@ export function StoreProvider({ children }) {
         .catch((e) => { dispatch({ type: 'wish', id }); setToast(e.status === 404 ? 'That product isn’t available any more.' : 'Couldn’t save your wishlist. Check your connection.'); });
     }
   }, [state.wishlist, buyer]);
-  /** Back-in-stock email for a sold-out product (signed-in buyers). */
-  const toggleAlert = useCallback(async (id) => {
-    const on = alerts.includes(String(id));
-    setAlerts(await (on ? community.alerts.remove(id) : community.alerts.add(id)));
+  /** Back-in-stock email for a sold-out product, or one variant of it (signed-in buyers). Without a variant, removing
+      stops every request for the product (the account's list). */
+  const toggleAlert = useCallback(async (id, variant = null) => {
+    const on = alerts.some((a) => (variant ? a.key === community.alertKey(id, variant) : a.id === String(id)));
+    setAlerts(await (on ? community.alerts.remove(id, variant) : community.alerts.add(id, variant)));
     return !on;
   }, [alerts]);
+  const refreshAlerts = useCallback(async () => { if (buyer) setAlerts(await community.alerts.list()); }, [buyer]);
+  const alertIds = useMemo(() => [...new Set(alerts.map((a) => a.id))], [alerts]); // products waited for, for the account
 
   /** Places the order. Prices and stock are checked by the server, never trusted from here.
       The idempotency key makes a retried submit (double tap, dropped connection) return the same order. */
@@ -221,10 +224,13 @@ export function StoreProvider({ children }) {
     user: buyer ? { name: nameOf(buyer), email: buyer.email } : null,
     signIn, register, signOut, signedIn,
     orders, ordersMore, loadMoreOrders, refreshOrders, updateOrder, placeOrder,
-    alerts, toggleAlert, hasAlert: (id) => alerts.includes(String(id)),
+    alerts: alertIds, toggleAlert, refreshAlerts,
+    // Waiting for this product (any of its variants), or, given a variant, for that one: the request, or null.
+    alertFor: (id, variant = null) => alerts.find((a) => (variant ? a.key === community.alertKey(id, variant) : a.key === community.alertKey(id, null))) || null,
+    hasAlert: (id) => alertIds.includes(String(id)),
     unread, refreshInbox: loadInbox,
     catalogVersion: version,
-  }), [state, lines, count, subtotal, savings, shipping, drawer, toast, addToCart, toggleWish, buyer, accounts, sessionError, checkSession, signIn, register, signOut, signedIn, orders, ordersMore, loadMoreOrders, refreshOrders, updateOrder, placeOrder, alerts, toggleAlert, unread, loadInbox, version]);
+  }), [state, lines, count, subtotal, savings, shipping, drawer, toast, addToCart, toggleWish, buyer, accounts, sessionError, checkSession, signIn, register, signOut, signedIn, orders, ordersMore, loadMoreOrders, refreshOrders, updateOrder, placeOrder, alerts, alertIds, toggleAlert, refreshAlerts, unread, loadInbox, version]);
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }

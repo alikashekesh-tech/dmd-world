@@ -4,7 +4,7 @@ import { navigate, setQuery } from '../lib/router.jsx';
 import { useApi, useDebounced } from '../lib/hooks.js';
 import { money, ago, toInputDate, fromInputDate } from '../lib/format.js';
 import { productFromApi, useCatalogLists } from '../lib/catalog.js';
-import { Button, Chip, Check, Empty, Field, Hp, Icon, Notice, PageHeader, Pager, SearchBox, SkeletonRows, Tabs, Thumb, Toggle, useUi, CategoryPicker } from '../ui/kit.jsx';
+import { Button, Chip, Check, Empty, Field, Hp, Icon, Notice, PageHeader, Pager, SearchBox, SkeletonRows, Tabs, Thumb, Toggle, useUi, CategoryPicker, ProductPicker } from '../ui/kit.jsx';
 import VariantEditor, { variantRow } from './products/VariantEditor.jsx';
 import { cleanOptions } from '../lib/variants.js';
 
@@ -143,7 +143,8 @@ export function ProductsPage({ query }) {
 
 /* ── editor ──────────────────────────────────────────────────────────── */
 const EMPTY = { name: '', status: 'draft', is_featured: false, description: '', short_description: '', sku: '', regular_price: '', sale_price: '', sale_starts_at: '', sale_ends_at: '', track_stock: true, stock_quantity: 0, low_stock_threshold: '', stock_status: 'in_stock', brand_id: '', category_ids: [], images: [], video_url: '', delivery_fee: '',
-  variable: false, options: [], variants: [], condition: '', condition_note: '', specs: [] };
+  variable: false, options: [], variants: [], condition: '', condition_note: '', specs: [], addon_ids: [] };
+const MAX_ADDONS = 8;
 const MAX_IMAGES = 12;
 /** The YouTube video id in a watch, youtu.be, shorts or embed link (the server checks the link again). */
 const youtubeId = (url) => /^https:\/\/(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/.exec(url || '')?.[1] || null;
@@ -156,6 +157,7 @@ const fromProduct = (p) => ({
   delivery_fee: p.delivery_fee != null ? String(p.delivery_fee) : '',
   variable: p.type === 'variable', options: (p.attributes || []).map((a) => ({ name: a.name, values: [...a.values] })), variants: (p.variants || []).map(variantRow),
   condition: p.condition || '', condition_note: p.condition_note || '', specs: (p.specifications || []).map((x) => ({ name: x.name, value: x.value })),
+  addon_ids: (p.addon_ids || []).map(Number),
 });
 const num = (v) => (v === '' || v == null ? null : Number(v));
 /** The form → what the API takes (empty strings become null; the stock count is only sent when it changed). */
@@ -171,6 +173,7 @@ const toBody = (f, initial) => ({
   condition: f.condition || null, condition_note: f.condition ? f.condition_note.trim() || null : null,
   // Specifications are replaced as a whole on the server: only sent when they changed.
   ...(JSON.stringify(f.specs) !== JSON.stringify(initial.specs) ? { specifications: f.specs.filter((x) => x.name.trim() && x.value.trim()).map((x) => ({ name: x.name.trim(), value: x.value.trim() })) } : {}),
+  ...(JSON.stringify(f.addon_ids) !== JSON.stringify(initial.addon_ids) ? { addon_ids: f.addon_ids } : {}),
   ...(f.variable ? variableBody(f, initial) : initial.variable ? { type: 'simple' } : {}),
 });
 /** A product sold in variants: its options and variants. A variant's stock is only sent when it's new or was changed
@@ -449,6 +452,11 @@ export function ProductEditor({ params }) {
             </Field>
             <Field label="Categories" hint="The first one ticked is the main category.">
               {lists.ready ? <CategoryPicker categories={lists.categories} value={form.category_ids} onChange={set('category_ids')} maxHeight={260} /> : <SkeletonRows rows={3} />}
+            </Field>
+          </section>
+          <section className="surface surface-body stack">
+            <Field label="Recommended add-ons" hint={`Shown as “Complete your setup” on this product’s page and in the cart. Customers add them only if they choose to. Up to ${MAX_ADDONS}, in this order.`}>
+              <ProductPicker value={form.addon_ids} onChange={(ids) => set('addon_ids')(ids.map(Number).filter((id) => id !== Number(product?.id)).slice(0, MAX_ADDONS))} placeholder="Search products to recommend…" />
             </Field>
           </section>
           {!isNew && !archived && <Button variant="danger" icon="trash" onClick={archive}>Archive</Button>}

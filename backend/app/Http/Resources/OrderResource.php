@@ -47,6 +47,8 @@ class OrderResource extends JsonResource
             'cancellable_until' => $this->status === 'pending' ? $this->buyerCancelDeadline()?->toIso8601String() : null, // 24 h after ordering
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'cancel_reason' => $this->cancel_reason,
+            'dispatched_at' => $this->dispatched_at?->toIso8601String(), // out for delivery, or ready to collect
+            'updates_by_phone' => (bool) $this->updates_by_phone,
         ];
     }
 }

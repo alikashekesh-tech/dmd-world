@@ -90,7 +90,7 @@ final class Analytics
                 'reviews' => Review::query()->where('status', 'pending')->count(),
                 'messages' => Conversation::query()->unreadForAdmin()->count(),
                 'ending' => $offers['ending'],
-                'stock_alerts' => StockAlert::query()->whereNull('notified_at')->count(),
+                'stock_alerts' => StockAlert::query()->waiting()->count(),
             ],
             'recent_orders' => $this->recentOrders(),
             'low_stock' => $stock['low']->map(fn ($p) => $this->stockRow($p))->values()->all(),

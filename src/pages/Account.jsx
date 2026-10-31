@@ -313,13 +313,13 @@ function Alerts() {
   useCatalog();
   const items = alerts.map((id) => getProduct(id)).filter(Boolean);
   const remove = async (p) => { try { await toggleAlert(p.id); setToast(`Stopped watching ${p.name}`); } catch (e) { setToast(e.message); } };
-  if (!items.length) return <EmptyState compact art={<LineArt type="bag" />} status="No alerts" title="You’re not waiting on anything" text="On a sold-out product, choose “Email me when it’s back in stock” and DMD will email you once it’s available again." />;
+  if (!items.length) return <EmptyState compact art={<LineArt type="bag" />} status="No alerts" title="You’re not waiting on anything" text="On a sold-out product, choose “Notify me when it’s available” and DMD will tell you once it’s back." />;
   return (
     <ul className={s.alerts}>
       {items.map((p) => (
         <li key={p.id}>
           <Link to={`/product/${p.slug}`} className={s.oThumb}><ProductImage product={p} /></Link>
-          <span><Link to={`/product/${p.slug}`}><b>{p.name}</b></Link><small>{p.stock === 'out' ? <><BellIcon size={13} />Waiting · we’ll email you when it’s back</> : 'Back in stock now'}</small></span>
+          <span><Link to={`/product/${p.slug}`}><b>{p.name}</b></Link><small>{p.stock === 'out' ? <><BellIcon size={13} />Waiting · we’ll tell you when it’s back</> : 'Back in stock now'}</small></span>
           <button type="button" className={s.iconBtn} onClick={() => remove(p)} aria-label={`Stop watching ${p.name}`}><TrashIcon size={16} /></button>
         </li>
       ))}

@@ -1,4 +1,6 @@
-import { Link } from '../router/index.jsx';
+import { useEffect } from 'react';
+import { Link, useSearchParams } from '../router/index.jsx';
+import { recovery } from '../lib/orders.js';
 import { useStore } from '../context/StoreContext.jsx';
 import { ProductImage } from '../components/art/Media.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
@@ -6,6 +8,7 @@ import PageHero from '../components/ui/PageHero.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LineArt from '../components/art/LineArt.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
+import AddonPanel from '../components/product/AddonPanel.jsx';
 import { TrashIcon, PhoneIcon, ArrowRight } from '../components/common/icons.jsx';
 import { money, getBrand, COLORS, PRODUCTS, deliveryFee, deliveryLabel } from '../data/index.js';
 import { CONTACT } from '../data/dmdMenu.js';
@@ -57,8 +60,21 @@ export function OrderSummary({ children, showItems, quote, checking, method = 'd
 
 export default function Cart() {
   usePageMeta({ title: 'Your cart', noindex: true });
-  const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast, lineMax } = useStore();
+  const { lines, count, setQty, removeLine, clearCart, restoreCart, setToast, lineMax, addToCart } = useStore();
   const [quote, checking] = useQuote(lines);
+  // A checkout reminder's link (/cart?recover=…): the items come back into the cart (within today's stock), once.
+  const [params, setParams] = useSearchParams();
+  const recover = params.get('recover');
+  useEffect(() => {
+    if (!recover || !/^[A-Za-z0-9]{40}$/.test(recover)) return;
+    setParams({}, { replace: true });
+    recovery.open(recover).then((items) => {
+      recovery.adopt(recover);
+      const added = items.filter((i) => !lines.some((l) => l.id === i.id && (l.variant || undefined) === i.variant))
+        .filter((i) => addToCart(i.id, i.qty, i.variant ? { variant: i.variant } : undefined, { open: false })).length;
+      setToast(added ? 'Your items are back in your cart' : 'Your cart already has these items');
+    }).catch((e) => setToast(e.message));
+  }, [recover]); // eslint-disable-line react-hooks/exhaustive-deps -- once per link
   const liveOf = (l) => quote?.lines.find((q) => q.ref === lineRef(l.id, l.variant));
   const problemOf = (l) => { const q = liveOf(l); return q?.problem ? q : null; };
   const blocked = lines.some((l) => problemOf(l));
@@ -116,6 +132,7 @@ export default function Cart() {
                 })}
               </ul>
               <div className={s.foot}><Link to="/shop" className="link">← Continue shopping</Link><button type="button" onClick={clear}>Clear cart</button></div>
+              <AddonPanel products={lines.map((l) => l.product)} where="cart" title="Goes well with your order" />
             </div>
             <OrderSummary quote={quote} checking={checking}>
               {blocked && <p className={s.blocked} role="alert">Fix the highlighted items to continue.</p>}

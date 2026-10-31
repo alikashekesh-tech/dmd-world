@@ -8,20 +8,21 @@ import { ProductImage } from '../components/art/Media.jsx';
 import { Rating, Price, Stock, Compat } from '../components/common/bits.jsx';
 import { QtyStepper } from '../components/layout/CartDrawer.jsx';
 import ProductGrid from '../components/product/ProductGrid.jsx';
-import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight, BellIcon } from '../components/common/icons.jsx';
+import { HeartIcon, TruckIcon, PhoneIcon, MailIcon, CheckIcon, ArrowRight } from '../components/common/icons.jsx';
 import { getProduct, groupOf, PRODUCTS, COLORS, money, isNew, purchaseLimit, variantLimit, deliveryFee } from '../data/index.js';
 import { useCatalog } from '../data/live.js';
 import Reviews from '../components/product/Reviews.jsx';
 import RoomView from '../components/product/RoomView.jsx';
 import OptionPicker from '../components/product/OptionPicker.jsx';
-import { isVariable, findVariant, missingOptions, initialSelection, optionList, conditionOf, withVariantImage } from '../lib/variants.js';
+import NotifyMe from '../components/product/NotifyMe.jsx';
+import AddonPanel from '../components/product/AddonPanel.jsx';
+import { isVariable, findVariant, missingOptions, initialSelection, optionList, variantLabel, conditionOf, withVariantImage } from '../lib/variants.js';
 import { whatsAppUrl, productMessage, WhatsAppIcon } from '../components/layout/WhatsAppButton.jsx';
 import { CONTACT } from '../data/dmdMenu.js';
 import { catName } from '../data/dmdProducts.js';
 import { usePageMeta } from '../lib/meta.js';
 import { recentIds, rememberView } from '../lib/recent.js';
 import { laravelApi } from '../lib/laravelApi.js';
-import { SIGN_IN, authUrl } from '../lib/authRoutes.js';
 import NotFound from './NotFound.jsx';
 import s from './ProductPage.module.css';
 
@@ -38,25 +39,6 @@ function DropPrice({ p }) {
       <del><span className="sr-only">Was </span>{money(p.was)}</del>
       <em>{dealBadge(p)}</em>
     </span>
-  );
-}
-
-/** Sold out: signed-in buyers get an email when it's back; guests are asked to sign in first. */
-function NotifyMe({ p }) {
-  const { buyer, hasAlert, toggleAlert, setToast } = useStore();
-  const [busy, setBusy] = useState(false);
-  const on = hasAlert(p.id);
-  if (!buyer) return <Link to={authUrl(SIGN_IN, `/product/${p.slug}`)} className="btn btn--secondary btn--lg btn--block"><BellIcon size={17} />Sign in to get a back-in-stock email</Link>;
-  const flip = async () => {
-    setBusy(true);
-    try { const now = await toggleAlert(p.id); setToast(now ? `We’ll email you when ${p.name} is back` : 'Back-in-stock email cancelled'); }
-    catch (e) { setToast(e.message); }
-    setBusy(false);
-  };
-  return (
-    <button type="button" className={`btn btn--lg btn--block ${on ? 'btn--secondary' : 'btn--primary'}`} onClick={flip} disabled={busy} aria-pressed={on}>
-      <BellIcon size={17} />{on ? 'You’ll get an email when it’s back · Cancel' : 'Email me when it’s back in stock'}
-    </button>
   );
 }
 
@@ -87,11 +69,11 @@ export default function ProductPage() {
   const nav = useNavigate();
   const { addToCart, toggleWish, isWished, catalogVersion, roomFor } = useStore();
   const [color, setColor] = useState(p?.colors[0]);
-  const [sel, setSel] = useState(() => initialSelection(p)); // the options chosen, for a product sold in variants
+  const [params] = useSearchParams();
+  const [sel, setSel] = useState(() => initialSelection(p, params.get('variant'))); // the options chosen, for a product sold in variants
   const [tried, setTried] = useState(false); // tried to add before choosing every option: say which is missing
   const [view, setView] = useState(0);
   const [qty, setQty] = useState(1);
-  const [params] = useSearchParams();
   const wantReview = params.get('review') === '1'; // from "Review" in order history
   const [tab, setTab] = useState(wantReview ? 'reviews' : 'overview');
   const [details, setDetails] = useState(null); // description and attributes from WooCommerce, loaded per product
@@ -104,7 +86,7 @@ export default function ProductPage() {
     return () => { live = false; };
   }, [slug]);
   useEffect(() => {
-    setColor(p?.colors[0]); setSel(initialSelection(p)); setTried(false); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
+    setColor(p?.colors[0]); setSel(initialSelection(p, params.get('variant'))); setTried(false); setView(0); setQty(1); setTab(wantReview ? 'reviews' : 'overview');
     if (wantReview) setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 150); else window.scrollTo(0, 0);
     if (p) rememberView(p.id);
   }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps -- reset only when the product changes
@@ -260,7 +242,7 @@ export default function ProductPage() {
 
           {out ? (
             <div className={s.actions}>
-              <NotifyMe p={p} />
+              <NotifyMe p={p} variant={chosen} label={chosen ? variantLabel(p, chosen) : ''} />
               <button type="button" className={`${s.heart} ${wished ? s.hearted : ''}`} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><HeartIcon size={20} fill={wished ? 'currentColor' : 'none'} /></button>
             </div>
           ) : (
@@ -275,6 +257,7 @@ export default function ProductPage() {
           )}
 
           <p className={s.deliveryNote}><TruckIcon size={17} />{out ? 'Out of stock right now. Ask DMD when more is expected.' : fee == null ? 'Delivery is arranged by DMD. Cost and timing are confirmed with you after you order.' : `${fee > 0 ? `Delivery ${money(fee)}` : 'Free delivery'} anywhere in Lebanon, or pick it up from the store for free.`}</p>
+          <AddonPanel products={[p]} where={`product:${p.id}`} compact />
           <div className={s.ask}>
             <p className={s.askHud}>Ask before you buy</p>
             <p className={s.askText}>Compatibility, condition or stock: a person at DMD World will answer.</p>

@@ -57,7 +57,7 @@ final class Catalog
         return Cache::remember("catalog:{$version}", fn () => self::ttl(), function () {
             $tree = CategoryTree::load();
             $products = Product::published()
-                ->with(['images:id,product_id,url,position', 'categories:id', 'variants'])
+                ->with(['images:id,product_id,url,position', 'categories:id', 'variants', 'addons' => fn ($q) => $q->published()->select('products.id')])
                 ->withUnitsSold()
                 ->withRating()
                 ->orderByDesc('published_at')->orderByDesc('id')

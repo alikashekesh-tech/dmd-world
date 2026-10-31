@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Admin\AuthController;
 use App\Http\Controllers\Api\V1\Admin\BrandController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
+use App\Http\Controllers\Api\V1\Admin\CheckoutRecoveryController;
 use App\Http\Controllers\Api\V1\Admin\ConversationController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController;
@@ -74,7 +75,9 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::put('orders/{order}/status', [OrderController::class, 'status'])->whereNumber('order')->name('orders.status');
     Route::put('orders/{order}/payment', [OrderController::class, 'payment'])->whereNumber('order')->name('orders.payment');
     Route::put('orders/{order}/delivery', [OrderController::class, 'delivery'])->whereNumber('order')->name('orders.delivery');
-    Route::post('orders/{order}/notes', [OrderController::class, 'note'])->whereNumber('order')->name('orders.notes');
+    Route::post('orders/{order}/dispatch', [OrderController::class, 'dispatch'])->whereNumber('order')->name('orders.dispatch');
+    Route::get('checkout-recoveries', [CheckoutRecoveryController::class, 'index'])->name('checkout-recoveries.index');
+    Route::post('orders/{order}/notes',[OrderController::class, 'note'])->whereNumber('order')->name('orders.notes');
 
     // Customers: registered buyers and guests, with what they ordered.
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
@@ -96,6 +99,8 @@ Route::middleware(['auth:admin', 'auth.session'])->group(function () {
     Route::post('conversations/{conversation}/unread', [ConversationController::class, 'unread'])->whereNumber('conversation')->name('conversations.unread');
 
     Route::get('stock-alerts', [StockAlertController::class, 'index'])->name('stock-alerts.index');
+    Route::get('stock-alerts/requests', [StockAlertController::class, 'requests'])->name('stock-alerts.requests');
+    Route::post('stock-alerts/{alert}/contacted', [StockAlertController::class, 'contacted'])->whereNumber('alert')->name('stock-alerts.contacted');
 
     // Offers: discounts computed into prices (products are never edited). Coupons: codes checked at checkout.
     Route::post('offers/preview', [OfferController::class, 'preview'])->name('offers.preview');

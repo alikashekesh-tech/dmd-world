@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Back-in-stock emails normally go the moment a product returns; this retries any that failed (needs `schedule:run`).
 Schedule::command('dmd:stock-alerts')->everyTenMinutes()->withoutOverlapping();
+
+// Checkout reminders for customers who asked for one, after the delay the owner set in Settings (off by default).
+Schedule::command('dmd:checkout-reminders')->everyTenMinutes()->withoutOverlapping();

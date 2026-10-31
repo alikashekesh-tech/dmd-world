@@ -7,8 +7,8 @@ Local development only (branch `laravel-migration`). Nothing here has been pushe
 | 1 | Homepage & branding (Laptop platform, hero copy, Marvo logo, About Us, contact number, WhatsApp on product pages) | Done | `c1ddaae` |
 | 2 | Categories, single-choice filters, navigation, menu scroll lock, Electrical Appliances | Done | `e5541bf` |
 | 3 | Product variations, Buy Used, WhatsApp on product cards | Done | `bcb8ab3` |
-| 4 | Weekly Offers (homepage, admin state filter, exact offer timing), Whish Money (manual payment, admin confirmation) | Done | the Phase 4 checkpoint commit |
-| 5 | Phone numbers, back-in-stock, abandoned checkout, order notifications, add-ons, messaging | In progress | — |
+| 4 | Weekly Offers (homepage, admin state filter, exact offer timing), Whish Money (manual payment, admin confirmation) | Done | `504c6fe` |
+| 5 | Phone numbers, back-in-stock, abandoned checkout, order notifications, add-ons, messaging | Done | the Phase 5 checkpoint commit |
 | 6 | AI shopping assistant, GA4, admin analytics | Not started | — |
 | 7 | Full QA and final report | Not started | — |
 
@@ -20,3 +20,8 @@ Local development only (branch `laravel-migration`). Nothing here has been pushe
 - **Phase 3:** if the owner saved a custom top menu, Buy Used appears only once switched on in Admin › Menu.
 - **Phase 4:** the official Whish Money logo isn't in the project. Checkout shows it automatically once saved as `public/images/payments/whish-money.svg`; no stand-in logo is used. Whish has no merchant API here: payments are confirmed by hand on the order (Mark as paid). If the owner saved custom payment methods in Settings, Whish Money must be ticked there.
 - **Phase 4:** Weekly Offers shows the owner's hand-picks (Admin › Homepage), else products in a running offer (Admin › Offers), else products on their own sale. "See all" opens New Offers, which now also lists every product on offer.
+- **Phase 5, messaging provider (blocked on credentials and a business decision):** no WhatsApp/SMS provider is connected (`MESSAGING_DRIVER=none`). Every WhatsApp/SMS path is built behind `backend/app/Services/Messaging/Messenger.php` and only sends through a configured provider. Until one is chosen (e.g. WhatsApp Business Platform or an SMS gateway) and its credentials added server-side, nothing is sent by phone and nothing is reported as sent: phone back-in-stock requests wait in Admin › Follow-ups for the owner to answer with “Open WhatsApp” (a chat the owner sends), the owner’s private order number is saved but unused, and the checkout doesn't offer WhatsApp order updates. Emails work through the existing mailer.
+- **Phase 5, scheduler:** reminders and retries run from `php artisan schedule:run` (every minute by cron on the server): `dmd:stock-alerts` and the new `dmd:checkout-reminders`, every ten minutes.
+- **Phase 5, checkout reminders:** off by default (Admin › Settings › Unfinished checkouts). Only customers who tick “Email me one reminder” are saved; one reminder after the owner’s delay (default 60 minutes), never after an order from the same checkout, email or account; personal details erased after 30 days. Results in Admin › Follow-ups.
+- **Phase 5, phone numbers:** checkout and account keep the phone fields they already had (validated: +961 and international formats). New phone fields (back-in-stock, reminders, the owner's private number) are stored in international form (`+96170123456`; a number without a code is read as Lebanese). Existing order and account phones are kept as typed. The owner's private number is never shown in the shop and is separate from the public contact number.
+- **Phase 5, local database:** the three Phase 5 migrations were applied to the local development database (additive only; row counts checked before and after).

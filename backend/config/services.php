@@ -28,6 +28,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // WhatsApp/SMS texts (back in stock, cart reminders, order updates). "none": nothing is sent; a provider driver
+    // and its credentials are needed before these channels work (App\Services\Messaging\Messenger).
+    'messaging' => [
+        'driver' => env('MESSAGING_DRIVER', 'none'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

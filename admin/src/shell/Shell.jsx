@@ -19,6 +19,7 @@ export const NAV = [
     { to: '/customers', label: 'Customers', icon: 'users' },
     { to: '/messages', label: 'Messages', icon: 'chat', badge: (b) => (b.messages ? [b.messages, 'blue'] : null) },
     { to: '/reviews', label: 'Reviews', icon: 'star', badge: (b) => (b.reviews ? [b.reviews, 'amber'] : null) },
+    { to: '/follow-ups', label: 'Follow-ups', icon: 'bell' },
   ] },
   { group: 'Site', items: [
     { to: '/homepage', label: 'Homepage', icon: 'home' },

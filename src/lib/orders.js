@@ -41,15 +41,17 @@ export const orders = {
   },
   async options() {
     const { data } = await laravelApi.get('/checkout/options');
-    return { payments: data.payment_methods, coupons: data.coupons_enabled };
+    // reminders: offer "remind me if I don't finish"; phoneUpdates: offer order updates by WhatsApp (a provider is set up)
+    return { payments: data.payment_methods, coupons: data.coupons_enabled, reminders: !!data.reminders, phoneUpdates: !!data.phone_updates };
   },
   /** Places the order; a guest gets back the private token that opens it later. */
-  async place({ idempotencyKey, items, contact, method, payment, note, address, addressId, saveAddress, coupon }) {
+  async place({ idempotencyKey, items, contact, method, payment, note, address, addressId, saveAddress, coupon, recoveryToken, updatesByPhone }) {
     const body = {
       idempotency_key: idempotencyKey,
       items: items.map((l) => ({ product_id: Number(l.id), variant_id: l.variant ? Number(l.variant) : undefined, quantity: l.qty })),
       contact: { first_name: contact.firstName, last_name: contact.lastName, email: contact.email, phone: contact.phone },
       delivery_method: method, payment_method: payment, note: note || null, coupon: coupon || null,
+      recovery_token: recoveryToken || null, updates_by_phone: !!updatesByPhone,
       ...(method === 'delivery' ? (addressId ? { address_id: addressId } : { address: { street: address.address_1, building: address.address_2 || null, city: address.city, country: 'LB' }, save_address: !!saveAddress }) : {}),
     };
     const r = await laravelApi.post('/orders', body, { timeout: 45000 }).catch(rethrowFields);
@@ -61,4 +63,32 @@ export const orders = {
   },
   get: async (id, token) => orderFromApi((await laravelApi.get(`/orders/${encodeURIComponent(id)}${token ? `?token=${encodeURIComponent(token)}` : ''}`)).data),
   cancel: async (id, { token, reason } = {}) => orderFromApi((await laravelApi.post(`/orders/${encodeURIComponent(id)}/cancel`, { token: token || undefined, reason: reason || undefined })).data),
+};
+
+/* "Remind me if I don't finish": the checkout is saved on the server only while the box is ticked, under a private
+   token kept in this browser. The reminder's link (/cart?recover=…) brings the items back. */
+const RECOVERY = 'dmd:checkout-recovery';
+export const recovery = {
+  token: () => { try { return localStorage.getItem(RECOVERY) || null; } catch { return null; } },
+  forget: () => { try { localStorage.removeItem(RECOVERY); } catch { /* storage unavailable */ } },
+  /** A reminder's link opened here: ordering from this browser now closes that checkout. */
+  adopt: (token) => { try { localStorage.setItem(RECOVERY, token); } catch { /* storage unavailable */ } },
+  async save({ items, firstName, email, phone, channel = 'email' }) {
+    const { data } = await laravelApi.put('/checkout/recovery', {
+      token: recovery.token(), channel, first_name: firstName || null, email: email || null, phone: phone || null, consent: true,
+      items: items.map((l) => ({ product_id: Number(l.id), variant_id: l.variant ? Number(l.variant) : null, quantity: l.qty })),
+    });
+    try { localStorage.setItem(RECOVERY, data.token); } catch { /* storage unavailable */ }
+    return data.token;
+  },
+  async withdraw() {
+    const token = recovery.token();
+    recovery.forget();
+    if (token) await laravelApi.del(`/checkout/recovery/${encodeURIComponent(token)}`).catch(() => {});
+  },
+  /** The items of a reminder's link: [{ id, variant, qty }]. */
+  async open(token) {
+    const { data } = await laravelApi.get(`/checkout/recovery/${encodeURIComponent(token)}`);
+    return data.items.map((i) => ({ id: String(i.product_id), variant: i.variant_id ? String(i.variant_id) : undefined, qty: i.quantity }));
+  },
 };
